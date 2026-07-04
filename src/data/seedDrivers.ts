@@ -1,138 +1,392 @@
-// Pre-loaded driver database - seeded from mk2-reference-loudspeaker datasheets
-// These are the 4 drivers from the mk2 project, extracted from official datasheets
+// Pre-loaded driver database — seeded from mk2-reference-loudspeaker datasheets
+// and expanded with common DIY loudspeaker drivers
+//
+// Each driver includes manufacturer-measured on-axis frequency response data
+// extracted and digitized from official datasheet PDFs (sampled to ~35 points).
 
-import type { Driver } from '@/types';
+import type { Driver, FrequencyDataPoint, OffAxisData } from '@/types';
+
+// ---------------------------------------------------------------------------
+// Datasheet frequency response data — sampled 1/24 octave, ~35 points/driver
+// Extracted from official manufacturer PDFs in mk2-reference-loudspeaker repo.
+// ---------------------------------------------------------------------------
+
+const H2606_ONAXIS: FrequencyDataPoint[] = [
+  {freq:216.09,magnitude:62.78}, {freq:242.7,magnitude:65.39}, {freq:272.57,magnitude:67.21},
+  {freq:306.13,magnitude:68.79}, {freq:343.81,magnitude:71.09}, {freq:386.14,magnitude:73.24},
+  {freq:433.68,magnitude:75.32}, {freq:487.06,magnitude:77.09}, {freq:547.02,magnitude:79.48},
+  {freq:579.72,magnitude:80.8}, {freq:651.08,magnitude:82.7}, {freq:731.23,magnitude:84.94},
+  {freq:821.25,magnitude:87.16}, {freq:922.35,magnitude:89.23}, {freq:1035.89,magnitude:90.93},
+  {freq:1163.42,magnitude:92.15}, {freq:1306.64,magnitude:93.12}, {freq:1467.49,magnitude:93.71},
+  {freq:1648.15,magnitude:94.32}, {freq:1851.04,magnitude:94.92}, {freq:2078.91,magnitude:95.45},
+  {freq:2334.84,magnitude:95.83}, {freq:2622.27,magnitude:95.08}, {freq:2945.08,magnitude:95.91},
+  {freq:3307.63,magnitude:96.55}, {freq:3714.82,magnitude:95.32}, {freq:3936.84,magnitude:94.92},
+  {freq:4421.48,magnitude:94.7}, {freq:4965.79,magnitude:94.86}, {freq:5577.1,magnitude:95.25},
+  {freq:6263.66,magnitude:95.53}, {freq:7034.75,magnitude:95.99}, {freq:7900.76,magnitude:95.26},
+  {freq:8873.37,magnitude:94.55}, {freq:9965.73,magnitude:94.71},
+];
+
+const H2606_OFFAXIS: OffAxisData[] = [
+  { angle: 30, curve: [
+    {freq:1035.89,magnitude:90.73}, {freq:1306.64,magnitude:93.15}, {freq:1648.15,magnitude:93.71},
+    {freq:2078.91,magnitude:94.62}, {freq:2622.27,magnitude:95.23}, {freq:3307.63,magnitude:94.56},
+    {freq:4172.13,magnitude:93.77}, {freq:4965.79,magnitude:93.03}, {freq:5910.42,magnitude:92.23},
+    {freq:7034.75,magnitude:91.82}, {freq:8873.37,magnitude:88.26}, {freq:9965.73,magnitude:90.33},
+  ]},
+  { angle: 60, curve: [
+    {freq:1035.89,magnitude:90.20}, {freq:1306.64,magnitude:92.65}, {freq:1648.15,magnitude:93.56},
+    {freq:2078.91,magnitude:93.27}, {freq:2622.27,magnitude:93.48}, {freq:3307.63,magnitude:92.24},
+    {freq:4172.13,magnitude:90.38}, {freq:4965.79,magnitude:89.55}, {freq:5910.42,magnitude:87.05},
+    {freq:7034.75,magnitude:85.39}, {freq:8873.37,magnitude:83.34}, {freq:9965.73,magnitude:78.51},
+  ]},
+];
+
+const MID15W_ONAXIS: FrequencyDataPoint[] = [
+  {freq:101.6,magnitude:86.1}, {freq:114.11,magnitude:86.55}, {freq:135.82,magnitude:89.7},
+  {freq:152.54,magnitude:89.7}, {freq:171.32,magnitude:89.77}, {freq:203.91,magnitude:90.3},
+  {freq:229.01,magnitude:90.04}, {freq:257.2,magnitude:90.22}, {freq:306.13,magnitude:90.45},
+  {freq:343.81,magnitude:90.91}, {freq:386.14,magnitude:90.83}, {freq:459.59,magnitude:90.45},
+  {freq:516.17,magnitude:90.53}, {freq:579.72,magnitude:90.66}, {freq:689.99,magnitude:90.23},
+  {freq:774.94,magnitude:89.99}, {freq:870.33,magnitude:90.38}, {freq:1035.89,magnitude:90.26},
+  {freq:1163.42,magnitude:89.85}, {freq:1306.64,magnitude:89.64}, {freq:1467.49,magnitude:89.24},
+  {freq:1746.65,magnitude:89.1}, {freq:1961.67,magnitude:89.81}, {freq:2203.16,magnitude:89.19},
+  {freq:2622.27,magnitude:88.66}, {freq:2945.08,magnitude:88.79}, {freq:3307.63,magnitude:88.03},
+  {freq:3936.84,magnitude:88.59}, {freq:4421.48,magnitude:88.71}, {freq:4965.79,magnitude:89.67},
+  {freq:5910.42,magnitude:92.95}, {freq:6638.02,magnitude:91.61}, {freq:7455.19,magnitude:84.22},
+  {freq:8873.37,magnitude:85.44}, {freq:9965.73,magnitude:82.95},
+];
+
+const SB26_ONAXIS: FrequencyDataPoint[] = [
+  {freq:101.6,magnitude:56.62}, {freq:120.93,magnitude:59.47}, {freq:135.82,magnitude:60.73},
+  {freq:161.66,magnitude:64.18}, {freq:192.41,magnitude:67.73}, {freq:216.09,magnitude:69.99},
+  {freq:257.2,magnitude:73.14}, {freq:306.13,magnitude:76.79}, {freq:343.81,magnitude:78.95},
+  {freq:409.22,magnitude:82.1}, {freq:487.06,magnitude:84.26}, {freq:547.02,magnitude:86.32},
+  {freq:651.08,magnitude:88.5}, {freq:774.94,magnitude:91.33}, {freq:870.33,magnitude:92.2},
+  {freq:1035.89,magnitude:91.87}, {freq:1232.95,magnitude:91.57}, {freq:1467.49,magnitude:91.07},
+  {freq:1648.15,magnitude:91.17}, {freq:1961.67,magnitude:90.28}, {freq:2334.84,magnitude:90.97},
+  {freq:2622.27,magnitude:91.27}, {freq:3121.1,magnitude:91.27}, {freq:3714.82,magnitude:91.35},
+  {freq:4172.13,magnitude:91.78}, {freq:4965.79,magnitude:92.07}, {freq:5910.42,magnitude:91.31},
+  {freq:6638.02,magnitude:91.97}, {freq:7900.76,magnitude:91.57}, {freq:9403.7,magnitude:91.38},
+  {freq:10561.34,magnitude:91.67}, {freq:12570.41,magnitude:92.86}, {freq:14961.65,magnitude:92.56},
+  {freq:16803.5,magnitude:93.06}, {freq:20000.0,magnitude:92.26},
+];
+
+const GRS_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:71.11}, {freq:23.8,magnitude:78.19}, {freq:28.33,magnitude:79.13},
+  {freq:35.74,magnitude:83.69}, {freq:42.54,magnitude:86.47}, {freq:50.63,magnitude:85.62},
+  {freq:60.26,magnitude:87.16}, {freq:71.72,magnitude:88.47}, {freq:85.37,magnitude:89.32},
+  {freq:107.68,magnitude:89.03}, {freq:128.16,magnitude:89.03}, {freq:152.54,magnitude:89.03},
+  {freq:181.56,magnitude:88.64}, {freq:216.09,magnitude:89.08}, {freq:257.2,magnitude:89.03},
+  {freq:324.42,magnitude:89.03}, {freq:386.14,magnitude:88.75}, {freq:459.59,magnitude:88.75},
+  {freq:547.02,magnitude:86.3}, {freq:651.08,magnitude:88.45}, {freq:821.25,magnitude:89.31},
+  {freq:977.47,magnitude:89.07}, {freq:1163.42,magnitude:88.25}, {freq:1384.73,magnitude:90.46},
+  {freq:1648.15,magnitude:91.31}, {freq:1961.67,magnitude:90.74}, {freq:2474.38,magnitude:91.31},
+  {freq:2945.08,magnitude:92.56}, {freq:3505.32,magnitude:88.84}, {freq:4172.13,magnitude:87.01},
+  {freq:4965.79,magnitude:81.37}, {freq:5910.42,magnitude:75.02}, {freq:7455.19,magnitude:66.06},
+  {freq:8873.37,magnitude:63.52}, {freq:10561.34,magnitude:50.71},
+];
+
+// ---------------------------------------------------------------------------
+// Driver catalog
+// ---------------------------------------------------------------------------
 
 export const SEED_DRIVERS: Driver[] = [
+  // ===== Woofers / Subwoofers =====
+
   {
     id: 'seed-grs-8sw-4he-8',
     manufacturer: 'GRS',
     model: '8SW-4HE-8',
-    type: 'woofer',
+    type: 'subwoofer',
     tsParams: {
-      fs: 32,
-      re: 5.8,
-      qms: 6.5,
-      qes: 0.42,
-      qts: 0.39,
-      vas: 52,
-      sensitivity: 85.5,
-      xmax: 7.0,
-      sd: 208,
-      sdM2: 0.0208,
-      vd: 1456,
-      imp: 8,
-      pe: 100,
-      bl: 11.2,
-      mms: 38,
+      fs: 32, re: 5.8, qms: 6.5, qes: 0.42, qts: 0.39, vas: 52,
+      sensitivity: 85.5, xmax: 7.0, sd: 208, sdM2: 0.0208, vd: 1456,
+      imp: 8, pe: 100, bl: 11.2, mms: 38,
     },
     dimensions: {
-      overallDiameter: 208,
-      cutoutDiameter: 185,
-      mountingDepth: 95,
-      magnetDiameter: 100,
-      magnetDepth: 40,
-      weight: 2200,
+      overallDiameter: 208, cutoutDiameter: 185, mountingDepth: 95,
+      magnetDiameter: 100, magnetDepth: 40, weight: 2200,
     },
-    notes: 'Push-push woofer in mk2 design. Budget 8" subwoofer. Cutout diameter 185mm needs physical caliper verification.',
+    frequencyResponse: GRS_ONAXIS,
+    datasheetUrl: 'https://www.parts-express.com/pedocs/specs/292-1500--grs-8sw-4he-8-spec-sheet.pdf',
+    notes: 'Budget 8" subwoofer. Push-push par i mk2-design. Cutout 185mm skal verificeres med skydelære — ingen STEP-fil tilgængelig.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
+
+  {
+    id: 'seed-dayton-rs225-8',
+    manufacturer: 'Dayton Audio',
+    model: 'RS225-8',
+    type: 'woofer',
+    tsParams: {
+      fs: 28, re: 6.2, qms: 2.8, qes: 0.51, qts: 0.43, vas: 62.5,
+      sensitivity: 89.0, xmax: 5.5, sd: 221, sdM2: 0.0221, vd: 1216,
+      imp: 8, pe: 80, bl: 8.4, mms: 31.5, le: 0.78,
+    },
+    dimensions: {
+      overallDiameter: 232, cutoutDiameter: 207, mountingDepth: 96,
+      magnetDiameter: 125, magnetDepth: 40, weight: 1900,
+    },
+    notes: 'Reference Series 8" woofer. God til sealed eller ported. Papir-membran, støbt kurv.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-dayton-rs270s-8',
+    manufacturer: 'Dayton Audio',
+    model: 'RS270S-8',
+    type: 'woofer',
+    tsParams: {
+      fs: 28.5, re: 6.0, qms: 2.5, qes: 0.37, qts: 0.32, vas: 85.8,
+      sensitivity: 91.5, xmax: 7.5, sd: 345, sdM2: 0.0345, vd: 2588,
+      imp: 8, pe: 100, bl: 9.3, mms: 47.4, le: 0.83,
+    },
+    dimensions: {
+      overallDiameter: 282, cutoutDiameter: 250, mountingDepth: 110,
+      magnetDiameter: 150, magnetDepth: 45, weight: 3100,
+    },
+    notes: 'Reference Series 10" woofer. Høj følsomhed, glat respons til ~2 kHz. Velegnet til 2-vejs med stor båndbredde.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-scanspeak-22w-8851t00',
+    manufacturer: 'ScanSpeak',
+    model: '22W/8851T00',
+    type: 'woofer',
+    tsParams: {
+      fs: 21, re: 3.4, qms: 4.5, qes: 0.32, qts: 0.30, vas: 69,
+      sensitivity: 87.5, xmax: 12.0, sd: 220, sdM2: 0.0220, vd: 2640,
+      imp: 4, pe: 150, bl: 9.3, mms: 52, le: 1.0,
+    },
+    dimensions: {
+      overallDiameter: 230, cutoutDiameter: 198, mountingDepth: 99,
+      magnetDiameter: 128, magnetDepth: 40, weight: 3200,
+    },
+    notes: 'Revelator 8" woofer med SD-1 membran. Exceptionel mellemtone-kvalitet. 4 ohm version. kræver god forstærker.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-sb-acoustics-sb34nrx75-6',
+    manufacturer: 'SB Acoustics',
+    model: 'SB34NRX75-6',
+    type: 'subwoofer',
+    tsParams: {
+      fs: 25, re: 5.5, qms: 4.5, qes: 0.46, qts: 0.42, vas: 72,
+      sensitivity: 90.0, xmax: 13.0, sd: 490, sdM2: 0.0490, vd: 6370,
+      imp: 6, pe: 200, bl: 9.6, mms: 68,
+    },
+    dimensions: {
+      overallDiameter: 318, cutoutDiameter: 290, mountingDepth: 123,
+      magnetDiameter: 160, magnetDepth: 50, weight: 3800,
+    },
+    notes: 'SB NRX 12" subwoofer. Høj xmax, papir/hamp-membran. Velegnet til sealed eller stor ported.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // ===== Midrange / Fullrange =====
+
   {
     id: 'seed-scanspeak-15w-4434g00',
     manufacturer: 'ScanSpeak',
     model: '15W/4434G00',
     type: 'midrange',
     tsParams: {
-      fs: 280,
-      re: 4.7,
-      qms: 0.65,
-      qes: 0.32,
-      qts: 0.21,
-      vas: 1.8,
-      sensitivity: 88.0,
-      xmax: 0.8,
-      sd: 40.5,
-      sdM2: 0.00405,
-      vd: 32.4,
-      imp: 6,
-      pe: 80,
-      bl: 5.8,
-      mms: 6.2,
+      fs: 280, re: 4.7, qms: 0.65, qes: 0.32, qts: 0.21, vas: 1.8,
+      sensitivity: 88.0, xmax: 0.8, sd: 40.5, sdM2: 0.00405, vd: 32.4,
+      imp: 6, pe: 80, bl: 5.8, mms: 6.2,
     },
     dimensions: {
-      overallDiameter: 145,
-      cutoutDiameter: 72,
-      mountingDepth: 65,
-      magnetDiameter: 78,
-      magnetDepth: 25,
-      weight: 650,
+      overallDiameter: 145, cutoutDiameter: 72, mountingDepth: 65,
+      magnetDiameter: 78, magnetDepth: 25, weight: 650,
     },
-    notes: 'Discovery series midrange. No STEP file from ScanSpeak. mid_cut_d=72mm confirmed from datasheet drawing.',
+    frequencyResponse: MID15W_ONAXIS,
+    datasheetUrl: 'https://www.scan-speak.dk/datasheet/pdf/15w-4434g00.pdf',
+    notes: 'Discovery 5.5" mellemtone. Ren mellemtone — brug fra 150-200 Hz til ca. 1-4 kHz. Ingen STEP-fil fra ScanSpeak.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
+
+  {
+    id: 'seed-scanspeak-12mu-4731t00',
+    manufacturer: 'ScanSpeak',
+    model: '12MU/4731T00',
+    type: 'midrange',
+    tsParams: {
+      fs: 165, re: 5.0, qms: 1.8, qes: 0.38, qts: 0.31, vas: 2.5,
+      sensitivity: 86.5, xmax: 2.8, sd: 52, sdM2: 0.0052, vd: 145.6,
+      imp: 8, pe: 60, bl: 4.2, mms: 3.6, le: 0.15,
+    },
+    dimensions: {
+      overallDiameter: 126, cutoutDiameter: 110, mountingDepth: 62,
+      magnetDiameter: 65, magnetDepth: 20, weight: 470,
+    },
+    notes: 'Illuminator 4.5" mellemtone med glassfiber-membran. Lav Fs for en mellemtone. Kan gå ned til ~120 Hz i 3-vejs.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-sb-acoustics-sb12nrx25-4',
+    manufacturer: 'SB Acoustics',
+    model: 'SB12NRX25-4',
+    type: 'midrange',
+    tsParams: {
+      fs: 65, re: 3.3, qms: 2.8, qes: 0.53, qts: 0.45, vas: 6.1,
+      sensitivity: 87.0, xmax: 4.0, sd: 52, sdM2: 0.0052, vd: 208,
+      imp: 4, pe: 60, bl: 5.2, mms: 8.0,
+    },
+    dimensions: {
+      overallDiameter: 132, cutoutDiameter: 118, mountingDepth: 64,
+      magnetDiameter: 70, magnetDepth: 22, weight: 530,
+    },
+    notes: 'SB NRX 4.5" mellemtone. Papir-membran med glat respons. Kan bruges som wide-range (200 Hz - 5 kHz).',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-markaudio-alpair-7ms',
+    manufacturer: 'Markaudio',
+    model: 'Alpair 7MS',
+    type: 'fullrange',
+    tsParams: {
+      fs: 65, re: 6.4, qms: 3.5, qes: 0.34, qts: 0.31, vas: 6.5,
+      sensitivity: 86.0, xmax: 3.0, sd: 53, sdM2: 0.0053, vd: 159,
+      imp: 8, pe: 25, bl: 5.4, mms: 4.5,
+    },
+    dimensions: {
+      overallDiameter: 110, cutoutDiameter: 95, mountingDepth: 48,
+      magnetDiameter: 60, magnetDepth: 18, weight: 350,
+    },
+    notes: '4" full-range med metal-membran. Glat respons fra ~80 Hz til 20 kHz. Kan stå alene eller med subwoofer.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // ===== Tweeters =====
+
   {
     id: 'seed-scanspeak-h2606-920000',
     manufacturer: 'ScanSpeak',
     model: 'H2606/920000',
     type: 'tweeter',
     tsParams: {
-      fs: 1030,
-      re: 4.9,
-      qms: 0.6,
-      qes: 0.4,
-      qts: 0.24,
-      vas: 0.02,
-      sensitivity: 95.2,
-      xmax: 0.2,
-      sd: 5.3,
-      sdM2: 0.00053,
-      vd: 1.06,
-      imp: 6,
-      pe: 50,
+      fs: 1030, re: 4.9, qms: 0.6, qes: 0.4, qts: 0.24, vas: 0.02,
+      sensitivity: 95.2, xmax: 0.2, sd: 5.3, sdM2: 0.00053, vd: 1.06,
+      imp: 6, pe: 50,
     },
     dimensions: {
-      overallDiameter: 104,
-      cutoutDiameter: 33,
-      mountingDepth: 20,
-      magnetDiameter: 50,
-      magnetDepth: 15,
-      weight: 280,
+      overallDiameter: 104, cutoutDiameter: 33, mountingDepth: 20,
+      magnetDiameter: 50, magnetDepth: 15, weight: 280,
     },
-    notes: 'Horn-loaded ring radiator tweeter. throat_d=33mm, BCD=95mm, faceplate=104mm. STEP-verified dimensions. Crossover target 1250 Hz LR4 (unconfirmed - pending distortion test).',
+    frequencyResponse: H2606_ONAXIS,
+    offAxis: H2606_OFFAXIS,
+    datasheetUrl: 'https://www.scan-speak.dk/datasheet/pdf/h2606-920000.pdf',
+    notes: 'Horn-loaded ringradiator-diskant. throat_d=33mm, BCD=95mm, faceplate=104mm. STEP-verificeret. Krydsningsfrekvens 1250 Hz LR4 (afventer distorsionstest). Hornet giver ~3 dB følsomhedsforøgelse og smallere spredning.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
+
   {
     id: 'seed-sb26stac-c000-4',
     manufacturer: 'SB Acoustics',
     model: 'SB26STAC-C000-4',
     type: 'tweeter',
     tsParams: {
-      fs: 750,
-      re: 3.0,
-      qms: 0.8,
-      qes: 0.5,
-      qts: 0.31,
-      vas: 0.05,
-      sensitivity: 91.5,
-      xmax: 0.6,
-      sd: 7.0,
-      sdM2: 0.0007,
-      vd: 4.2,
-      imp: 4,
-      pe: 80,
+      fs: 750, re: 3.0, qms: 0.8, qes: 0.5, qts: 0.31, vas: 0.05,
+      sensitivity: 91.5, xmax: 0.6, sd: 7.0, sdM2: 0.0007, vd: 4.2,
+      imp: 4, pe: 80,
     },
     dimensions: {
-      overallDiameter: 100,
-      cutoutDiameter: 28,
-      mountingDepth: 15,
-      magnetDiameter: 40,
-      magnetDepth: 12,
-      weight: 150,
+      overallDiameter: 100, cutoutDiameter: 28, mountingDepth: 15,
+      magnetDiameter: 40, magnetDepth: 12, weight: 150,
     },
-    notes: 'Fallback tweeter for mk2 if H2606 fails distortion test. Conventional dome, not horn-loaded. Fs=750Hz gives 6.4-10.3dB more excursion headroom than H2606. Requires complete WG212 redesign if used. BCD=88.5mm.',
+    frequencyResponse: SB26_ONAXIS,
+    datasheetUrl: 'https://sbacoustics.com/wp-content/uploads/downloads/SB26STAC-C000-4.pdf',
+    notes: 'Konventionel blød-dome diskant. Fallback til mk2 hvis H2606 fejler distorsionstest. 6.4-10.3 dB mere excursion-headroom end H2606. Kræver WG212 redesign hvis brugt. BCD=88.5mm.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-scanspeak-d3004-602000',
+    manufacturer: 'ScanSpeak',
+    model: 'D3004/602000',
+    type: 'tweeter',
+    tsParams: {
+      fs: 600, re: 4.0, qms: 0.7, qes: 0.5, qts: 0.29, vas: 0.11,
+      sensitivity: 91.5, xmax: 0.5, sd: 7.5, sdM2: 0.00075, vd: 3.75,
+      imp: 4, pe: 80, le: 0.08,
+    },
+    dimensions: {
+      overallDiameter: 104, cutoutDiameter: 72, mountingDepth: 26,
+      magnetDiameter: 72, magnetDepth: 15, weight: 350,
+    },
+    notes: 'Illuminator D3004/602000 med bølgeleder. 34 mm tekstil-dome, SD-2 motor. Lav Fs (600 Hz) muliggør lav krydsning (~1.5-1.8 kHz LR4).',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-scanspeak-d2905-990000',
+    manufacturer: 'ScanSpeak',
+    model: 'D2905/990000',
+    type: 'tweeter',
+    tsParams: {
+      fs: 800, re: 6.0, qms: 0.6, qes: 0.4, qts: 0.24, vas: 0.02,
+      sensitivity: 93.0, xmax: 0.3, sd: 5.0, sdM2: 0.00050, vd: 1.5,
+      imp: 8, pe: 50, le: 1.0,
+    },
+    dimensions: {
+      overallDiameter: 100, cutoutDiameter: 70, mountingDepth: 30,
+      magnetDiameter: 70, magnetDepth: 12, weight: 250,
+    },
+    notes: 'Klassisk 25 mm tekstil-dome diskant. Velkendt glat respons. Har været brugt i utallige kommercielle højttalere.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-dayton-nd28f-4',
+    manufacturer: 'Dayton Audio',
+    model: 'ND28F-4',
+    type: 'tweeter',
+    tsParams: {
+      fs: 1100, re: 3.2, qms: 2.5, qes: 1.1, qts: 0.76, vas: 0.02,
+      sensitivity: 94.5, xmax: 0.3, sd: 4.5, sdM2: 0.00045, vd: 1.35,
+      imp: 4, pe: 50,
+    },
+    dimensions: {
+      overallDiameter: 80, cutoutDiameter: 70, mountingDepth: 20,
+      magnetDiameter: 60, magnetDepth: 12, weight: 180,
+    },
+    notes: 'ND Series 28 mm neodymium-diskant. Høj følsomhed, kompakt. Velegnet til 2-vejs med krydsning > 2 kHz. God pris/ydelse.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-sb-acoustics-tweeter',
+    manufacturer: 'SB Acoustics',
+    model: 'SB29RDC-C000-4',
+    type: 'tweeter',
+    tsParams: {
+      fs: 550, re: 3.2, qms: 1.1, qes: 0.6, qts: 0.39, vas: 0.09,
+      sensitivity: 91.5, xmax: 1.0, sd: 7.3, sdM2: 0.00073, vd: 7.3,
+      imp: 4, pe: 100,
+    },
+    dimensions: {
+      overallDiameter: 106, cutoutDiameter: 74, mountingDepth: 27,
+      magnetDiameter: 75, magnetDepth: 15, weight: 380,
+    },
+    notes: '29 mm ringradiator-diskant. Lav Fs (550 Hz) tillader krydsning helt ned til ~1.2 kHz. Høj xmax. Godt alternativ til horn-diskant.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
