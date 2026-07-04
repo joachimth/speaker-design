@@ -19,7 +19,6 @@ let pdfjsLib: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadPdfJs(): Promise<any> {
   if (pdfjsLib) return pdfjsLib;
-  // @ts-expect-error - pdfjs-dist has no type declarations in this setup
   const pdfjs = await import(/* @vite-ignore */ 'pdfjs-dist');
   // Set worker path
   const workerUrl = new URL(

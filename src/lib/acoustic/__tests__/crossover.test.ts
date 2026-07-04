@@ -4,7 +4,7 @@ import {
   applyCrossover,
   crossoverSlopeDbPerOctave,
 } from '@/lib/acoustic/crossover'
-import type { FrequencyDataPoint, CrossoverType } from '@/types'
+import type { FrequencyDataPoint } from '@/types'
 
 // Flat response curve at 90dB
 function flatCurve(freqs: number[], level: number = 90): FrequencyDataPoint[] {
