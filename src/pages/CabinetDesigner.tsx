@@ -100,7 +100,7 @@ export default function CabinetDesigner() {
 
       {/* Cabinet type selector */}
       <Card title="Kabinettype">
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {(['sealed', 'ported', 'transmission_line', 'open_baffle'] as CabinetType[]).map((type) => (
             <button
               key={type}
@@ -119,7 +119,7 @@ export default function CabinetDesigner() {
 
       {/* Cabinet dimensions */}
       <Card title="Kabinetdimensioner">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <NumberInput label="Bredde" unit="mm" value={cabinetDims.width} onChange={(v) => setCabinetDims({ ...cabinetDims, width: v })} />
           <NumberInput label="Højde" unit="mm" value={cabinetDims.height} onChange={(v) => setCabinetDims({ ...cabinetDims, height: v })} />
           <NumberInput label="Dybde" unit="mm" value={cabinetDims.depth} onChange={(v) => setCabinetDims({ ...cabinetDims, depth: v })} />
@@ -140,10 +140,10 @@ export default function CabinetDesigner() {
       {cabinetType === 'sealed' && sealedResult && (
         <Card title="Sealed alignment">
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NumberInput label="Mål Qtc" value={qtcTarget} step={0.01} min={0.5} max={1.5} onChange={setQtcTarget} />
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard label="Vb (volumen)" value={sealedResult.vb.toFixed(1)} unit="L" />
               <StatCard label="Fc (resonans)" value={sealedResult.fc.toFixed(1)} unit="Hz" />
               <StatCard label="Qtc" value={sealedResult.qtc.toFixed(3)} />
@@ -156,13 +156,13 @@ export default function CabinetDesigner() {
       {cabinetType === 'ported' && portedResult && portResult && (
         <Card title="Ported alignment">
           <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard label="Vb" value={portedResult.vb.toFixed(1)} unit="L" />
               <StatCard label="Fb (tuning)" value={portedResult.fb.toFixed(1)} unit="Hz" />
               <StatCard label="F3" value={portedResult.f3?.toFixed(1) || '—'} unit="Hz" />
               <StatCard label="Alignment" value={portedResult.alignmentType} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <NumberInput label="Port diameter" unit="mm" value={portDiameter} onChange={setPortDiameter} />
               <NumberInput label="Antal porte" value={numPorts} min={1} max={4} onChange={setNumPorts} />
               <StatCard label="Port længde" value={portResult.portLength.toFixed(0)} unit="mm" />
@@ -173,7 +173,7 @@ export default function CabinetDesigner() {
 
       {cabinetType === 'transmission_line' && tlResult && (
         <Card title="Transmission line">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Line længde" value={tlResult.lineLength} unit="mm" />
             <StatCard label="Line areal" value={tlResult.lineArea} unit="mm²" />
             <StatCard label="Taper ratio" value={`${tlResult.taperRatio}:1`} />

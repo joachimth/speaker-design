@@ -23,7 +23,7 @@ export default function ProjectOverview() {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Enheder i database" value={drivers.length} />
         <StatCard label="Woofers" value={drivers.filter((d) => d.type === 'woofer' || d.type === 'subwoofer').length} />
         <StatCard label="Midranges" value={drivers.filter((d) => d.type === 'midrange').length} />
@@ -36,7 +36,7 @@ export default function ProjectOverview() {
           {drivers.length === 0 ? (
             <p className="text-sm text-gray-500">Ingen enheder. Gå til Enheder for at uploade datablade.</p>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {woofer && (
                 <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
                   <Badge color="orange">Woofer</Badge>
@@ -79,7 +79,7 @@ export default function ProjectOverview() {
       </Card>
 
       {/* Quick links */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Card title="Næste skridt">
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">

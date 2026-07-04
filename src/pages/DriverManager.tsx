@@ -121,7 +121,7 @@ export default function DriverManager() {
               {extraction.images.length > 0 && (
                 <div>
                   <div className="text-xs font-medium text-gray-600 mb-2">Billeder fra PDF (grafer til digitalisering):</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {extraction.images.slice(0, 6).map((img, i) => (
                       <div key={i} className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                         <img src={img.dataUrl} alt={`Billede ${i + 1}`} className="w-full h-auto" />
@@ -133,7 +133,7 @@ export default function DriverManager() {
               )}
 
               {/* Driver info form */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Producent</label>
                   <input
@@ -173,7 +173,7 @@ export default function DriverManager() {
               {extraction.tsParams && Object.keys(extraction.tsParams).length > 0 && (
                 <div>
                   <div className="text-xs font-medium text-gray-600 mb-2">Udtrukne Thiele-Small parametre:</div>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {Object.entries(extraction.tsParams).map(([key, value]) => (
                       <div key={key} className="bg-gray-50 dark:bg-gray-750 rounded p-2 text-xs">
                         <div className="text-gray-500">{key}</div>
@@ -260,7 +260,7 @@ function DriverDetail({ driver, onClose }: { driver: Driver; onClose: () => void
         {ts && (
           <div>
             <h4 className="text-sm font-medium mb-2">Thiele-Small parametre</h4>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {Object.entries(ts).filter(([_, v]) => v != null).map(([key, value]) => (
                 <div key={key} className="bg-gray-50 dark:bg-gray-750 rounded p-2">
                   <div className="text-xs text-gray-500">{key}</div>
@@ -283,7 +283,7 @@ function DriverDetail({ driver, onClose }: { driver: Driver; onClose: () => void
         {driver.dimensions && (
           <div>
             <h4 className="text-sm font-medium mb-2">Dimensioner</h4>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {Object.entries(driver.dimensions).filter(([_, v]) => v != null).map(([key, value]) => (
                 <div key={key} className="bg-gray-50 dark:bg-gray-750 rounded p-2">
                   <div className="text-xs text-gray-500">{key}</div>

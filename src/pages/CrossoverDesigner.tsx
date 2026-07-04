@@ -93,7 +93,7 @@ export default function CrossoverDesigner() {
               ]}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {band.highpassFreq > 0 && (
                 <>
                   <NumberInput
@@ -130,7 +130,7 @@ export default function CrossoverDesigner() {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <NumberInput label="Gain" unit="dB" value={band.gain} step={0.5} onChange={(v) => updateBand(i, { gain: v })} />
               <Select
                 label="Polaritet"
