@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { Card, Select, NumberInput, Badge } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
-import type { CrossoverType } from '@/types'
+import type { CrossoverType, FrequencyDataPoint } from '@/types'
 
 const XOVER_TYPES: { value: CrossoverType; label: string }[] = [
   { value: 'first_order', label: '1. ordens (6 dB/okt)' },
@@ -60,11 +60,228 @@ export default function CrossoverDesigner() {
     setBands(bands.map((b, i) => (i === index ? { ...b, ...updates } : b)))
   }
 
-  // Generate preview curves (computed for future plot integration)
+  // Generate preview curves for the crossover response plot
   const freqs = generateFrequencies(20, 20000, 12)
-  void freqs // will be used for plot preview
-  void buildCrossoverFilter
-  void applyCrossover
+
+  // Compute LP and HP filter curves for each active band
+  const crossoverCurves = useMemo(() => {
+    const curves: { name: string; color: string; freq: number[]; mag: number[] }[] = []
+    const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6']
+
+    for (let i = 0; i < ways && i < bands.length; i++) {
+      const band = bands[i]
+      const driver = drivers.find((d) => d.id === band.driverId)
+      const label = `${ROLE_LABELS[band.role]}${driver ? ` (${driver.manufacturer} ${driver.model})` : ''}`
+      const color = COLORS[i % COLORS.length]
+
+      if (!driver?.frequencyResponse || driver.frequencyResponse.length === 0) {
+        // No real driver response — show just the filter curve applied to a flat 0 dB input
+        let curve: FrequencyDataPoint[] = freqs.map((f) => ({ freq: f, magnitude: 0 }))
+
+        if (band.highpassFreq > 0) {
+          const hp = buildCrossoverFilter(band.highpassType, band.highpassFreq, true)
+          curve = applyCrossover(hp, curve)
+        }
+        if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
+          const lp = buildCrossoverFilter(band.lowpassType, band.lowpassFreq, false)
+          curve = applyCrossover(lp, curve)
+        }
+        curve = curve.map((p) => ({ ...p, magnitude: p.magnitude + band.gain }))
+
+        curves.push({
+          name: `${label} (flad input)`,
+          color,
+          freq: curve.map((p) => p.freq),
+          mag: curve.map((p) => p.magnitude),
+        })
+      } else {
+        // Real driver response with crossover applied
+        let curve: FrequencyDataPoint[] = [...driver.frequencyResponse]
+
+        if (band.highpassFreq > 0) {
+          const hp = buildCrossoverFilter(band.highpassType, band.highpassFreq, true)
+          curve = applyCrossover(hp, curve)
+        }
+        if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
+          const lp = buildCrossoverFilter(band.lowpassType, band.lowpassFreq, false)
+          curve = applyCrossover(lp, curve)
+        }
+        curve = curve.map((p) => ({ ...p, magnitude: p.magnitude + band.gain }))
+
+        curves.push({
+          name: label,
+          color,
+          freq: curve.map((p) => p.freq),
+          mag: curve.map((p) => p.magnitude),
+        })
+      }
+    }
+    return curves
+  }, [bands, ways, drivers, freqs])
+
+  // Sum of all active bands = predicted system response through crossover
+  const summedResponse = useMemo(() => {
+    if (crossoverCurves.length === 0) return null
+
+    return freqs.map((f) => {
+      let sumLinear = 0
+      for (const curve of crossoverCurves) {
+        const idx = findClosestIndex(curve.freq, f)
+        const db = curve.mag[idx] ?? -100
+        sumLinear += Math.pow(10, db / 20)
+      }
+      return {
+        freq: f,
+        magnitude: 20 * Math.log10(Math.max(sumLinear, 1e-10)),
+      }
+    })
+  }, [crossoverCurves, freqs])
+
+  // ---------------------------------------------------------------------------
+// Crossover frequency response plot
+// ---------------------------------------------------------------------------
+
+interface CurveData {
+  name: string
+  color: string
+  freq: number[]
+  mag: number[]
+}
+
+function CrossoverPlot({
+  curves,
+  summedResponse,
+}: {
+  curves: CurveData[]
+  summedResponse: FrequencyDataPoint[] | null
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(800)
+
+  useEffect(() => {
+    function updateWidth() {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth)
+      }
+    }
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [])
+
+  const isMobile = containerWidth < 600
+  const width = containerWidth
+  const height = isMobile ? 300 : 400
+  const margin = { top: 12, right: isMobile ? 8 : 180, bottom: 35, left: 45 }
+  const plotW = width - margin.left - margin.right
+  const plotH = height - margin.top - margin.bottom
+
+  // Gather all Y values
+  const allY = [
+    ...curves.flatMap((c) => c.mag),
+    ...(summedResponse ? summedResponse.map((p) => p.magnitude) : []),
+  ]
+  const yMin = Math.min(...allY, -20)
+  const yMax = Math.max(...allY, 10)
+  const yRange = yMax - yMin
+
+  // X range (log 20Hz - 20kHz)
+  const xMin = Math.log10(20)
+  const xMax = Math.log10(20000)
+
+  function xToPixel(freq: number): number {
+    const x = Math.log10(Math.max(freq, 1))
+    return margin.left + ((x - xMin) / (xMax - xMin)) * plotW
+  }
+
+  function yToPixel(value: number): number {
+    return margin.top + ((yMax - value) / yRange) * plotH
+  }
+
+  const decades = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
+  const yStep = 10
+  const yMinRounded = Math.floor(yMin / yStep) * yStep
+  const ySteps: number[] = []
+  for (let y = yMinRounded; y <= yMax; y += yStep) ySteps.push(y)
+
+  return (
+    <div ref={containerRef} className="w-full">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ display: 'block' }}>
+        {/* Background */}
+        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} fill="#fafafa" stroke="#e5e7eb" />
+
+        {/* Y grid */}
+        {ySteps.map((y) => (
+          <g key={y}>
+            <line x1={margin.left} y1={yToPixel(y)} x2={margin.left + plotW} y2={yToPixel(y)} stroke="#e5e7eb" strokeWidth={0.5} />
+            <text x={margin.left - 5} y={yToPixel(y) + 3} textAnchor="end" fontSize={9} fill="#6b7280">{y}</text>
+          </g>
+        ))}
+
+        {/* X grid */}
+        {decades.map((f) => (
+          <g key={f}>
+            <line x1={xToPixel(f)} y1={margin.top} x2={xToPixel(f)} y2={margin.top + plotH} stroke="#e5e7eb" strokeWidth={0.5} />
+            <text x={xToPixel(f)} y={margin.top + plotH + 14} textAnchor="middle" fontSize={9} fill="#6b7280">
+              {f >= 1000 ? `${f / 1000}k` : f}
+            </text>
+          </g>
+        ))}
+
+        {/* Axis labels */}
+        <text x={margin.left + plotW / 2} y={height - 4} textAnchor="middle" fontSize={10} fill="#374151">Hz</text>
+        <text x={12} y={margin.top + plotH / 2} textAnchor="middle" fontSize={10} fill="#374151" transform={`rotate(-90 12 ${margin.top + plotH / 2})`}>dB</text>
+
+        {/* Summed response (behind individual curves, dashed) */}
+        {summedResponse && (
+          <polyline
+            points={summedResponse.map((p) => `${xToPixel(p.freq)},${yToPixel(p.magnitude)}`).join(' ')}
+            fill="none"
+            stroke="#6b7280"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            opacity={0.7}
+          />
+        )}
+
+        {/* Individual band curves */}
+        {curves.map((curve) => (
+          <polyline
+            key={curve.name}
+            points={curve.freq.map((f, i) => `${xToPixel(f)},${yToPixel(curve.mag[i]!)}`).join(' ')}
+            fill="none"
+            stroke={curve.color}
+            strokeWidth={1.5}
+            opacity={0.8}
+          />
+        ))}
+
+        {/* Legend */}
+        <g>
+          {[
+            ...curves.map((c) => ({ name: c.name, color: c.color, dash: false })),
+            ...(summedResponse ? [{ name: 'Sum (total)', color: '#6b7280', dash: true }] : []),
+          ].map((item, i) => (
+            <g key={item.name} transform={`translate(${margin.left + plotW + 10}, ${margin.top + i * 18 + 4})`}>
+              <line x1={0} y1={0} x2={15} y2={0} stroke={item.color} strokeWidth={2} strokeDasharray={item.dash ? '6 3' : undefined} />
+              <text x={20} y={3} fontSize={9} fill="#374151">{item.name}</text>
+            </g>
+          ))}
+        </g>
+      </svg>
+    </div>
+  )
+}
+
+function findClosestIndex(arr: number[], target: number): number {
+    let lo = 0, hi = arr.length - 1
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2)
+      if (arr[mid]! < target) lo = mid
+      else hi = mid
+    }
+    return Math.abs(arr[lo]! - target) < Math.abs(arr[hi]! - target) ? lo : hi
+  }
 
   return (
     <div className="space-y-4">
@@ -177,6 +394,21 @@ export default function CrossoverDesigner() {
           })}
         </div>
       </Card>
+
+      {/* Crossover response plot */}
+      {crossoverCurves.length > 0 && (
+        <Card title="Frekvensrespons gennem delingsfilter">
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500">
+              Viser hver enheds respons efter delingsfilter. Stiplet linje = sum af alle enheder.
+            </p>
+            <CrossoverPlot
+              curves={crossoverCurves}
+              summedResponse={summedResponse}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
