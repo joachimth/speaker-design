@@ -25,3 +25,6 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
