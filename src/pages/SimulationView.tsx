@@ -21,7 +21,7 @@ export default function SimulationView() {
     return calcBaffleStep(baffleWidth, baffleHeight, freqs)
   }, [baffleWidth, baffleHeight, freqs])
 
-  const fStep = baffleStepFrequency(baffleWidth, baffleHeight)
+  const fStep = baffleStepFrequency(baffleWidth)
 
   // Baffle step compensation curve
   const baffleComp = useMemo(() => {

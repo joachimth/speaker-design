@@ -1,13 +1,28 @@
 // Baffle step and edge diffraction
-// Ported from mk2-reference-loudspeaker simulations/baffle_step.py concept
 //
-// The baffle step occurs when the wavelength becomes smaller than the baffle
-// dimension. Below the step, sound radiates omnidirectionally (4π). Above it,
-// radiation narrows to 2π (front hemisphere only). This causes a +6dB rise
-// from low to high frequencies on a finite baffle.
+// A driver on a finite baffle transitions from 4π (omnidirectional) radiation
+// at low frequencies to 2π (half-space) radiation at high frequencies. This
+// causes an apparent ~6dB SPL increase in the on-axis response as frequency
+// rises — equivalently, a -6dB loss at low frequencies relative to the high-
+// frequency 2π reference.
 //
-// Model: Olson's spherical source diffraction model + edge diffraction
-// Reference: Olson, "Dynamical Analogies" + Backman's diffraction model
+// Model: First-order low-shelf filter.
+//   loss(f) = -6 / (1 + (f/f_step)^2)
+//
+// This gives:
+//   -6 dB at DC     (-6 dB loss = 4π radiation)
+//   -3 dB at f_step
+//    0 dB at HF      (0 dB loss = 2π, infinite-baffle reference)
+//
+// The transition has a 6 dB/octave slope (first-order characteristic).
+//
+// Baffle step frequency (rectangular baffle, standard model):
+//   f_step = c / (2 * baffle_width)
+// where the baffle width is the limiting dimension (shortest edge distance).
+//
+// Reference: Olson, "Direct Radiator Loudspeaker Enclosures" (JAES 1969);
+//            D'Appolito, "Testing Loudspeakers"; Keele, "Low-Frequency
+//            Loudspeaker Assessment."
 
 import type { BaffleStepResult } from '@/types';
 
@@ -15,63 +30,48 @@ import type { BaffleStepResult } from '@/types';
 const C = 343000;
 
 /**
- * Calculate baffle step response using the Olson model.
+ * Calculate baffle step loss using a first-order low-shelf model.
  *
- * The baffle step frequency is approximately:
- * f_step = c / (2 * baffle_width) ... where the wavelength equals the baffle width.
- * The transition is gradual, centered around f_step.
+ * The response transitions smoothly from -6dB at DC (4π radiation) to 0dB
+ * at high frequencies (2π half-space). The -3dB point is at f_step, which
+ * depends primarily on the baffle width (shortest edge).
  *
- * Model: The response transitions from -6dB (4π) to 0dB (2π) around f_step.
- * We use a first-order shelf filter approximation:
- * H(f) = 1 / sqrt(1 + (f_step / f)^(2*n))
- * where n controls the steepness (typically n=1 for a gradual transition).
- *
- * Edge diffraction ripples are added using a simplified model:
- * The path difference between direct sound and edge-diffracted sound causes
- * constructive/destructive interference at frequencies where the path
- * difference equals multiples of half-wavelengths.
+ * The baffle step affects ONLY drivers below ~2× f_step. Above that, the
+ * effect is negligible (<1dB). In practice, this primarily affects woofers
+ * and lower-midrange drivers — tweeters operate well above f_step.
  */
 export function calcBaffleStep(
   baffleWidth: number,
   baffleHeight: number,
   frequencies: number[]
 ): BaffleStepResult {
-  // Baffle step frequency (approximate): use the average dimension
-  const avgBaffle = (baffleWidth + baffleHeight) / 2;
-  const fStep = C / (2 * Math.PI * avgBaffle); // circular baffle approximation
+  // Baffle step frequency: f_step = c / (2 * width)
+  // where width is the baffle's shorter dimension (the limiting edge).
+  // This is the standard model: at this frequency, the wavelength equals
+  // twice the baffle width, marking the transition from 4π to 2π radiation.
+  // (Olson 1969, D'Appolito)
+  const fStep = C / (2 * baffleWidth);
 
-  // Main baffle step: gradual -6dB → 0dB shelf
-  // At low freq (ratio << 1): response ≈ -6dB (4π radiation)
-  // At high freq (ratio >> 1): response ≈ 0dB (2π radiation)
+  // First-order low-shelf: -6 / (1 + (f/f_step)^2)
+  // This is a proper 6dB/octave shelf with correct asymptotic behavior.
   const response = frequencies.map((f) => {
-    // Shelf filter: transitions from -6dB to 0dB
     const ratio = f / fStep;
-    // -6 * 1/(sqrt(1 + ratio^2)) gives -6dB at DC, 0dB at high freq
-    const shelfDb = -6 / Math.sqrt(1 + ratio * ratio);
-
-    // Edge diffraction ripple
-    // The first ripple peak occurs at roughly f = c / (baffle_dimension)
-    // Amplitude depends on edge sharpness (roundover radius)
-    const rippleAmp = 1.5; // dB, typical for sharp edges
-    const rippleFreq = C / baffleWidth;
-    const ripplePhase = (2 * Math.PI * f) / rippleFreq;
-
-    // Multiple edge diffraction sources (4 edges of rectangular baffle)
-    const ripple1 = rippleAmp * Math.cos(ripplePhase) * Math.exp(-f / (rippleFreq * 4));
-    const rippleFreq2 = C / baffleHeight;
-    const ripple2 = rippleAmp * Math.cos((2 * Math.PI * f) / rippleFreq2) * Math.exp(-f / (rippleFreq2 * 4));
-
-    return shelfDb + ripple1 * 0.3 + ripple2 * 0.3;
+    return -6 / (1 + ratio * ratio);
   });
 
   return { freq: frequencies, response };
 }
 
 /**
- * Calculate baffle step compensation filter.
+ * Calculate baffle step compensation (low-shelf boost).
  *
- * This is a shelving filter that boosts the low frequencies by up to 6dB
- * to compensate for the baffle step loss.
+ * This produces a +6dB boost at low frequencies, tapering to 0dB above
+ * f_step, intended to flatten the on-axis response. The compensation is
+ * a first-order low-shelf filter.
+ *
+ * In practice, apply this to woofer (and optionally mid) channels only.
+ * Applying it to a tweeter that operates well above f_step would boost
+ * frequencies where no compensation is needed.
  *
  * @param fStep - baffle step frequency [Hz]
  * @param compensationDb - amount of compensation (0 = none, 6 = full)
@@ -85,38 +85,27 @@ export function calcBaffleStepCompensation(
 ): number[] {
   return frequencies.map((f) => {
     const ratio = f / fStep;
-    // Low-shelf: full boost below fStep, tapering to 0dB above
-    const shelf = compensationDb * (1 / Math.sqrt(1 + ratio * ratio));
-    return shelf;
+    // First-order low-shelf boost: full at DC, tapering to 0 at HF
+    return compensationDb / (1 + ratio * ratio);
   });
 }
 
 /**
- * Get the baffle step frequency for a given baffle dimension.
+ * Get the baffle step frequency for a given baffle width.
+ *
+ * Uses the rectangular baffle model: f_step = c / (2 * width)
  */
-export function baffleStepFrequency(baffleWidth: number, baffleHeight: number): number {
-  const avg = (baffleWidth + baffleHeight) / 2;
-  return C / (2 * Math.PI * avg);
+export function baffleStepFrequency(baffleWidth: number): number {
+  return C / (2 * baffleWidth);
 }
 
 /**
  * Calculate the effect of front-edge roundovers on baffle diffraction.
- *
- * Larger roundover radius → smoother transition, less ripple.
- * Rule of thumb: roundover should be at least 1/4 wavelength at the
- * highest frequency of interest for the driver on the baffle.
  */
 export function roundoverEffect(
   roundoverRadius: number,
   frequencies: number[]
 ): number[] {
-  // The roundover reduces diffraction ripple above a certain frequency
-  // where the wavelength becomes comparable to the roundover radius.
   const fRoundover = C / (4 * roundoverRadius);
-
-  return frequencies.map((f) => {
-    // Damping factor: reduces ripple above fRoundover
-    const damping = 1 / (1 + (f / fRoundover) ** 2);
-    return damping;
-  });
+  return frequencies.map((f) => 1 / (1 + (f / fRoundover) ** 2));
 }
