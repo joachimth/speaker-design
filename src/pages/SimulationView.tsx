@@ -6,6 +6,9 @@ import { calcSpinorama, calcPolar } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import type { FrequencyDataPoint } from '@/types'
 
+const polarFreqs = [100, 500, 1000, 2000, 5000, 10000]
+const polarAngles = Array.from({ length: 13 }, (_, i) => -90 + i * 15) // -90 to +90, 15deg steps
+
 export default function SimulationView() {
   const { drivers } = useDriverStore()
   const [selectedDriverId, setSelectedDriverId] = useState<string>(drivers[0]?.id || '')
@@ -51,8 +54,6 @@ export default function SimulationView() {
   }, [selectedDriver, freqs, baffleWidth, baffleHeight])
 
   // Polar diagram
-  const polarFreqs = [100, 500, 1000, 2000, 5000, 10000]
-  const polarAngles = Array.from({ length: 13 }, (_, i) => -90 + i * 15) // -90 to +90, 15deg steps
   const polar = useMemo(() => {
     if (!selectedDriver) return null
     const onAxis: FrequencyDataPoint[] = freqs.map((f) => ({
@@ -424,7 +425,8 @@ function ResponsivePlot({
 
   // Grid lines
   const decades = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-  const yStep = isMobile ? 10 : 10
+  // Adaptive tick step: narrow ranges get finer ticks
+  const yStep = yMax - yMin <= 20 ? 4 : 10
   const ySteps = Array.from({ length: Math.floor((yMax - yMin) / yStep) + 1 }, (_, i) => yMin + i * yStep)
 
   // Legend: horizontal on mobile, vertical on desktop
@@ -434,29 +436,29 @@ function ResponsivePlot({
     <div ref={containerRef} className="w-full">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ display: 'block' }}>
         {/* Background */}
-        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} fill="#fafafa" stroke="#e5e7eb" />
+        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} className="fill-gray-50 stroke-gray-200 dark:fill-gray-900 dark:stroke-gray-700" />
 
         {/* Y grid + labels */}
         {ySteps.map((y) => (
           <g key={y}>
-            <line x1={margin.left} y1={yToPixel(y)} x2={margin.left + plotW} y2={yToPixel(y)} stroke="#e5e7eb" strokeWidth={0.5} />
-            <text x={margin.left - 5} y={yToPixel(y) + 3} textAnchor="end" fontSize={9} fill="#6b7280">{y}</text>
+            <line x1={margin.left} y1={yToPixel(y)} x2={margin.left + plotW} y2={yToPixel(y)} className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={0.5} />
+            <text x={margin.left - 5} y={yToPixel(y) + 3} textAnchor="end" fontSize={9} className="fill-gray-500 dark:fill-gray-400">{y}</text>
           </g>
         ))}
 
         {/* X grid + labels */}
         {decades.map((f) => (
           <g key={f}>
-            <line x1={xToPixel(f)} y1={margin.top} x2={xToPixel(f)} y2={margin.top + plotH} stroke="#e5e7eb" strokeWidth={0.5} />
-            <text x={xToPixel(f)} y={margin.top + plotH + 14} textAnchor="middle" fontSize={9} fill="#6b7280">
+            <line x1={xToPixel(f)} y1={margin.top} x2={xToPixel(f)} y2={margin.top + plotH} className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={0.5} />
+            <text x={xToPixel(f)} y={margin.top + plotH + 14} textAnchor="middle" fontSize={9} className="fill-gray-500 dark:fill-gray-400">
               {f >= 1000 ? `${f / 1000}k` : f}
             </text>
           </g>
         ))}
 
         {/* Axis labels */}
-        <text x={margin.left + plotW / 2} y={height - 4} textAnchor="middle" fontSize={10} fill="#374151">Hz</text>
-        <text x={12} y={margin.top + plotH / 2} textAnchor="middle" fontSize={10} fill="#374151" transform={`rotate(-90 12 ${margin.top + plotH / 2})`}>{yLabel}</text>
+        <text x={margin.left + plotW / 2} y={height - 4} textAnchor="middle" fontSize={10} className="fill-gray-700 dark:fill-gray-300">Hz</text>
+        <text x={12} y={margin.top + plotH / 2} textAnchor="middle" fontSize={10} className="fill-gray-700 dark:fill-gray-300" transform={`rotate(-90 12 ${margin.top + plotH / 2})`}>{yLabel}</text>
 
         {/* Curves */}
         {data.map((series) => {
@@ -485,7 +487,7 @@ function ResponsivePlot({
               return (
                 <g key={series.name} transform={`translate(${lx}, ${ly})`}>
                   <line x1={0} y1={0} x2={10} y2={0} stroke={series.color} strokeWidth={2} strokeDasharray={series.dash ? '4 3' : undefined} />
-                  <text x={13} y={3} fontSize={7} fill="#374151">{series.name.length > 14 ? series.name.slice(0, 13) + '..' : series.name}</text>
+                  <text x={13} y={3} fontSize={7} className="fill-gray-700 dark:fill-gray-300">{series.name.length > 14 ? series.name.slice(0, 13) + '..' : series.name}</text>
                 </g>
               )
             })}
@@ -495,7 +497,7 @@ function ResponsivePlot({
             {legendItems.map((series, i) => (
               <g key={series.name} transform={`translate(${margin.left + plotW + 10}, ${margin.top + i * 18 + 4})`}>
                 <line x1={0} y1={0} x2={15} y2={0} stroke={series.color} strokeWidth={2} strokeDasharray={series.dash ? '4 3' : undefined} />
-                <text x={20} y={3} fontSize={9} fill="#374151">{series.name}</text>
+                <text x={20} y={3} fontSize={9} className="fill-gray-700 dark:fill-gray-300">{series.name}</text>
               </g>
             ))}
           </g>
