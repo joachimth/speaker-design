@@ -9,7 +9,8 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  base: '/speaker-design/',
+  // GitHub Pages serves from /speaker-design/; Docker overrides with BASE_PATH=/
+  base: process.env.BASE_PATH || '/speaker-design/',
   server: {
     port: 5173,
   },
