@@ -6,69 +6,69 @@
 - [x] Repository structure
 - [x] Vite + React + TypeScript scaffold
 - [x] Tailwind CSS
-- [ ] CI/CD GitHub Pages
-- [ ] Dockerfile
+- [x] CI/CD GitHub Pages
+- [x] Dockerfile
 
 ### Types & storage
-- [ ] TypeScript type definitions (Driver, Cabinet, Project, Crossover)
-- [ ] Dexie IndexedDB setup
-- [ ] Zustand stores (driver, project)
+- [x] TypeScript type definitions (Driver, Cabinet, Project, Crossover)
+- [x] Dexie IndexedDB setup
+- [x] Zustand stores (driver, project)
 
 ### PDF datasheet extraction
-- [ ] PDF.js integration (text + image extraction)
-- [ ] T/S parameter regex parser
+- [x] PDF.js integration (text + image extraction)
+- [x] T/S parameter regex parser
 - [ ] Frequency response graph digitizer (manual + auto)
 - [ ] Impedance curve extraction
-- [ ] Driver save/load to IndexedDB
+- [x] Driver save/load to IndexedDB
 
 ### Driver database
-- [ ] Pre-load 4 drivers from mk2 repo (GRS, ScanSpeak 15W, ScanSpeak H2606, SB26)
-- [ ] Driver manager UI (list, upload, edit, delete)
-- [ ] Driver detail view (params, curves)
+- [x] Pre-load 4 drivers from mk2 repo (GRS, ScanSpeak 15W, ScanSpeak H2606, SB26)
+- [x] Driver manager UI (list, upload, edit, delete)
+- [x] Driver detail view (params, curves)
 
 ## Phase 2: Cabinet Design
 
 ### Thiele-Small calculations
-- [ ] Sealed box calculator (Vb, Fc, Qtc, F3)
-- [ ] Ported box calculator (Vb, Fb, F3, port dimensions)
-- [ ] Transmission line calculator
-- [ ] Cabinet type auto-recommendation (Qts-based)
+- [x] Sealed box calculator (Vb, Fc, Qtc, F3)
+- [x] Ported box calculator (Vb, Fb, F3, port dimensions)
+- [x] Transmission line calculator
+- [x] Cabinet type auto-recommendation (Qts-based)
 - [ ] Cabinet parameter comparison view
 
 ### Cabinet visualization
 - [ ] Parametric 3D cabinet builder (Three.js)
 - [ ] Driver placement on baffle
-- [ ] Internal volume calculation
-- [ ] Baffle dimension editor
+- [x] Internal volume calculation
+- [x] Baffle dimension editor
 - [ ] STL export
 
 ### Baffle step
-- [ ] Baffle step diffraction model
-- [ ] Baffle step compensation calculator
-- [ ] Edge diffraction simulation
+- [x] Baffle step diffraction model
+- [x] Baffle step compensation calculator
+- [x] Edge diffraction simulation
 
 ## Phase 3: Acoustic Simulation
 
 ### Frequency response
-- [ ] Individual driver response (from datasheet curve)
-- [ ] Combined system response
-- [ ] Crossover simulation (LR4, BW4, LR2, etc.)
-- [ ] Crossover designer UI (frequency, order, type per way)
+- [x] Individual driver response (from datasheet curve)
+- [x] Combined system response
+- [x] Crossover simulation (LR4, BW4, LR2, etc.)
+- [x] Crossover designer UI (frequency, order, type per way)
 
 ### Directivity
-- [ ] On-axis + off-axis response
-- [ ] Directivity index
-- [ ] Vertical lobing analysis
-- [ ] Polar diagram (horizontal + vertical)
+- [x] On-axis + off-axis response
+- [x] Directivity index
+- [x] Vertical lobing analysis
+- [x] Polar diagram (horizontal + vertical)
 - [ ] Polar map (frequency vs angle heatmap)
 
 ### Spinorama
-- [ ] On-axis
-- [ ] Listening window (±10° H, ±10° V)
-- [ ] Early reflections
-- [ ] Sound power
-- [ ] Directivity index
-- [ ] Predicted in-room response
+- [x] On-axis
+- [x] Listening window (±10° H, ±10° V)
+- [x] Early reflections
+- [x] Sound power
+- [x] Directivity index
+- [x] Predicted in-room response
 
 ### Crossover optimization
 - [ ] Auto-optimization of crossover frequency + order
@@ -100,8 +100,8 @@
 
 ## Phase 5: Polish
 
-- [ ] Responsive design (mobile + desktop)
-- [ ] Dark mode
+- [x] Responsive design (mobile + desktop)
+- [x] Dark mode
 - [ ] Unit preferences (metric/imperial)
 - [ ] Help/intro tour
 - [ ] Print-friendly views
