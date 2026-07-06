@@ -38,8 +38,8 @@ export function simulateSystem(
   // Baffle step calculation
   const baffleW = cabinet.dimensions.baffleWidth || cabinet.dimensions.width;
   const baffleH = cabinet.dimensions.baffleHeight || cabinet.dimensions.height;
-  const fStep = baffleStepFrequency(baffleW, baffleH);
-  void fStep; // used in baffle step compensation UI
+  const fStep = baffleStepFrequency(baffleW);
+  const fStep3x = fStep * 3; // frequency above which baffle step is negligible (<0.6dB)
   const baffleStep = calcBaffleStep(baffleW, baffleH, frequencies);
 
   // Process each driver through its crossover band
@@ -53,11 +53,29 @@ export function simulateSystem(
     // Get driver's on-axis response
     let curve: FrequencyDataPoint[] = [...driver.frequencyResponse];
 
-    // Apply baffle step compensation (applied to all drivers on the baffle)
-    curve = curve.map((p, i) => ({
-      freq: p.freq,
-      magnitude: p.magnitude + (baffleStep.response[i] ?? 0),
-    }));
+    // Apply baffle step loss selectively:
+    // Woofer/subwoofer — full baffle step (operates below f_step)
+    // Midrange — partial baffle step (operates across transition region)
+    // Tweeter — no baffle step (operates well above f_step)
+    const isLowDriver = driver.type === 'woofer' || driver.type === 'subwoofer';
+    const isMidDriver = driver.type === 'midrange';
+
+    if (isLowDriver || isMidDriver) {
+      // For low drivers: apply the full baffle step loss
+      // For mid drivers: apply baffle step only in the frequency range
+      // where it's significant (< 3× fStep, ~0.6dB effect)
+      curve = curve.map((p, i) => {
+        let bsFactor = baffleStep.response[i] ?? 0;
+        if (isMidDriver && p.freq > fStep3x) {
+          // Above ~3× fStep, baffle step is negligible for mid drivers
+          // Taper smoothly from full effect at fStep to zero at 3× fStep
+          const t = Math.min(1, (p.freq - fStep) / (fStep3x - fStep));
+          bsFactor *= (1 - t);
+        }
+        return { freq: p.freq, magnitude: p.magnitude + bsFactor };
+      });
+    }
+    // Tweeters and fullrange drivers — no baffle step correction
 
     // Apply lowpass filter
     if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {

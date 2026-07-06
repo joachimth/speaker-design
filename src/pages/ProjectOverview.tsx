@@ -11,7 +11,7 @@ export default function ProjectOverview() {
   const tweeter = drivers.find((d) => d.type === 'tweeter')
 
   const rec = woofer?.tsParams?.qts ? recommendCabinetType(woofer.tsParams) : null
-  const fStep = baffleStepFrequency(320, 1080)
+  const fStep = baffleStepFrequency(320)
 
   return (
     <div className="space-y-6">
