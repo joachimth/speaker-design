@@ -18,14 +18,15 @@ static files) as an alternative.
 
 ## Tech stack
 
-- **Build:** Vite + React 18 + TypeScript
-- **UI:** Tailwind CSS
-- **Charts:** Plotly.js (frequency response, spinorama, polar diagrams)
-- **3D:** Three.js via React Three Fiber (cabinet visualization, STL export)
+- **Build:** Vite + React 18 + TypeScript (Bun as package manager, `bun.lock`)
+- **UI:** Tailwind CSS (responsive, dark mode via `class` strategy)
+- **Charts:** Lightweight custom SVG charts (Plotly.js planned for advanced plots)
+- **3D:** Three.js via React Three Fiber (planned - cabinet visualization, STL export)
 - **PDF:** PDF.js (text + image extraction from datasheets)
 - **Storage:** Dexie (IndexedDB wrapper)
 - **State:** Zustand
 - **Testing:** Vitest
+- **Lint:** ESLint 9 (flat config, `eslint.config.js`)
 - **Deploy:** GitHub Actions → GitHub Pages / Docker
 
 ## Repository layout
@@ -38,15 +39,13 @@ static files) as an alternative.
 │   ├── types/                 # TypeScript type definitions
 │   ├── store/                 # Zustand state stores
 │   ├── db/                    # Dexie IndexedDB setup
+│   ├── data/                  # Seed driver database (seedDrivers.ts)
 │   ├── lib/
 │   │   ├── pdf/               # PDF extraction + T/S parsing + graph digitizer
-│   │   ├── acoustic/          # All acoustic simulation math (ported from mk2 Python)
-│   │   ├── cad/               # Parametric cabinet + waveguide geometry (Three.js)
-│   │   └── plot/              # Plotly configuration helpers
+│   │   └── acoustic/          # All acoustic simulation math (ported from mk2 Python)
 │   ├── components/            # React components (by domain)
 │   └── pages/                 # Top-level views
-├── public/
-│   └── drivers/               # Pre-loaded driver database (JSON)
+├── public/                    # Static assets (favicon)
 ├── .github/workflows/         # CI/CD
 ├── docs/                      # Architecture + math reference docs
 ├── Dockerfile                 # Docker alternative deploy
@@ -93,12 +92,12 @@ All metric: mm, L, Hz, Ω, dB, V, mm². Same convention as mk2 repo.
 
 ## Development workflow
 
-1. `npm install` - install dependencies
-2. `npm run dev` - start dev server (http://localhost:5173)
-3. `npm run build` - production build to `dist/`
-4. `npm run test` - run Vitest tests
-5. `npm run lint` - ESLint
-6. `npm run preview` - preview production build
+1. `bun install` - install dependencies (npm works too, but `bun.lock` is the lockfile)
+2. `bun run dev` - start dev server (http://localhost:5173)
+3. `bun run build` - production build to `dist/`
+4. `bun run test` - run Vitest tests
+5. `bun run lint` - ESLint
+6. `bun run preview` - preview production build
 
 ### Git conventions
 
@@ -106,15 +105,17 @@ All metric: mm, L, Hz, Ω, dB, V, mm². Same convention as mk2 repo.
 - Work on feature branches, push to `main` triggers GitHub Pages deploy
 - **Do not open a pull request unless explicitly asked.**
 
-## What does NOT exist yet
+## Current state
 
-Everything is being built from scratch. The mk2 repo provides the acoustic
-math and design knowledge, but the web application, PDF extraction, UI, and
-deployment are all new.
+Implemented: driver library (15+ seed drivers in `src/data/seedDrivers.ts`,
+seeded into IndexedDB on first load), PDF T/S extraction, sealed/ported/TL
+cabinet calculators with auto-recommendation, crossover designer with live
+response plot, baffle step, spinorama, polar diagram, vertical lobing,
+responsive layout and dark mode.
 
-Pre-loaded driver data in `public/drivers/` will be seeded from the mk2 repo's
-extracted datasheets (GRS 8SW-4HE-8, ScanSpeak 15W/4434G00, ScanSpeak
-H2606/920000, SB Acoustics SB26STAC-C000-4).
+Not yet built (see `TODO.md`): 3D cabinet visualization (Three.js), STL
+export, graph digitizer UI, polar map heatmap, crossover auto-optimization,
+waveguide designer, DSP export, project save/load.
 
 ## Domain glossary
 

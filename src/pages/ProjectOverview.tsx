@@ -40,7 +40,7 @@ export default function ProjectOverview() {
               {woofer && (
                 <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
                   <Badge color="orange">Woofer</Badge>
-                  <div className="mt-2 font-medium text-sm">{woofer.manufacturer} {woofer.model}</div>
+                  <div className="mt-2 font-medium text-sm text-gray-900 dark:text-gray-100">{woofer.manufacturer} {woofer.model}</div>
                   <div className="text-xs text-gray-500 mt-1">
                     Fs {woofer.tsParams?.fs}Hz · Qts {woofer.tsParams?.qts} · Vas {woofer.tsParams?.vas}L
                   </div>
@@ -49,7 +49,7 @@ export default function ProjectOverview() {
               {midrange && (
                 <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
                   <Badge color="green">Midrange</Badge>
-                  <div className="mt-2 font-medium text-sm">{midrange.manufacturer} {midrange.model}</div>
+                  <div className="mt-2 font-medium text-sm text-gray-900 dark:text-gray-100">{midrange.manufacturer} {midrange.model}</div>
                   <div className="text-xs text-gray-500 mt-1">
                     Fs {midrange.tsParams?.fs}Hz · Qts {midrange.tsParams?.qts}
                   </div>
@@ -58,7 +58,7 @@ export default function ProjectOverview() {
               {tweeter && (
                 <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3">
                   <Badge color="blue">Tweeter</Badge>
-                  <div className="mt-2 font-medium text-sm">{tweeter.manufacturer} {tweeter.model}</div>
+                  <div className="mt-2 font-medium text-sm text-gray-900 dark:text-gray-100">{tweeter.manufacturer} {tweeter.model}</div>
                   <div className="text-xs text-gray-500 mt-1">
                     Fs {tweeter.tsParams?.fs}Hz · Sens {tweeter.tsParams?.sensitivity}dB
                   </div>

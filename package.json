@@ -9,28 +9,21 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix"
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
   },
   "dependencies": {
-    "@react-three/drei": "^9.114.0",
-    "@react-three/fiber": "^8.17.10",
     "dexie": "^4.0.8",
     "pdfjs-dist": "^6.1.200",
-    "plotly.js-dist-min": "^2.35.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-plotly.js": "^2.6.0",
     "react-router-dom": "^6.26.2",
-    "three": "^0.169.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
-    "@types/react-plotly.js": "^2.6.3",
-    "@types/three": "^0.169.0",
     "@typescript-eslint/eslint-plugin": "^8.8.0",
     "@typescript-eslint/parser": "^8.8.0",
     "@vitejs/plugin-react": "^4.3.2",

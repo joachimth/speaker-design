@@ -13,10 +13,8 @@
 import type { ThieleSmallParams, FrequencyDataPoint, ImpedanceDataPoint } from '@/types';
 
 // PDF.js is loaded dynamically to keep initial bundle small
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pdfjsLib: any = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadPdfJs(): Promise<any> {
   if (pdfjsLib) return pdfjsLib;
   const pdfjs = await import(/* @vite-ignore */ 'pdfjs-dist');
@@ -85,7 +83,7 @@ export async function extractPdf(
               });
             }
           }
-        } catch (e) {
+        } catch {
           // Skip images that can't be extracted
         }
       }
@@ -184,7 +182,7 @@ async function getImageData(
         });
       });
     }
-  } catch (e) {
+  } catch {
     return null;
   }
   return null;

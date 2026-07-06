@@ -5,6 +5,10 @@ export default {
   theme: {
     extend: {
       colors: {
+        gray: {
+          // Between gray-700 and gray-800; used for subtle panels in dark mode
+          750: '#2b3544',
+        },
         brand: {
           50: '#fff7ed',
           100: '#ffedd5',

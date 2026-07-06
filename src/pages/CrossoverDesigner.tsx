@@ -181,7 +181,9 @@ function CrossoverPlot({
     ...curves.flatMap((c) => c.mag),
     ...(summedResponse ? summedResponse.map((p) => p.magnitude) : []),
   ]
-  const yMin = Math.min(...allY, -20)
+  // Clamp the floor at -60 dB - steep slopes roll off towards -200 dB and
+  // would otherwise squash the audible region of the plot
+  const yMin = Math.max(Math.min(...allY, -20), -60)
   const yMax = Math.max(...allY, 10)
   const yRange = yMax - yMin
 
@@ -195,7 +197,8 @@ function CrossoverPlot({
   }
 
   function yToPixel(value: number): number {
-    return margin.top + ((yMax - value) / yRange) * plotH
+    const clamped = Math.max(value, yMin)
+    return margin.top + ((yMax - clamped) / yRange) * plotH
   }
 
   const decades = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
@@ -208,36 +211,36 @@ function CrossoverPlot({
     <div ref={containerRef} className="w-full">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ display: 'block' }}>
         {/* Background */}
-        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} fill="#fafafa" stroke="#e5e7eb" />
+        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} className="fill-gray-50 stroke-gray-200 dark:fill-gray-900 dark:stroke-gray-700" />
 
         {/* Y grid */}
         {ySteps.map((y) => (
           <g key={y}>
-            <line x1={margin.left} y1={yToPixel(y)} x2={margin.left + plotW} y2={yToPixel(y)} stroke="#e5e7eb" strokeWidth={0.5} />
-            <text x={margin.left - 5} y={yToPixel(y) + 3} textAnchor="end" fontSize={9} fill="#6b7280">{y}</text>
+            <line x1={margin.left} y1={yToPixel(y)} x2={margin.left + plotW} y2={yToPixel(y)} className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={0.5} />
+            <text x={margin.left - 5} y={yToPixel(y) + 3} textAnchor="end" fontSize={9} className="fill-gray-500 dark:fill-gray-400">{y}</text>
           </g>
         ))}
 
         {/* X grid */}
         {decades.map((f) => (
           <g key={f}>
-            <line x1={xToPixel(f)} y1={margin.top} x2={xToPixel(f)} y2={margin.top + plotH} stroke="#e5e7eb" strokeWidth={0.5} />
-            <text x={xToPixel(f)} y={margin.top + plotH + 14} textAnchor="middle" fontSize={9} fill="#6b7280">
+            <line x1={xToPixel(f)} y1={margin.top} x2={xToPixel(f)} y2={margin.top + plotH} className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={0.5} />
+            <text x={xToPixel(f)} y={margin.top + plotH + 14} textAnchor="middle" fontSize={9} className="fill-gray-500 dark:fill-gray-400">
               {f >= 1000 ? `${f / 1000}k` : f}
             </text>
           </g>
         ))}
 
         {/* Axis labels */}
-        <text x={margin.left + plotW / 2} y={height - 4} textAnchor="middle" fontSize={10} fill="#374151">Hz</text>
-        <text x={12} y={margin.top + plotH / 2} textAnchor="middle" fontSize={10} fill="#374151" transform={`rotate(-90 12 ${margin.top + plotH / 2})`}>dB</text>
+        <text x={margin.left + plotW / 2} y={height - 4} textAnchor="middle" fontSize={10} className="fill-gray-700 dark:fill-gray-300">Hz</text>
+        <text x={12} y={margin.top + plotH / 2} textAnchor="middle" fontSize={10} className="fill-gray-700 dark:fill-gray-300" transform={`rotate(-90 12 ${margin.top + plotH / 2})`}>dB</text>
 
         {/* Summed response (behind individual curves, dashed) */}
         {summedResponse && (
           <polyline
             points={summedResponse.map((p) => `${xToPixel(p.freq)},${yToPixel(p.magnitude)}`).join(' ')}
             fill="none"
-            stroke="#6b7280"
+            className="stroke-gray-500 dark:stroke-gray-400"
             strokeWidth={2}
             strokeDasharray="6 3"
             opacity={0.7}
@@ -264,7 +267,7 @@ function CrossoverPlot({
           ].map((item, i) => (
             <g key={item.name} transform={`translate(${margin.left + plotW + 10}, ${margin.top + i * 18 + 4})`}>
               <line x1={0} y1={0} x2={15} y2={0} stroke={item.color} strokeWidth={2} strokeDasharray={item.dash ? '6 3' : undefined} />
-              <text x={20} y={3} fontSize={9} fill="#374151">{item.name}</text>
+              <text x={20} y={3} fontSize={9} className="fill-gray-700 dark:fill-gray-300">{item.name}</text>
             </g>
           ))}
         </g>
