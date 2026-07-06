@@ -42,7 +42,7 @@ const C = 343000;
  */
 export function calcBaffleStep(
   baffleWidth: number,
-  baffleHeight: number,
+  _baffleHeight: number, // kept for API stability; the model only depends on width
   frequencies: number[]
 ): BaffleStepResult {
   // Baffle step frequency: f_step = c / (2 * width)
