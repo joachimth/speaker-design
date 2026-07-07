@@ -4,10 +4,25 @@ import { Card, Select, StatCard } from '@/components/common/UI'
 import { calcBaffleStep, baffleStepFrequency, calcBaffleStepCompensation, roundoverEffect } from '@/lib/acoustic/baffle'
 import { calcSpinorama, calcPolar } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
+import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import type { FrequencyDataPoint } from '@/types'
 
 const polarFreqs = [100, 500, 1000, 2000, 5000, 10000]
 const polarAngles = Array.from({ length: 13 }, (_, i) => -90 + i * 15) // -90 to +90, 15deg steps
+
+// Dense grids for the 2D/3D directivity renderings
+const denseAngles = Array.from({ length: 37 }, (_, i) => -90 + i * 5) // 5deg steps
+const mapFreqs = generateFrequencies(100, 20000, 6) // ~6 points/octave
+
+// Effective piston diameter [mm] for the directivity model. Prefer Sd (the
+// actual radiating area); the overall diameter includes basket/flange and
+// overestimates beaming badly (e.g. a 28mm dome in a 100mm faceplate).
+function pistonDiameterOf(driver: { tsParams?: { sd?: number } | null; dimensions?: { overallDiameter?: number } | null } | undefined): number {
+  const sd = driver?.tsParams?.sd
+  if (sd && sd > 0) return 2 * Math.sqrt(sd / Math.PI) * 10 // cm² → mm
+  const overall = driver?.dimensions?.overallDiameter
+  return overall ? overall * 0.8 : 100
+}
 
 export default function SimulationView() {
   const { drivers } = useDriverStore()
@@ -16,7 +31,9 @@ export default function SimulationView() {
   const [baffleHeight, setBaffleHeight] = useState(1080)
   const [roundoverRadius, setRoundoverRadius] = useState(40)
 
-  const selectedDriver = drivers.find((d) => d.id === selectedDriverId)
+  // Fall back to the first driver: the store loads async, so drivers[0] is
+  // not yet available when the initial selectedDriverId state is captured
+  const selectedDriver = drivers.find((d) => d.id === selectedDriverId) ?? drivers[0]
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
 
   // Baffle step
@@ -49,19 +66,39 @@ export default function SimulationView() {
       freq: f,
       magnitude: selectedDriver.tsParams?.sensitivity || 0,
     }))
-    const diameter = selectedDriver.dimensions?.overallDiameter || 100
+    const diameter = pistonDiameterOf(selectedDriver)
     return calcSpinorama(onAxis, diameter, baffleWidth, baffleHeight)
   }, [selectedDriver, freqs, baffleWidth, baffleHeight])
 
-  // Polar diagram
+  // Reference level for spinorama normalization (mean on-axis SPL)
+  const spinoramaRef = useMemo(() => {
+    if (!spinorama || spinorama.onAxis.length === 0) return 0
+    return spinorama.onAxis.reduce((a, b) => a + b, 0) / spinorama.onAxis.length
+  }, [spinorama])
+
+  // Polar diagram (coarse table grid)
   const polar = useMemo(() => {
     if (!selectedDriver) return null
     const onAxis: FrequencyDataPoint[] = freqs.map((f) => ({
       freq: f,
       magnitude: selectedDriver.tsParams?.sensitivity || 0,
     }))
-    const diameter = selectedDriver.dimensions?.overallDiameter || 100
+    const diameter = pistonDiameterOf(selectedDriver)
     return calcPolar(onAxis, polarAngles, diameter, polarFreqs)
+  }, [selectedDriver, freqs])
+
+  // Dense polar grids for the 2D/3D directivity renderings
+  const polarDense = useMemo(() => {
+    if (!selectedDriver) return null
+    const onAxis: FrequencyDataPoint[] = freqs.map((f) => ({
+      freq: f,
+      magnitude: selectedDriver.tsParams?.sensitivity || 0,
+    }))
+    const diameter = pistonDiameterOf(selectedDriver)
+    return {
+      curves: calcPolar(onAxis, denseAngles, diameter, polarFreqs),
+      map: calcPolar(onAxis, denseAngles, diameter, mapFreqs),
+    }
   }, [selectedDriver, freqs])
 
   return (
@@ -73,7 +110,7 @@ export default function SimulationView() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Select
             label="Enhed"
-            value={selectedDriverId}
+            value={selectedDriver?.id || ''}
             onChange={setSelectedDriverId}
             options={drivers.map((d) => ({
               value: d.id,
@@ -150,35 +187,82 @@ export default function SimulationView() {
       {/* Spinorama */}
       {spinorama && (
         <Card title="Spinorama (CEA-2034)">
-          <ResponsivePlot
-            data={[
-              { x: spinorama.freq, y: spinorama.onAxis, name: 'On-Axis', color: '#f97316' },
-              { x: spinorama.freq, y: spinorama.listeningWindow, name: 'Listening Window', color: '#3b82f6' },
-              { x: spinorama.freq, y: spinorama.earlyReflections, name: 'Early Reflections', color: '#10b981' },
-              { x: spinorama.freq, y: spinorama.soundPower, name: 'Sound Power', color: '#8b5cf6' },
-              { x: spinorama.freq, y: spinorama.directivityIndex, name: 'Directivity Index', color: '#ef4444' },
-              { x: spinorama.freq, y: spinorama.predictedInRoom, name: 'Predicted In-Room', color: '#6b7280' },
-            ]}
-            yRange={[-20, 10]}
-            yLabel="dB"
-          />
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Kurverne er normaliseret til on-axis-niveauet (0 dB) og vist ned til -40 dB,
+              som det er standard for spinorama-visning. Directivity Index er begrænset til +30 dB
+              (det ideelle piston-models nuller giver ekstreme værdier, som virkelige enheder ikke har).
+            </p>
+            <ResponsivePlot
+              data={[
+                { x: spinorama.freq, y: normalize(spinorama.onAxis, spinoramaRef), name: 'On-Axis', color: '#f97316' },
+                { x: spinorama.freq, y: normalize(spinorama.listeningWindow, spinoramaRef), name: 'Listening Window', color: '#3b82f6' },
+                { x: spinorama.freq, y: normalize(spinorama.earlyReflections, spinoramaRef), name: 'Early Reflections', color: '#10b981' },
+                { x: spinorama.freq, y: normalize(spinorama.soundPower, spinoramaRef), name: 'Sound Power', color: '#8b5cf6' },
+                { x: spinorama.freq, y: spinorama.directivityIndex.map((v) => Math.min(v, 30)), name: 'Directivity Index', color: '#ef4444' },
+                { x: spinorama.freq, y: normalize(spinorama.predictedInRoom, spinoramaRef), name: 'Predicted In-Room', color: '#6b7280' },
+              ]}
+              yRange={[-20, 10]}
+              yLabel="dB (rel. on-axis)"
+            />
+          </div>
         </Card>
       )}
 
       {/* Polar diagram */}
-      {polar && (
+      {polarDense && polar && (
         <Card title="Polardiagram">
           <div className="space-y-3">
             <p className="text-sm text-gray-500">
-              Polardiagram viser off-axis respons ved udvalgte frekvenser.
-              Omnidirektionelt ved lave frekvenser, mere retningsbestemt ved hoeje.
+              Off-axis respons ved udvalgte frekvenser, normaliseret til on-axis (0 dB).
+              Omnidirektionelt ved lave frekvenser, mere retningsbestemt ved høje.
             </p>
-            <PolarHeatmap polar={polar} />
+            <PolarDiagram polar={polarDense.curves} />
+            <details className="text-sm">
+              <summary className="cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                Vis som tabel
+              </summary>
+              <div className="mt-2">
+                <PolarHeatmap polar={polar} />
+              </div>
+            </details>
+          </div>
+        </Card>
+      )}
+
+      {/* Directivity map (2D) */}
+      {polarDense && (
+        <Card title="Directivity map (2D)">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Frekvens × vinkel med farve som niveau relativt til on-axis.
+              Indsnævringen mod høje frekvenser viser hvor enheden begynder at beame.
+            </p>
+            <DirectivityMap polar={polarDense.map} />
+          </div>
+        </Card>
+      )}
+
+      {/* Directivity surface (3D) */}
+      {polarDense && (
+        <Card title="Directivity (3D)">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Samme data som isometrisk flade - højden er niveauet relativt til on-axis.
+            </p>
+            <DirectivitySurface polar={polarDense.map} />
           </div>
         </Card>
       )}
     </div>
   )
+}
+
+// Shift a curve by a reference level and clamp the display floor at -40 dB.
+// The ideal-piston model has infinitely deep nulls that real drivers never
+// show; without the floor they would dominate the plot's scale.
+function normalize(values: number[], ref: number): number[] {
+  return values.map((v) => Math.max(v - ref, -40))
 }
 
 // ---------------------------------------------------------------------------
@@ -405,10 +489,18 @@ function ResponsivePlot({
   const plotW = width - margin.left - margin.right
   const plotH = height - margin.top - margin.bottom
 
-  // Y range
-  const allY = data.flatMap((d) => d.y)
-  const yMin = yRange?.[0] ?? Math.min(...allY, 0)
-  const yMax = yRange?.[1] ?? Math.max(...allY, 10)
+  // Y range: yRange is a minimum window - always expand to fit the data so
+  // no curve is ever clipped out of view
+  const allY = data.flatMap((d) => d.y).filter((v) => Number.isFinite(v))
+  const dataMin = allY.length ? Math.min(...allY) : 0
+  const dataMax = allY.length ? Math.max(...allY) : 10
+  const rawMin = yRange ? Math.min(yRange[0], dataMin) : Math.min(dataMin, 0)
+  const rawMax = yRange ? Math.max(yRange[1], dataMax) : Math.max(dataMax, 10)
+  // Nice tick step targeting ~6-8 ticks, then round the range out to it
+  const span = Math.max(rawMax - rawMin, 1)
+  const yStep = [1, 2, 5, 10, 20, 50, 100].find((s) => span / s <= 8) ?? 100
+  const yMin = Math.floor(rawMin / yStep) * yStep
+  const yMax = Math.ceil(rawMax / yStep) * yStep
 
   // X range (log scale 20Hz - 20kHz)
   const xMin = Math.log10(20)
@@ -425,9 +517,7 @@ function ResponsivePlot({
 
   // Grid lines
   const decades = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-  // Adaptive tick step: narrow ranges get finer ticks
-  const yStep = yMax - yMin <= 20 ? 4 : 10
-  const ySteps = Array.from({ length: Math.floor((yMax - yMin) / yStep) + 1 }, (_, i) => yMin + i * yStep)
+  const ySteps = Array.from({ length: Math.round((yMax - yMin) / yStep) + 1 }, (_, i) => yMin + i * yStep)
 
   // Legend: horizontal on mobile, vertical on desktop
   const legendItems = isMobile ? data : data

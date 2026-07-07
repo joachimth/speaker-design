@@ -110,11 +110,11 @@ All metric: mm, L, Hz, Ω, dB, V, mm². Same convention as mk2 repo.
 Implemented: driver library (15+ seed drivers in `src/data/seedDrivers.ts`,
 seeded into IndexedDB on first load), PDF T/S extraction, sealed/ported/TL
 cabinet calculators with auto-recommendation, crossover designer with live
-response plot, baffle step, spinorama, polar diagram, vertical lobing,
+response plot, baffle step, spinorama (normalized), polar diagram, directivity map (2D + 3D isometric), vertical lobing,
 responsive layout and dark mode.
 
 Not yet built (see `TODO.md`): 3D cabinet visualization (Three.js), STL
-export, graph digitizer UI, polar map heatmap, crossover auto-optimization,
+export, graph digitizer UI, crossover auto-optimization,
 waveguide designer, DSP export, project save/load.
 
 ## Domain glossary

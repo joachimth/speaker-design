@@ -28,7 +28,9 @@ export default function CabinetDesigner() {
     frontRoundoverRadius: 40,
   })
 
-  const selectedDriver = drivers.find((d) => d.id === selectedDriverId)
+  // Fall back to the first driver: the store loads async, so drivers[0] is
+  // not yet available when the initial selectedDriverId state is captured
+  const selectedDriver = drivers.find((d) => d.id === selectedDriverId) ?? drivers[0]
 
   const recommendation = useMemo(() => {
     if (!selectedDriver?.tsParams?.qts) return null
@@ -71,7 +73,7 @@ export default function CabinetDesigner() {
       {/* Driver selection */}
       <Card title="Vælg enhed">
         <Select
-          value={selectedDriverId}
+          value={selectedDriver?.id || ''}
           onChange={setSelectedDriverId}
           options={drivers.map((d) => ({
             value: d.id,

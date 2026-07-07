@@ -60,7 +60,7 @@
 - [x] Directivity index
 - [x] Vertical lobing analysis
 - [x] Polar diagram (horizontal + vertical)
-- [ ] Polar map (frequency vs angle heatmap)
+- [x] Polar map (frequency vs angle heatmap)
 
 ### Spinorama
 - [x] On-axis
