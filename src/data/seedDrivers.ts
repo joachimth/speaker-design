@@ -86,6 +86,49 @@ const GRS_ONAXIS: FrequencyDataPoint[] = [
   {freq:8873.37,magnitude:63.52}, {freq:10561.34,magnitude:50.71},
 ];
 
+// 18W/4424G00 frequency response (extracted from official ScanSpeak PDF raster plot)
+// Midwoofer — 18 cm Discovery series, 4 Ω, 91 dB. Replaces 15W/4434G00 in Mk3 v9.
+// Full on-axis curve digitized at 300 DPI from the datasheet SPL graph.
+// 30°/60° off-axis valid from ~150 Hz upward (cone directivity narrows above 2 kHz).
+const MID18W_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.00,magnitude:74.8}, {freq:24.51,magnitude:79.1}, {freq:30.03,magnitude:79.1},
+  {freq:36.79,magnitude:83.0}, {freq:45.08,magnitude:84.7}, {freq:55.23,magnitude:87.3},
+  {freq:67.68,magnitude:88.5}, {freq:82.92,magnitude:90.5}, {freq:101.60,magnitude:91.2},
+  {freq:124.49,magnitude:92.5}, {freq:152.54,magnitude:92.8}, {freq:186.90,magnitude:92.8},
+  {freq:229.01,magnitude:92.2}, {freq:280.60,magnitude:92.5}, {freq:343.81,magnitude:93.0},
+  {freq:421.27,magnitude:92.3}, {freq:516.17,magnitude:92.2}, {freq:632.46,magnitude:92.2},
+  {freq:774.94,magnitude:92.2}, {freq:949.51,magnitude:92.5}, {freq:1163.42,magnitude:92.9},
+  {freq:1425.51,magnitude:94.1}, {freq:1746.65,magnitude:94.1}, {freq:2140.14,magnitude:94.5},
+  {freq:2622.27,magnitude:93.1}, {freq:3213.01,magnitude:92.7}, {freq:3936.84,magnitude:94.3},
+  {freq:4823.73,magnitude:93.4}, {freq:5910.42,magnitude:91.5}, {freq:7241.92,magnitude:91.2},
+  {freq:8873.37,magnitude:91.0}, {freq:10872.37,magnitude:87.2}, {freq:13321.69,magnitude:74.8},
+  {freq:16322.80,magnitude:68.3}, {freq:20000.00,magnitude:70.4},
+];
+
+const MID18W_30DEG: FrequencyDataPoint[] = [
+  {freq:152.54,magnitude:92.2}, {freq:186.90,magnitude:92.2}, {freq:229.01,magnitude:92.3},
+  {freq:280.60,magnitude:92.3}, {freq:343.81,magnitude:92.6}, {freq:421.27,magnitude:91.8},
+  {freq:516.17,magnitude:91.8}, {freq:632.46,magnitude:92.0}, {freq:774.94,magnitude:91.4},
+  {freq:949.51,magnitude:91.2}, {freq:1163.42,magnitude:90.9}, {freq:1425.51,magnitude:90.3},
+  {freq:1746.65,magnitude:90.1}, {freq:2140.14,magnitude:88.8}, {freq:2622.27,magnitude:85.4},
+  {freq:3213.01,magnitude:78.4}, {freq:3936.84,magnitude:80.6}, {freq:4823.73,magnitude:79.4},
+  {freq:5910.42,magnitude:69.2}, {freq:7241.92,magnitude:64.5}, {freq:8873.37,magnitude:71.8},
+  {freq:10872.37,magnitude:70.3}, {freq:13321.69,magnitude:58.0}, {freq:16322.80,magnitude:52.2},
+  {freq:20000.00,magnitude:52.2},
+];
+
+const MID18W_60DEG: FrequencyDataPoint[] = [
+  {freq:152.54,magnitude:92.3}, {freq:186.90,magnitude:92.3}, {freq:229.01,magnitude:92.2},
+  {freq:280.60,magnitude:92.0}, {freq:343.81,magnitude:92.7}, {freq:421.27,magnitude:92.2},
+  {freq:516.17,magnitude:91.9}, {freq:632.46,magnitude:92.1}, {freq:774.94,magnitude:92.0},
+  {freq:949.51,magnitude:91.9}, {freq:1163.42,magnitude:92.0}, {freq:1425.51,magnitude:92.4},
+  {freq:1746.65,magnitude:92.8}, {freq:2140.14,magnitude:92.3}, {freq:2622.27,magnitude:90.4},
+  {freq:3213.01,magnitude:89.5}, {freq:3936.84,magnitude:88.5}, {freq:4823.73,magnitude:84.8},
+  {freq:5910.42,magnitude:83.9}, {freq:7241.92,magnitude:78.6}, {freq:8873.37,magnitude:70.3},
+  {freq:10872.37,magnitude:70.5}, {freq:13321.69,magnitude:63.5}, {freq:16322.80,magnitude:53.4},
+  {freq:20000.00,magnitude:54.0},
+];
+
 // ---------------------------------------------------------------------------
 // Driver catalog
 // ---------------------------------------------------------------------------
@@ -209,6 +252,34 @@ export const SEED_DRIVERS: Driver[] = [
     frequencyResponse: MID15W_ONAXIS,
     datasheetUrl: 'https://www.scan-speak.dk/datasheet/pdf/15w-4434g00.pdf',
     notes: 'Discovery 5.5" mellemtone. Ren mellemtone — brug fra 150-200 Hz til ca. 1-4 kHz. Ingen STEP-fil fra ScanSpeak.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // Mk3 v9 midwoofer — replaces 15W/4434G00 in the 3-way reference speaker.
+  // 18 cm Discovery series, 4 Ω, 91 dB. Exceptional flatness from 100-5000 Hz.
+  // Added July 6, 2026 — frequency response digitized from official PDF raster plot.
+  {
+    id: 'seed-scanspeak-18w-4424g00',
+    manufacturer: 'ScanSpeak',
+    model: '18W/4424G00',
+    type: 'midrange',
+    tsParams: {
+      fs: 49, re: 3.2, qms: 4.57, qes: 0.42, qts: 0.38, vas: 24.1,
+      sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 383.6,
+      imp: 4, pe: 50, bl: 5.2, mms: 16.0, le: 0.35,
+    },
+    dimensions: {
+      overallDiameter: 179, cutoutDiameter: 144, mountingDepth: 72,
+      magnetDiameter: 110, magnetDepth: 30, weight: 1200,
+    },
+    frequencyResponse: MID18W_ONAXIS,
+    offAxis: [
+      { angle: 30, curve: MID18W_30DEG },
+      { angle: 60, curve: MID18W_60DEG },
+    ],
+    datasheetUrl: 'https://www.scan-speak.dk/datasheet/pdf/18w-4424g00.pdf',
+    notes: 'Discovery 18 cm midwoofer. Mk3 v9 mellemtone — 18W/4424G00 erstatter 15W/4434G00. Fs 49 Hz, Qts 0.38, 91 dB/4Ω. 150 Hz LR4 HPF, 1100 Hz LR4 LPF. GLAT RESPONS 100-5000 Hz. 1.2 kg, papir/konisk membran.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
