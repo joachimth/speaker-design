@@ -19,14 +19,16 @@ export default function CabinetDesigner() {
   const [qtcTarget, setQtcTarget] = useState(0.707)
   const [portDiameter, setPortDiameter] = useState(60)
   const [numPorts, setNumPorts] = useState(1)
+  // Defaults = mk3 reference loudspeaker locked dimensions (commit 27850dc):
+  // W300 x D420 x H1180, 22mm plywood walls, R19 front roundover.
   const [cabinetDims, setCabinetDims] = useState({
-    width: 320,
-    height: 1080,
-    depth: 370,
+    width: 300,
+    height: 1180,
+    depth: 420,
     wallThickness: 22,
-    baffleWidth: 320,
-    baffleHeight: 1080,
-    frontRoundoverRadius: 40,
+    baffleWidth: 300,
+    baffleHeight: 1180,
+    frontRoundoverRadius: 19,
   })
 
   // Fall back to the first driver: the store loads async, so drivers[0] is
