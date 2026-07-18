@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { Card, Select, NumberInput, StatCard } from '@/components/common/UI'
+import PanelResonanceCard from '@/components/PanelResonanceCard'
 import {
   calcSealed,
   calcPorted,
@@ -137,6 +138,14 @@ export default function CabinetDesigner() {
           </div>
         </div>
       </Card>
+
+      {/* Panel resonance, material & damping trade-offs */}
+      <PanelResonanceCard
+        width={cabinetDims.width}
+        height={cabinetDims.height}
+        depth={cabinetDims.depth}
+        wallThickness={cabinetDims.wallThickness}
+      />
 
       {/* Alignment results */}
       {cabinetType === 'sealed' && sealedResult && (
