@@ -266,8 +266,8 @@ export const SEED_DRIVERS: Driver[] = [
     type: 'midrange',
     tsParams: {
       fs: 49, re: 3.2, qms: 4.57, qes: 0.42, qts: 0.38, vas: 24.1,
-      sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 383.6,
-      imp: 4, pe: 50, bl: 5.2, mms: 16.0, le: 0.35,
+      sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 38.4,
+      imp: 4, pe: 50, bl: 5.2, mms: 11.4, le: 0.36,
     },
     dimensions: {
       overallDiameter: 179, cutoutDiameter: 144, mountingDepth: 72,
