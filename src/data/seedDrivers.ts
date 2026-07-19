@@ -86,6 +86,26 @@ const GRS_ONAXIS: FrequencyDataPoint[] = [
   {freq:8873.37,magnitude:63.52}, {freq:10561.34,magnitude:50.71},
 ];
 
+// GRS 12SW-4HE frequency response — digitized from the official GRS spec-sheet
+// OmniMic plot (1/24 oct, nearfield-spliced below ~450 Hz). 12" high-excursion
+// sub, 4 Ω, 84.5 dB. Mk3 v8 bass, used 2× push-push, side-mounted. LPF ~150-200 Hz.
+// Curve is genuinely different from the 8SW (lower sensitivity plateau ~87 dB,
+// deeper reach, hard roll-off above ~2.5 kHz) — do NOT share GRS_ONAXIS.
+const GRS12SW_ONAXIS: FrequencyDataPoint[] = [
+  {freq:15.0,magnitude:69.0}, {freq:16.5,magnitude:58.5}, {freq:18.5,magnitude:70.5},
+  {freq:20.0,magnitude:74.0}, {freq:24.5,magnitude:79.2}, {freq:30.0,magnitude:82.2},
+  {freq:36.8,magnitude:84.6}, {freq:45.1,magnitude:85.9}, {freq:55.2,magnitude:87.0},
+  {freq:67.7,magnitude:87.4}, {freq:82.9,magnitude:87.4}, {freq:101.6,magnitude:87.0},
+  {freq:124.5,magnitude:86.4}, {freq:152.5,magnitude:85.6}, {freq:186.9,magnitude:84.6},
+  {freq:229.0,magnitude:83.4}, {freq:280.6,magnitude:82.2}, {freq:343.8,magnitude:81.3},
+  {freq:421.3,magnitude:81.6}, {freq:463.0,magnitude:79.0}, {freq:516.2,magnitude:73.4},
+  {freq:575.0,magnitude:75.0}, {freq:632.5,magnitude:76.3}, {freq:774.9,magnitude:77.8},
+  {freq:949.5,magnitude:78.0}, {freq:1163.4,magnitude:78.4}, {freq:1425.5,magnitude:79.8},
+  {freq:1700.0,magnitude:81.4}, {freq:2000.0,magnitude:79.6}, {freq:2474.4,magnitude:76.8},
+  {freq:2945.1,magnitude:68.5}, {freq:3505.3,magnitude:63.0}, {freq:4172.1,magnitude:59.4},
+  {freq:4965.8,magnitude:54.2}, {freq:5910.4,magnitude:49.0},
+];
+
 // 18W/4424G00 frequency response (extracted from official ScanSpeak PDF raster plot)
 // Midrange — 18 cm Discovery series, 4 Ω, 91 dB. Replaces 15W/4434G00 in Mk3 v9.
 // Full on-axis curve digitized at 300 DPI from the datasheet SPL graph.
@@ -152,7 +172,33 @@ export const SEED_DRIVERS: Driver[] = [
     },
     frequencyResponse: GRS_ONAXIS,
     datasheetUrl: 'https://www.parts-express.com/pedocs/specs/292-1500--grs-8sw-4he-8-spec-sheet.pdf',
-    notes: 'Budget 8" subwoofer. Push-push par i mk2-design. Cutout 185mm skal verificeres med skydelære — ingen STEP-fil tilgængelig.',
+    notes: 'Budget 8" subwoofer. Push-push par i mk2-design (historisk — erstattet af 12SW-4HE i Mk3 v8). Cutout 185mm skal verificeres med skydelære — ingen STEP-fil tilgængelig.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // Mk3 v8 bass — 2× GRS 12SW-4HE, push-push, side-mounted (DD-015).
+  // 12" high-excursion sub, 4 Ω, 84.5 dB. Fs 22 Hz, Xmax 12.5 mm (Klippel),
+  // Sd 504 cm². Sealed ~75 L/pair → Fc ~39 Hz, Qtc ~0.76 (Linkwitz Transform
+  // to Fc 28 Hz / Qtc 0.707). Push-push pair cancels reaction forces → thin
+  // side walls viable. vd field follows the catalog convention sd(cm²)·xmax(mm).
+  {
+    id: 'seed-grs-12sw-4he',
+    manufacturer: 'GRS',
+    model: '12SW-4HE',
+    type: 'subwoofer',
+    tsParams: {
+      fs: 22, re: 3.9, qms: 4.08, qes: 0.48, qts: 0.43, vas: 80.4,
+      sensitivity: 84.5, xmax: 12.5, sd: 504, sdM2: 0.0504, vd: 6300,
+      imp: 4, pe: 250, bl: 16.2, mms: 237, cms: 0.22, le: 3.5,
+    },
+    dimensions: {
+      overallDiameter: 332, cutoutDiameter: 284, mountingDepth: 136,
+      magnetDiameter: 160, magnetDepth: 75, weight: 5910,
+    },
+    frequencyResponse: GRS12SW_ONAXIS,
+    datasheetUrl: 'https://www.parts-express.com/GRS-12SW-4HE-12-Paper-Cone-Rubber-Surround-High-Excursion-Subwoofer-4-Ohm-292-824',
+    notes: 'Mk3 v8 bas — 2× i push-push, sidemonteret på 370 mm dybe sidepaneler (Ø284 udskæring, 43 mm margin). Fs 22 Hz, Xmax 12.5 mm Klippel-verificeret, Sd 504 cm², Bl 16.2 Tm, Mms 237 g. 250 W AES. Lukket ~75 L/par: Fc ~39 Hz, Qtc ~0.76 → Linkwitz Transform til 28 Hz/0.707. Kobles ved ~150-200 Hz LR4. Forstærket papmembran + gummikant. 2" (50.8 mm) 4-lags svingspole. Koblingsklods bonded mellem modstående magneter for stiv mekanisk kobling (vibrationsudligning).',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -266,7 +312,7 @@ export const SEED_DRIVERS: Driver[] = [
     type: 'midrange',
     tsParams: {
       fs: 49, re: 3.2, qms: 4.57, qes: 0.42, qts: 0.38, vas: 24.1,
-      sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 38.4,
+      sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 383.6,
       imp: 4, pe: 50, bl: 5.2, mms: 11.4, le: 0.36,
     },
     dimensions: {
