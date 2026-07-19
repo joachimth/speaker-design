@@ -87,7 +87,7 @@ const GRS_ONAXIS: FrequencyDataPoint[] = [
 ];
 
 // 18W/4424G00 frequency response (extracted from official ScanSpeak PDF raster plot)
-// Midwoofer — 18 cm Discovery series, 4 Ω, 91 dB. Replaces 15W/4434G00 in Mk3 v9.
+// Midrange — 18 cm Discovery series, 4 Ω, 91 dB. Replaces 15W/4434G00 in Mk3 v9.
 // Full on-axis curve digitized at 300 DPI from the datasheet SPL graph.
 // 30°/60° off-axis valid from ~150 Hz upward (cone directivity narrows above 2 kHz).
 const MID18W_ONAXIS: FrequencyDataPoint[] = [
@@ -256,7 +256,7 @@ export const SEED_DRIVERS: Driver[] = [
     updatedAt: Date.now(),
   },
 
-  // Mk3 v9 midwoofer — replaces 15W/4434G00 in the 3-way reference speaker.
+  // Mk3 v9 midrange — replaces 15W/4434G00 in the 3-way reference speaker.
   // 18 cm Discovery series, 4 Ω, 91 dB. Exceptional flatness from 100-5000 Hz.
   // Added July 6, 2026 — frequency response digitized from official PDF raster plot.
   {
@@ -279,7 +279,7 @@ export const SEED_DRIVERS: Driver[] = [
       { angle: 60, curve: MID18W_60DEG },
     ],
     datasheetUrl: 'https://www.scan-speak.dk/datasheet/pdf/18w-4424g00.pdf',
-    notes: 'Discovery 18 cm midwoofer. Mk3 v9 mellemtone — 18W/4424G00 erstatter 15W/4434G00. Fs 49 Hz, Qts 0.38, 91 dB/4Ω. 150 Hz LR4 HPF, 1100 Hz LR4 LPF. GLAT RESPONS 100-5000 Hz. 1.2 kg, papir/konisk membran.',
+    notes: 'Discovery 18 cm mellemtone. Mk3 v9 — 18W/4424G00 erstatter 15W/4434G00. Fs 49 Hz, Qts 0.38, 91 dB/4Ω. 150 Hz LR4 HPF, 1100 Hz LR4 LPF. GLAT RESPONS 100-5000 Hz. 1.2 kg, coated glasfibermembran, SBR-gummikant.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
