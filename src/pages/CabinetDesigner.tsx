@@ -3,6 +3,7 @@ import { useDriverStore } from '@/store/driverStore'
 import { Card, Select, NumberInput, StatCard } from '@/components/common/UI'
 import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
+import BreakInCard from '@/components/BreakInCard'
 import {
   calcSealed,
   calcPorted,
@@ -16,6 +17,7 @@ import type { CabinetType } from '@/types'
 export default function CabinetDesigner() {
   const { drivers, updateDriver } = useDriverStore()
   const [selectedDriverId, setSelectedDriverId] = useState<string>(drivers[0]?.id || '')
+  const [activeParameterSet, setActiveParameterSet] = useState<string>('Datablad')
   const [cabinetType, setCabinetType] = useState<CabinetType>('sealed')
   const [qtcTarget, setQtcTarget] = useState(0.707)
   const [portDiameter, setPortDiameter] = useState(60)
@@ -90,7 +92,8 @@ export default function CabinetDesigner() {
           <div className="mt-3">
             <ParameterSetSelector
               driver={selectedDriver}
-              onSelect={(params, _name) => {
+              onSelect={(params, name) => {
+                setActiveParameterSet(name)
                 updateDriver({ ...selectedDriver, tsParams: params, updatedAt: Date.now() })
               }}
             />
@@ -115,6 +118,14 @@ export default function CabinetDesigner() {
           </div>
         )}
       </Card>
+
+      {/* Break-in tracker — only shows for tracked mk3 drivers */}
+      {selectedDriver && (
+        <BreakInCard
+          driverId={selectedDriver.id}
+          activeParameterSet={activeParameterSet}
+        />
+      )}
 
       {/* Cabinet type selector */}
       <Card title="Kabinettype">
