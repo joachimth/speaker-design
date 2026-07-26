@@ -3,7 +3,8 @@ import { useDriverStore } from '@/store/driverStore'
 import { Card, Button, Badge, Select } from '@/components/common/UI'
 import { extractPdf, type PdfExtractionResult } from '@/lib/pdf/extractor'
 import { recommendCabinetType } from '@/lib/acoustic/thieleSmall'
-import type { Driver, DriverType } from '@/types'
+import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
+import type { Driver, DriverType, ThieleSmallParams } from '@/types'
 
 const DRIVER_TYPE_COLORS: Record<DriverType, 'gray' | 'green' | 'blue' | 'orange' | 'red'> = {
   woofer: 'orange',
@@ -243,8 +244,17 @@ export default function DriverManager() {
 }
 
 function DriverDetail({ driver, onClose }: { driver: Driver; onClose: () => void }) {
+  const { updateDriver } = useDriverStore()
   const ts = driver.tsParams
   const rec = ts?.qts ? recommendCabinetType(ts) : null
+
+  function handleParameterSelect(params: ThieleSmallParams, _setName: string) {
+    updateDriver({
+      ...driver,
+      tsParams: params,
+      updatedAt: Date.now(),
+    })
+  }
 
   return (
     <Card
@@ -256,6 +266,9 @@ function DriverDetail({ driver, onClose }: { driver: Driver; onClose: () => void
           <Badge color={DRIVER_TYPE_COLORS[driver.type]}>{DRIVER_TYPE_LABELS[driver.type]}</Badge>
           <Button variant="ghost" size="sm" onClick={onClose}>Luk</Button>
         </div>
+
+        {/* Parameter set selector */}
+        <ParameterSetSelector driver={driver} onSelect={handleParameterSelect} />
 
         {ts && (
           <div>

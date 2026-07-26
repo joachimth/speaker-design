@@ -182,6 +182,7 @@ export const SEED_DRIVERS: Driver[] = [
   // Sd 504 cm². Sealed ~75 L/pair → Fc ~39 Hz, Qtc ~0.76 (Linkwitz Transform
   // to Fc 28 Hz / Qtc 0.707). Push-push pair cancels reaction forces → thin
   // side walls viable. vd field follows the catalog convention sd(cm²)·xmax(mm).
+  // Has DATS-measured parameter set (Jul 25, 2026) and break-in update (Jul 26).
   {
     id: 'seed-grs-12sw-4he',
     manufacturer: 'GRS',
@@ -192,13 +193,33 @@ export const SEED_DRIVERS: Driver[] = [
       sensitivity: 84.5, xmax: 12.5, sd: 504, sdM2: 0.0504, vd: 6300,
       imp: 4, pe: 250, bl: 16.2, mms: 237, cms: 0.22, le: 3.5,
     },
+    parameterSets: [
+      {
+        name: 'DATS @5h',
+        tsParams: {
+          fs: 25.07, re: 4.2, qms: 3.929, qes: 0.589, qts: 0.512, vas: 80.4,
+          sensitivity: 84.5, xmax: 12.5, sd: 504, sdM2: 0.0504, vd: 6300,
+          imp: 4, pe: 250, bl: 16.2, mms: 237, cms: 0.22, le: 3.5,
+        },
+        notes: 'DATS Jul 25. Fs=25.1 (+14%), Qts=0.51 (+19%). Suspension softer end spec.',
+      },
+      {
+        name: 'DATS @5h (break-in)',
+        tsParams: {
+          fs: 23.52, re: 4.2, qms: 3.532, qes: 0.518, qts: 0.442, vas: 80.4,
+          sensitivity: 84.5, xmax: 12.5, sd: 504, sdM2: 0.0504, vd: 6300,
+          imp: 4, pe: 250, bl: 16.2, mms: 237, cms: 0.22, le: 3.5,
+        },
+        notes: 'Jul 26 break-in update. Fs=23.5 (+6.9%), Qts=0.44 (+2.7%). Indenfor 7% af spec efter 5h.',
+      },
+    ],
     dimensions: {
       overallDiameter: 332, cutoutDiameter: 284, mountingDepth: 136,
       magnetDiameter: 160, magnetDepth: 75, weight: 5910,
     },
     frequencyResponse: GRS12SW_ONAXIS,
     datasheetUrl: 'https://www.parts-express.com/GRS-12SW-4HE-12-Paper-Cone-Rubber-Surround-High-Excursion-Subwoofer-4-Ohm-292-824',
-    notes: 'Mk3 v8 bas — 2× i push-push, sidemonteret på 370 mm dybe sidepaneler (Ø284 udskæring, 43 mm margin). Fs 22 Hz, Xmax 12.5 mm Klippel-verificeret, Sd 504 cm², Bl 16.2 Tm, Mms 237 g. 250 W AES. Lukket ~75 L/par: Fc ~39 Hz, Qtc ~0.76 → Linkwitz Transform til 28 Hz/0.707. Kobles ved ~150-200 Hz LR4. Forstærket papmembran + gummikant. 2" (50.8 mm) 4-lags svingspole. Koblingsklods bonded mellem modstående magneter for stiv mekanisk kobling (vibrationsudligning).',
+    notes: 'Mk3 v8 bas — 2× i push-push, sidemonteret på 370 mm dybe sidepaneler (Ø284 udskæring, 43 mm margin). Fs 22 Hz, Xmax 12.5 mm Klippel-verificeret, Sd 504 cm², Bl 16.2 Tm, Mms 237 g. 250 W AES. Lukket ~75 L/par: Fc ~39 Hz, Qtc ~0.76 → Linkwitz Transform til 28 Hz/0.707. Kobles ved ~150-200 Hz LR4. Forstærket papmembran + gummikant. 2" (50.8 mm) 4-lags svingspole. Koblingsklods bonded mellem modstående magneter for stiv mekanisk kobling (vibrationsudligning). Vælg parameter set for at skifte mellem datablad og DATS-målte værdier.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -305,6 +326,7 @@ export const SEED_DRIVERS: Driver[] = [
   // Mk3 v9 midrange — replaces 15W/4434G00 in the 3-way reference speaker.
   // 18 cm Discovery series, 4 Ω, 91 dB. Exceptional flatness from 100-5000 Hz.
   // Added July 6, 2026 — frequency response digitized from official PDF raster plot.
+  // Has DATS-measured parameter sets (Jul 25 + Jul 26 break-in progression).
   {
     id: 'seed-scanspeak-18w-4424g00',
     manufacturer: 'ScanSpeak',
@@ -315,6 +337,26 @@ export const SEED_DRIVERS: Driver[] = [
       sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 383.6,
       imp: 4, pe: 50, bl: 5.2, mms: 11.4, le: 0.36,
     },
+    parameterSets: [
+      {
+        name: 'DATS @0h',
+        tsParams: {
+          fs: 69.41, re: 3.117, qms: 5.518, qes: 0.671, qts: 0.598, vas: 24.1,
+          sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 383.6,
+          imp: 4, pe: 50, bl: 5.2, mms: 11.4, le: 0.299,
+        },
+        notes: 'DATS Jul 25. Fs=69.4 (+42%), Qts=0.60 (+57%). Stiv ny suspension — break-in påkrævet.',
+      },
+      {
+        name: 'DATS @5h (break-in)',
+        tsParams: {
+          fs: 64.53, re: 3.117, qms: 5.409, qes: 0.636, qts: 0.576, vas: 24.1,
+          sensitivity: 91.0, xmax: 2.8, sd: 137, sdM2: 0.0137, vd: 383.6,
+          imp: 4, pe: 50, bl: 5.2, mms: 11.4, le: 0.299,
+        },
+        notes: 'Jul 26 break-in @5h. Fs=64.5 (-7%), Qts=0.58 (-3.7%). Trend: faldende mod spec.',
+      },
+    ],
     dimensions: {
       overallDiameter: 179, cutoutDiameter: 144, mountingDepth: 72,
       magnetDiameter: 110, magnetDepth: 30, weight: 1200,
@@ -325,7 +367,7 @@ export const SEED_DRIVERS: Driver[] = [
       { angle: 60, curve: MID18W_60DEG },
     ],
     datasheetUrl: 'https://www.scan-speak.dk/datasheet/pdf/18w-4424g00.pdf',
-    notes: 'Discovery 18 cm mellemtone. Mk3 v9 — 18W/4424G00 erstatter 15W/4434G00. Fs 49 Hz, Qts 0.38, 91 dB/4Ω. 150 Hz LR4 HPF, 1100 Hz LR4 LPF. GLAT RESPONS 100-5000 Hz. 1.2 kg, coated glasfibermembran, SBR-gummikant.',
+    notes: 'Discovery 18 cm mellemtone. Mk3 v9 — 18W/4424G00 erstatter 15W/4434G00. Fs 49 Hz, Qts 0.38, 91 dB/4Ω. 150 Hz LR4 HPF, 1100 Hz LR4 LPF. GLAT RESPONS 100-5000 Hz. 1.2 kg, coated glasfibermembran, SBR-gummikant. Vælg parameter set for at skifte mellem datablad og DATS-målte værdier.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -421,6 +463,17 @@ export const SEED_DRIVERS: Driver[] = [
       sensitivity: 91.5, xmax: 0.6, sd: 7.0, sdM2: 0.0007, vd: 4.2,
       imp: 4, pe: 80,
     },
+    parameterSets: [
+      {
+        name: 'DATS (Jul 25)',
+        tsParams: {
+          fs: 658.1, re: 3.223, qms: 2.608, qes: 1.735, qts: 1.042, vas: 0.05,
+          sensitivity: 91.5, xmax: 0.6, sd: 7.0, sdM2: 0.0007, vd: 4.2,
+          imp: 4, pe: 80,
+        },
+        notes: 'Fremragende match til datablad. Fs=658 (-12%), Qts=1.04 (-7%). Alle parametre indenfor 13%. Ingen aktion nødvendig.',
+      },
+    ],
     dimensions: {
       overallDiameter: 100, cutoutDiameter: 28, mountingDepth: 15,
       magnetDiameter: 40, magnetDepth: 12, weight: 150,
@@ -507,4 +560,9 @@ export const SEED_DRIVERS: Driver[] = [
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
+
+  // ===== DATS-Measured parameter sets (Jul 25-26, 2026) =====
+  // Archived in parameterSets on the parent seed drivers above.
+  // Standalone DATS entries removed in favor of in-driver parameter set switching.
+  // See: seed-grs-12sw-4he, seed-scanspeak-18w-4424g00, seed-sb26stac-c000-4
 ];

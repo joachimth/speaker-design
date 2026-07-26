@@ -54,12 +54,21 @@ export interface OffAxisData {
   curve: FrequencyDataPoint[];
 }
 
+export interface ParameterSet {
+  name: string;
+  tsParams: ThieleSmallParams;
+  notes?: string;
+}
+
 export interface Driver {
   id: string;
   manufacturer: string;
   model: string;
   type: DriverType;
+  /** Active T/S parameters used for all simulations */
   tsParams: ThieleSmallParams;
+  /** Named alternate parameter sets (e.g. "Datasheet", "DATS @5h", "DATS @settled") */
+  parameterSets?: ParameterSet[];
   dimensions?: MechanicalDimensions;
   frequencyResponse?: FrequencyDataPoint[];
   impedance?: ImpedanceDataPoint[];

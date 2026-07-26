@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { Card, Select, NumberInput, StatCard } from '@/components/common/UI'
 import PanelResonanceCard from '@/components/PanelResonanceCard'
+import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
 import {
   calcSealed,
   calcPorted,
@@ -13,7 +14,7 @@ import {
 import type { CabinetType } from '@/types'
 
 export default function CabinetDesigner() {
-  const { drivers } = useDriverStore()
+  const { drivers, updateDriver } = useDriverStore()
   const [selectedDriverId, setSelectedDriverId] = useState<string>(drivers[0]?.id || '')
   const [cabinetType, setCabinetType] = useState<CabinetType>('sealed')
   const [qtcTarget, setQtcTarget] = useState(0.707)
@@ -83,6 +84,18 @@ export default function CabinetDesigner() {
             label: `${d.manufacturer} ${d.model} (${d.type})`,
           }))}
         />
+
+        {/* Skift mellem datablad og målte parameter sæt */}
+        {selectedDriver && (
+          <div className="mt-3">
+            <ParameterSetSelector
+              driver={selectedDriver}
+              onSelect={(params, _name) => {
+                updateDriver({ ...selectedDriver, tsParams: params, updatedAt: Date.now() })
+              }}
+            />
+          </div>
+        )}
 
         {recommendation && (
           <div className="mt-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-md p-3">
