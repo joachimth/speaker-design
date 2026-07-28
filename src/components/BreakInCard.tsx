@@ -5,17 +5,19 @@
  *   - SVG projection charts (Fs + Qts) with uncertainty corridor
  *   - Measurement schedule with recommendations
  *   - Current status summary
+ *   - Fit quality indicator (auto-fit vs hand-tuned)
  *   - Cabinet design impact notes
  *
- * Only renders when the selected driver has break-in tracking data.
+ * Auto-fits break-in curves from measurement data when 2+ measurements
+ * exist, replacing hand-tuned scenarios with data-driven projections.
  */
 
 import { useMemo } from 'react'
 import { Card, StatCard, Badge } from '@/components/common/UI'
 import BreakInChartCard from '@/components/charts/BreakInChart'
-import { getBreakInState } from '@/lib/acoustic/breakin'
+import { getBreakInState, autoFitBreakIn } from '@/lib/acoustic/breakin'
 import { projectMilestones } from '@/lib/acoustic/breakin'
-import type { BreakInState } from '@/lib/acoustic/breakin'
+import type { BreakInState, FitQuality } from '@/lib/acoustic/breakin'
 
 interface Props {
   driverId: string
@@ -25,6 +27,15 @@ interface Props {
 
 export default function BreakInCard({ driverId, activeParameterSet }: Props) {
   const state: BreakInState | null = useMemo(() => getBreakInState(driverId), [driverId])
+  const fitQuality: FitQuality | null = useMemo(() => {
+    if (!state) return null
+    // Re-run auto-fit for quality metrics (getBreakInState already modified
+    // the scenarios, but we need to compute fit quality separately)
+    const raw = getBreakInState(driverId, false)
+    if (!raw) return null
+    const result = autoFitBreakIn(raw)
+    return result?.fitQuality ?? null
+  }, [driverId, state])
 
   if (!state) return null
 
@@ -57,9 +68,47 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
     return proj
   }, [nextMstone, milestones])
 
+  // Is auto-fit active?
+  const isAutoFit = state.scenarios[0]?.label === 'Auto-fit (bedste)'
+
+  // Best-fit scenario values for display
+  const bestFit = state.scenarios[0]
+  const uncertainty = state.scenarios[1]
+
   return (
     <Card title={`🔬 Break-in tracker — ${state.driverLabel}`}>
       <div className="space-y-4">
+        {/* Fit quality header */}
+        {isAutoFit && fitQuality && (
+          <div className="flex flex-wrap gap-2 items-center text-xs">
+            <Badge color="green">Auto-fit</Badge>
+            <span className="text-gray-500">
+              RMSE: Fs {fitQuality.rmseFs.toFixed(2)} Hz, Qts {fitQuality.rmseQts.toFixed(4)}
+            </span>
+            <span className="text-gray-400">
+              R²: Fs {fitQuality.rSquaredFs.toFixed(3)}, Qts {fitQuality.rSquaredQts.toFixed(3)}
+            </span>
+            {state.measurements.length >= 3 && fitQuality.rSquaredFs > 0.95 && (
+              <Badge color="green">Godt fit</Badge>
+            )}
+            {state.measurements.length >= 3 && fitQuality.rSquaredFs < 0.8 && (
+              <Badge color="orange">Svagt fit — flere data nødvendige</Badge>
+            )}
+            {bestFit && (
+              <span className="text-gray-500">
+                Estimeret slut: Fs {bestFit.fsFinal.toFixed(1)} Hz, Qts {bestFit.qtsFinal.toFixed(3)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {!isAutoFit && (
+          <div className="flex items-center text-xs text-gray-400">
+            <Badge color="gray">Gættet kurve</Badge>
+            <span className="ml-2">Auto-fit aktiveres når 2+ målinger er tilgængelige</span>
+          </div>
+        )}
+
         {/* Current status summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard
@@ -167,9 +216,13 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
             </div>
             <div className="text-xs text-brand-600 dark:text-brand-400 mt-1">
               Forventet: Fs ≈ {nextMilestone.fs.toFixed(1)} Hz, Qts ≈ {nextMilestone.qts.toFixed(3)}<br />
-              (ca. {nextMilestone.fsPctOfChange.toFixed(0)}% af Fs-ændring gennemført)<br />
-              Brug sidste måling som nyt referencepunkt: Hvis Fs er lavere end forventet,
-              justér den konservative kurve opad.
+              (ca. {nextMilestone.fsPctOfChange.toFixed(0)}% af Fs-ændring gennemført){isAutoFit && (
+                <> — kurven er data-drevet, estimatet bliver skarpere med flere målinger</>
+              )}<br />
+              {!isAutoFit && <>Brug sidste måling som nyt referencepunkt: Hvis Fs er lavere end forventet, justér den konservative kurve opad.</>}
+              {isAutoFit && bestFit && uncertainty && (
+                <>Usikkerhed: Fs mellem {projectNextFs(bestFit, nextMstone!.hours, initial.fs)} og {projectNextFs(uncertainty, nextMstone!.hours, initial.fs)} Hz</>
+              )}
             </div>
           </div>
         )}
@@ -180,9 +233,8 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
             <strong>Bemærk:</strong> 18W/4424G00 har +42% Fs ved 0h. Dette er ekstremt for en ScanSpeak
             driver — normalt er break-in 10-20%. Det kan skyldes en særlig stiv suspensionsbatch,
             eller driveren har brugt længere tid på lager. DATS-måling bekræfter at det ikke er
-            en målefejl. Fortsæt break-in og genmål ved 10h og 15h. Selv ved Fs=60 (konservativt
-            estimat) fungerer driveren fint i 13L sealed med LR4 200 Hz cross — cabinet-sim viser
-            &lt;0.3 dB forskel i crossover-regionen.
+            en målefejl. Fortsæt break-in og genmål ved 10h og 15h. Auto-fit justerer sig efter
+            hver ny måling, så kurven bliver mere præcis efterhånden som data tikker ind.
           </p>
         )}
         {driverId === 'seed-grs-12sw-4he' && (
@@ -196,4 +248,14 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
       </div>
     </Card>
   )
+}
+
+/** Compute projected Fs at a milestone for display */
+function projectNextFs(
+  scenario: { tauFs: number; fsFinal: number },
+  hours: number,
+  fsInitial: number
+): string {
+  const val = scenario.fsFinal + (fsInitial - scenario.fsFinal) * Math.exp(-hours / scenario.tauFs)
+  return val.toFixed(1)
 }
