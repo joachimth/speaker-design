@@ -107,11 +107,12 @@ describe('W18_BREAKIN data integrity', () => {
 })
 
 describe('GRS_BREAKIN data integrity', () => {
-  it('has 2 measurements (0h and 5h)', () => {
-    expect(GRS_BREAKIN.measurements.length).toBe(2)
-    expect(GRS_BREAKIN.measurements[0].hours).toBe(0)
-    expect(GRS_BREAKIN.measurements[1].hours).toBe(5)
-  })
+  it('has 3 measurements (0h, 5h and 10h)', () => {
+      expect(GRS_BREAKIN.measurements.length).toBe(3)
+      expect(GRS_BREAKIN.measurements[0].hours).toBe(0)
+      expect(GRS_BREAKIN.measurements[1].hours).toBe(5)
+      expect(GRS_BREAKIN.measurements[2].hours).toBe(10)
+    })
 
   it('has GRS-specific params (Fs 22, Qts 0.43 spec)', () => {
     expect(GRS_BREAKIN.spec.fs).toBe(22)

@@ -110,13 +110,14 @@ export const W18_BREAKIN: BreakInState = {
 
 const GRS_INITIAL: BreakInPoint = { hours: 0, fs: 25.07, qts: 0.512 }
 const GRS_5H: BreakInPoint = { hours: 5, fs: 23.52, qts: 0.442 }
+const GRS_10H: BreakInPoint = { hours: 10, fs: 23.25, qts: 0.462 }
 const GRS_SPEC = { fs: 22.0, qts: 0.43 }
 
 export const GRS_BREAKIN: BreakInState = {
   driverId: 'seed-grs-12sw-4he',
   driverLabel: 'GRS 12SW-4HE',
   spec: GRS_SPEC,
-  measurements: [GRS_INITIAL, GRS_5H],
+  measurements: [GRS_INITIAL, GRS_5H, GRS_10H],
   scenarios: [
     {
       label: 'Optimistisk',
