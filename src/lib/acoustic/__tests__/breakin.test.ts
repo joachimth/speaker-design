@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   projectValue, generateProjection, getBreakInState, pctComplete,
   W18_BREAKIN, GRS_BREAKIN, autoFitBreakIn, fitExponentialDecay,
+  projectMilestones,
 } from '../breakin'
 
 describe('break-in math', () => {
@@ -219,5 +220,28 @@ describe('autoFitBreakIn', () => {
     expect(uncertain.tauFs).toBeGreaterThan(best.tauFs)
     // Uncertainty xFinal should be further from spec
     expect(uncertain.fsFinal).toBeGreaterThan(best.fsFinal)
+  })
+
+  describe('projectMilestones edge cases', () => {
+    it('returns empty array for empty scenarios', () => {
+      const result = projectMilestones(
+        [{ hours: 0, fs: 70, qts: 0.6 }],
+        [],
+        [5, 10]
+      )
+      expect(result).toEqual([])
+    })
+
+    it('handles single scenario without crash', () => {
+      const result = projectMilestones(
+        [{ hours: 0, fs: 70, qts: 0.6 }],
+        [{ label: 'Only', tauFs: 10, tauQts: 10, fsFinal: 55, qtsFinal: 0.45 }],
+        [5, 10]
+      )
+      expect(result.length).toBe(2)
+      // With single scenario, avg = scenario value (not halved)
+      expect(result[0].fs).toBeGreaterThan(55)
+      expect(result[0].fs).toBeLessThan(70)
+    })
   })
 })

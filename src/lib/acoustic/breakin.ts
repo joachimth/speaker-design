@@ -199,22 +199,27 @@ export function projectMilestones(
 ): BreakInProjection[] {
   const initial = measurements[0]
 
+  if (scenarios.length === 0) return []
+
+  const refFinalFs = scenarios.length >= 2
+    ? (scenarios[0].fsFinal + scenarios[1].fsFinal) / 2
+    : scenarios[0].fsFinal
+  const refFinalQts = scenarios.length >= 2
+    ? (scenarios[0].qtsFinal + scenarios[1].qtsFinal) / 2
+    : scenarios[0].qtsFinal
+
   return hours.map((h) => {
-    let fsOpt = 0, qtsOpt = 0
-    let fsCon = 0, qtsCon = 0
+    const s0 = scenarios[0]
+    const fsOpt = projectValue(initial.fs, s0.fsFinal, s0.tauFs, h)
+    const qtsOpt = projectValue(initial.qts, s0.qtsFinal, s0.tauQts, h)
 
-    if (scenarios.length >= 1) {
-      const s = scenarios[0]
-      fsOpt = projectValue(initial.fs, s.fsFinal, s.tauFs, h)
-      qtsOpt = projectValue(initial.qts, s.qtsFinal, s.tauQts, h)
-    }
+    let fsCon = fsOpt, qtsCon = qtsOpt
     if (scenarios.length >= 2) {
-      const s = scenarios[1]
-      fsCon = projectValue(initial.fs, s.fsFinal, s.tauFs, h)
-      qtsCon = projectValue(initial.qts, s.qtsFinal, s.tauQts, h)
+      const s1 = scenarios[1]
+      fsCon = projectValue(initial.fs, s1.fsFinal, s1.tauFs, h)
+      qtsCon = projectValue(initial.qts, s1.qtsFinal, s1.tauQts, h)
     }
 
-    // For pct complete, use the average of the two scenarios
     const avgFs = (fsOpt + fsCon) / 2
     const avgQts = (qtsOpt + qtsCon) / 2
 
@@ -222,8 +227,8 @@ export function projectMilestones(
       hours: h,
       fs: avgFs,
       qts: avgQts,
-      fsPctOfChange: pctComplete(initial.fs, avgFs, (scenarios[0].fsFinal + (scenarios[1]?.fsFinal ?? scenarios[0].fsFinal)) / 2),
-      qtsPctOfChange: pctComplete(initial.qts, avgQts, (scenarios[0].qtsFinal + (scenarios[1]?.qtsFinal ?? scenarios[0].qtsFinal)) / 2),
+      fsPctOfChange: pctComplete(initial.fs, avgFs, refFinalFs),
+      qtsPctOfChange: pctComplete(initial.qts, avgQts, refFinalQts),
     }
   })
 }
