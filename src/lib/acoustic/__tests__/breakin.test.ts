@@ -245,3 +245,63 @@ describe('autoFitBreakIn', () => {
     })
   })
 })
+
+describe('non-monotonic data fitting', () => {
+  // GRS 12SW Qts: 0.512 → 0.442 → 0.462 (dropped then bounced back)
+  const nonMonotonicQts = [
+    { t: 0, x: 0.512 },
+    { t: 5, x: 0.442 },
+    { t: 10, x: 0.462 },
+  ]
+
+  it('detects non-monotonic data and returns flag', () => {
+    const fit = fitExponentialDecay(nonMonotonicQts, 0.512, 0.43, true)
+    expect(fit).not.toBeNull()
+    expect(fit!.nonMonotonic).toBe(true)
+  })
+
+  it('does not degenerate to tau≈0 for non-monotonic data', () => {
+    const fit = fitExponentialDecay(nonMonotonicQts, 0.512, 0.43, true)
+    // Old behavior gave tau=0.5h (instant settle). The fix should give
+    // a tau that reflects the overall trend, at least 1h.
+    expect(fit!.tau).toBeGreaterThan(1.0)
+  })
+
+  it('anchors xFinal near the latest measurement, not below it', () => {
+    const fit = fitExponentialDecay(nonMonotonicQts, 0.512, 0.43, true)
+    // xFinal should be between spec (0.43) and latest (0.462)
+    expect(fit!.xFinal).toBeGreaterThanOrEqual(0.43)
+    expect(fit!.xFinal).toBeLessThanOrEqual(0.462)
+  })
+
+  it('projection shows a gradual curve, not instant drop', () => {
+    const fit = fitExponentialDecay(nonMonotonicQts, 0.512, 0.43, true)
+    const at5h = projectValue(0.512, fit!.xFinal, fit!.tau, 5)
+    const at10h = projectValue(0.512, fit!.xFinal, fit!.tau, 10)
+    // At 5h, Qts should be meaningfully below initial (not already at final)
+    expect(at5h).toBeLessThan(0.512)
+    expect(at5h).toBeGreaterThan(fit!.xFinal)
+    // At 10h, should be very close to final
+    expect(Math.abs(at10h - fit!.xFinal)).toBeLessThan(0.01)
+  })
+
+  it('monotonic data does not trigger non-monotonic path', () => {
+    const monotonic = [
+      { t: 0, x: 70 },
+      { t: 5, x: 65 },
+      { t: 10, x: 62 },
+    ]
+    const fit = fitExponentialDecay(monotonic, 70, 50, true)
+    expect(fit).not.toBeNull()
+    expect(fit!.nonMonotonic).toBe(false)
+  })
+
+  it('autoFitBreakIn labels uncertainty as non-monotonic for GRS', () => {
+    const state = JSON.parse(JSON.stringify(GRS_BREAKIN))
+    const result = autoFitBreakIn(state)
+    expect(result).not.toBeNull()
+    expect(result!.scenarios[1].label).toContain('non-monotonisk')
+    // Uncertainty corridor should be wider than best-fit
+    expect(result!.scenarios[1].tauQts).toBeGreaterThan(result!.scenarios[0].tauQts)
+  })
+})

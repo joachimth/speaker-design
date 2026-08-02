@@ -267,12 +267,22 @@ export function getBreakInState(driverId: string, autoFit: boolean = true): Brea
  * Fit an exponential decay X(t) = xFinal + (x0 - xFinal) * exp(-t/tau)
  * to measured {(t, x)} data points using a grid search + local refinement.
  *
- * Returns { tau, xFinal } that minimizes RMSE, or null if insufficient data.
+ * Returns { tau, xFinal, nonMonotonic } that minimizes RMSE, or null if
+ * insufficient data.
  *
  * Constraints:
  *   - tau > 0
  *   - xFinal must move toward spec direction (monotonic decay assumption)
  *   - xFinal can be above spec if data hasn't converged yet
+ *
+ * Non-monotonic data handling:
+ *   When the latest measurement moved away from spec compared to the previous
+ *   one (e.g. Qts dropped then bounced back), a monotonic exponential decay
+ *   cannot fit the data meaningfully — it degenerates to tau≈0 (instant
+ *   settle). For such cases, we anchor the fit using the overall trend
+ *   (initial → latest) and search xFinal between spec and latest, computing
+ *   tau analytically for each candidate. RMSE is still computed across all
+ *   data points, so the non-monotonic point shows up as a residual.
  */
 export function fitExponentialDecay(
   dataPoints: { t: number; x: number }[],
@@ -282,13 +292,22 @@ export function fitExponentialDecay(
   specTarget: number,
   /** Whether this param should trend downwards (true = Fs/Qts decreasing) */
   isDescending: boolean
-): { tau: number; xFinal: number } | null {
+): { tau: number; xFinal: number; nonMonotonic: boolean } | null {
   if (dataPoints.length < 2) return null
 
   // If all data points are at t=0, nothing to fit
   const nonZero = dataPoints.filter(d => d.t > 0)
   if (nonZero.length === 0) return null
 
+  // Detect non-monotonic behavior: latest point moved away from spec
+  const nonMonotonic = detectNonMonotonic(dataPoints, isDescending)
+
+  if (nonMonotonic) {
+    const result = fitNonMonotonic(dataPoints, x0, specTarget, isDescending)
+    return result ? { ...result, nonMonotonic: true } : null
+  }
+
+  // Standard monotonic fit
   // Latest measurement — bounds where xFinal should be
   const latest = nonZero[nonZero.length - 1]
 
@@ -310,16 +329,117 @@ export function fitExponentialDecay(
     xFinalMax = Math.max(specTarget, latest.x * 1.15)
   }
 
+  const result = gridSearchFit(dataPoints, x0, xFinalMin, xFinalMax)
+  return { ...result, nonMonotonic: false }
+}
+
+/**
+ * Detect if the most recent measurement moved away from spec compared to the
+ * previous one. For a descending parameter (Fs/Qts trending down), this means
+ * the last point is higher than the second-to-last non-zero point.
+ */
+function detectNonMonotonic(
+  dataPoints: { t: number; x: number }[],
+  isDescending: boolean
+): boolean {
+  const nonZero = dataPoints.filter(d => d.t > 0)
+  if (nonZero.length < 2) return false
+
+  const last = nonZero[nonZero.length - 1]
+  const prev = nonZero[nonZero.length - 2]
+
+  if (isDescending) {
+    // Parameter should decrease; non-monotonic if last > prev
+    return last.x > prev.x
+  } else {
+    // Parameter should increase; non-monotonic if last < prev
+    return last.x < prev.x
+  }
+}
+
+/**
+ * Fit non-monotonic data by anchoring on the overall trend (initial → latest)
+ * and searching xFinal between spec and latest. For each xFinal candidate,
+ * tau is computed analytically from the initial and latest points. RMSE is
+ * computed across ALL data points, so intermediate outliers show as residuals
+ * but don't distort the trend.
+ */
+function fitNonMonotonic(
+  dataPoints: { t: number; x: number }[],
+  x0: number,
+  specTarget: number,
+  isDescending: boolean
+): { tau: number; xFinal: number } | null {
+  const nonZero = dataPoints.filter(d => d.t > 0)
+  const latest = nonZero[nonZero.length - 1]
+  const tLatest = latest.t
+
+  // xFinal range: between spec and latest (inclusive)
+  // For descending: spec < latest, so search from spec up to latest
+  // For ascending: latest < spec, so search from latest up to spec
+  const xFinalLo = isDescending ? specTarget : latest.x
+  const xFinalHi = isDescending ? latest.x : specTarget
+
+  let bestRMSE = Infinity
+  let bestTau = 5
+  let bestXFinal = specTarget
+
+  const nSteps = 400
+  for (let i = 0; i <= nSteps; i++) {
+    const xFinal = xFinalLo + (xFinalHi - xFinalLo) * (i / nSteps)
+
+    // Skip degenerate cases where xFinal equals x0 or latest
+    if (Math.abs(xFinal - x0) < 1e-10) continue
+    if (Math.abs(xFinal - latest.x) < 1e-10) {
+      // xFinal = latest means no further change expected; use a large tau
+      // to represent "essentially settled"
+      const rmse = computeRMSE(dataPoints, x0, xFinal, 100)
+      if (rmse < bestRMSE) {
+        bestRMSE = rmse
+        bestTau = 100
+        bestXFinal = xFinal
+      }
+      continue
+    }
+
+    // Solve for tau: latest.x = xFinal + (x0 - xFinal) * exp(-tLatest/tau)
+    const ratio = (latest.x - xFinal) / (x0 - xFinal)
+    if (ratio <= 0 || ratio >= 1) continue
+    const tau = -tLatest / Math.log(ratio)
+
+    if (tau < 0.1 || tau > 200) continue
+
+    // RMSE across ALL data points (including the outlier)
+    const rmse = computeRMSE(dataPoints, x0, xFinal, tau)
+
+    if (rmse < bestRMSE) {
+      bestRMSE = rmse
+      bestTau = tau
+      bestXFinal = xFinal
+    }
+  }
+
+  return { tau: bestTau, xFinal: bestXFinal }
+}
+
+/**
+ * Grid search over tau with binary search for optimal xFinal at each tau.
+ */
+function gridSearchFit(
+  dataPoints: { t: number; x: number }[],
+  x0: number,
+  xFinalMin: number,
+  xFinalMax: number
+): { tau: number; xFinal: number } {
   // Grid search over tau
   const tauCandidates: number[] = []
-  // Tau from 0.5h to 80h — covers fast (rubber surrounds) to slow (coated cones)
   for (let tau = 0.5; tau <= 80; tau += 0.25) {
     tauCandidates.push(tau)
   }
 
   let bestRMSE = Infinity
   let bestTau = 5
-  let bestXFinal = specTarget
+  let bestXFinal = xFinalMin
 
   for (const tau of tauCandidates) {
     // Binary search for best xFinal at this tau
@@ -426,18 +546,18 @@ export function autoFitBreakIn(
   }
 
   // Build uncertainty corridor scenario
-  // Wider = lower confidence (few data points, early stage)
+  // Wider = lower confidence (few data points, early stage, or non-monotonic)
   const nPts = nonZero.length
-  const uncertaintyFactor = nPts <= 1 ? 2.0 : nPts === 2 ? 1.5 : 1.2
+  const nonMonotonic = fsFit.nonMonotonic || qtsFit.nonMonotonic
+  const uncertaintyFactor = nonMonotonic
+    ? 2.5  // Non-monotonic data: much wider corridor
+    : nPts <= 1 ? 2.0 : nPts === 2 ? 1.5 : 1.2
 
   // Uncertainty in tau: ±50% scaled by uncertainty factor
   const tauFsWide = Math.max(0.5, fsFit.tau * uncertaintyFactor)
   const tauQtsWide = Math.max(0.5, qtsFit.tau * uncertaintyFactor)
 
   // For xFinal uncertainty corridor: widen away from spec (conservative).
-  // For decreasing params (Fs, Qts), the uncertainty upper bound is a
-  // higher xFinal (less decay) — i.e., a slower/worse break-in scenario
-  // that forms the upper edge of the shaded corridor.
   const fsWider = state.spec.fs < fsFit.xFinal
     ? fsFit.xFinal + (fsFit.xFinal - state.spec.fs) * 0.5
     : fsFit.xFinal * 1.1
@@ -446,7 +566,9 @@ export function autoFitBreakIn(
     : qtsFit.xFinal * 1.1
 
   const uncertainty: BreakInScenario = {
-    label: nPts <= 2 ? 'Usikkerhed (få data)' : 'Usikkerhed',
+    label: nonMonotonic
+      ? 'Usikkerhed (non-monotonisk data)'
+      : nPts <= 2 ? 'Usikkerhed (få data)' : 'Usikkerhed',
     tauFs: tauFsWide,
     tauQts: tauQtsWide,
     fsFinal: fsWider,

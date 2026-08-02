@@ -82,6 +82,11 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
   const bestFit = state.scenarios[0]
   const uncertainty = state.scenarios[1]
 
+  // Detect non-monotonic Qts data (latest measurement moved away from spec)
+  const qtsMeasurements = state.measurements.filter(m => m.hours > 0)
+  const hasNonMonotonicQts = qtsMeasurements.length >= 2 &&
+    qtsMeasurements[qtsMeasurements.length - 1].qts > qtsMeasurements[qtsMeasurements.length - 2].qts
+
   return (
     <Card title={`🔬 Break-in tracker — ${state.driverLabel}`}>
       <div className="space-y-4">
@@ -95,11 +100,14 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
             <span className="text-gray-400">
               R²: Fs {fitQuality.rSquaredFs.toFixed(3)}, Qts {fitQuality.rSquaredQts.toFixed(3)}
             </span>
-            {state.measurements.length >= 3 && fitQuality.rSquaredFs > 0.95 && (
+            {state.measurements.length >= 3 && fitQuality.rSquaredFs > 0.95 && !hasNonMonotonicQts && (
               <Badge color="green">Godt fit</Badge>
             )}
             {state.measurements.length >= 3 && fitQuality.rSquaredFs < 0.8 && (
               <Badge color="orange">Svagt fit — flere data nødvendige</Badge>
+            )}
+            {hasNonMonotonicQts && (
+              <Badge color="orange">Non-monotonisk Qts — udvidet usikkerhed</Badge>
             )}
             {bestFit && (
               <span className="text-gray-500">
@@ -246,10 +254,13 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
         )}
         {driverId === 'seed-grs-12sw-4he' && (
           <p className="text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3">
-            <strong>Bemærk:</strong> GRS 12SW-4HE's Qts faldt 13.7% på de første 5h (fra 0.512 til 0.442),
-            mod 18W'ens 3.7%. Billige gummikanter og papirmembraner har ofte hurtigere indkøring end
-            avancerede coatede membraner. Mål den anden 12SW for at sikre push-push parring (Qts match
-            indenfor ±0.03). Hvis den anden driver afviger, placer den med højere Qts bagi.
+            <strong>Bemærk:</strong> GRS 12SW-4HE's Qts faldt fra 0.512 til 0.442 på de første 5h,
+            men bouncede tilbage til 0.462 ved 10h. Dette non-monotone forløb kan skyldes at
+            gummikanten først blødner (Qts falder) og derefter stabiliserer sig med lidt højere
+            mekanisk dæmpning. Projektionen bruger den overordnede trend (0.512 → 0.462) med
+            udvidet usikkerhedskorridor. Qts er tæt på spec (0.43) men kan stabilisere sig omkring
+            0.45-0.46. Mål den anden 12SW for push-push parring (Qts match indenfor ±0.03).
+            Hvis den anden driver afviger, placer den med højere Qts bagi.
           </p>
         )}
       </div>
