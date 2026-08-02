@@ -37,20 +37,32 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
     return result?.fitQuality ?? null
   }, [driverId, state])
 
+  // Calculate milestones — hooks must run before any early return
+  const milestones = useMemo(
+    () => {
+      if (!state) return []
+      return projectMilestones(
+        state.measurements,
+        state.scenarios,
+        state.recommendedSchedule.map(s => s.hours)
+      )
+    },
+    [state]
+  )
+
+  // Next recommended measurement — hook must run before early return
+  const nextMilestone = useMemo(() => {
+    if (!state) return null
+    const latest = state.measurements[state.measurements.length - 1]
+    const next = state.recommendedSchedule.find(s => s.hours > latest.hours)
+    if (!next) return null
+    return milestones.find(m => m.hours === next.hours) ?? null
+  }, [state, milestones])
+
   if (!state) return null
 
   const initial = state.measurements[0]
   const latest = state.measurements[state.measurements.length - 1]
-
-  // Calculate milestones
-  const milestones = useMemo(
-    () => projectMilestones(
-      state.measurements,
-      state.scenarios,
-      state.recommendedSchedule.map(s => s.hours)
-    ),
-    [state]
-  )
 
   // Current status: where are we relative to spec?
   const fsPctToSpec = ((initial.fs - latest.fs) / (initial.fs - state.spec.fs) * 100)
@@ -60,13 +72,8 @@ export default function BreakInCard({ driverId, activeParameterSet }: Props) {
   // Is the active parameter set a DATS measurement?
   const onDatsSet = activeParameterSet.startsWith('DATS')
 
-  // Next recommended measurement
+  // Next recommended measurement (plain const for JSX use)
   const nextMstone = state.recommendedSchedule.find(s => s.hours > hoursTracked)
-  const nextMilestone = useMemo(() => {
-    if (!nextMstone) return null
-    const proj = milestones.find(m => m.hours === nextMstone.hours)
-    return proj
-  }, [nextMstone, milestones])
 
   // Is auto-fit active?
   const isAutoFit = state.scenarios[0]?.label === 'Auto-fit (bedste)'

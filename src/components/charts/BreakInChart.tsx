@@ -85,7 +85,7 @@ function Chart(props: ChartProps) {
       }))
       return { ...p, svgPts, path: bezierCurve(svgPts) }
     })
-  }, [projections, xMin, xMax, yMin, yMax, xScale, yScale])
+  }, [projections, xMin, xMax, yMin, xScale, yScale])
 
   // Shaded region between first two curves
   const shadePath = useMemo(() => {
