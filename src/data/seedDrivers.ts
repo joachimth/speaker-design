@@ -198,6 +198,160 @@ const WF168WA02_ONAXIS: FrequencyDataPoint[] = [
   {freq:9283.2,magnitude:77.3}, {freq:13625.8,magnitude:77.3}, {freq:20000.0,magnitude:77.3},
 ];
 
+// Dayton RS225-8 frequency response — digitized from Dayton Audio PDF datasheet
+// 8" Reference woofer, 8 Ω, 86.8 dB. On-axis 0° curve (black in PDF).
+// Flat plateau to ~2 kHz, breakup peak ~3 kHz, roll-off above.
+const DAYTON_RS225_8_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20,magnitude:72}, {freq:25,magnitude:78}, {freq:30,magnitude:82}, {freq:35,magnitude:84},
+  {freq:40,magnitude:85.5}, {freq:50,magnitude:86.2}, {freq:60,magnitude:86.5}, {freq:75,magnitude:86.7},
+  {freq:100,magnitude:86.8}, {freq:150,magnitude:86.8}, {freq:200,magnitude:86.7}, {freq:300,magnitude:86.8},
+  {freq:500,magnitude:86.9}, {freq:700,magnitude:87.0}, {freq:1000,magnitude:87.1}, {freq:1500,magnitude:87.3},
+  {freq:2000,magnitude:87.5}, {freq:2500,magnitude:88.2}, {freq:3000,magnitude:89.0}, {freq:3500,magnitude:87.5},
+  {freq:4000,magnitude:85.0}, {freq:5000,magnitude:82.5}, {freq:6000,magnitude:79.0}, {freq:7000,magnitude:76.0},
+  {freq:8000,magnitude:73.5}, {freq:10000,magnitude:70.0}, {freq:12000,magnitude:67.0}, {freq:15000,magnitude:64.0},
+  {freq:20000,magnitude:60.0},
+];
+
+// Dayton RS270S-8 frequency response — digitized from Dayton Audio PDF datasheet
+// 10" Reference woofer, 8 Ω, 88.7 dB. On-axis 0° curve (black in PDF).
+// Flat plateau to ~1.5 kHz, roll-off above.
+const DAYTON_RS270S_8_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20,magnitude:74}, {freq:25,magnitude:80}, {freq:30,magnitude:84}, {freq:35,magnitude:86},
+  {freq:40,magnitude:87.5}, {freq:50,magnitude:88.2}, {freq:60,magnitude:88.5}, {freq:75,magnitude:88.6},
+  {freq:100,magnitude:88.7}, {freq:150,magnitude:88.6}, {freq:200,magnitude:88.5}, {freq:300,magnitude:88.7},
+  {freq:500,magnitude:88.8}, {freq:700,magnitude:88.9}, {freq:1000,magnitude:89.0}, {freq:1200,magnitude:89.3},
+  {freq:1500,magnitude:89.5}, {freq:1800,magnitude:88.8}, {freq:2000,magnitude:87.0}, {freq:2500,magnitude:84.0},
+  {freq:3000,magnitude:81.0}, {freq:4000,magnitude:77.0}, {freq:5000,magnitude:74.0}, {freq:6000,magnitude:71.5},
+  {freq:8000,magnitude:68.0}, {freq:10000,magnitude:65.0}, {freq:12000,magnitude:62.0}, {freq:15000,magnitude:59.0},
+  {freq:20000,magnitude:55.0},
+];
+
+// Dayton ND28F-4 frequency response — digitized from Dayton Audio PDF datasheet
+// 1-1/8" Neodymium dome tweeter. Fs ~1100 Hz, 88.4 dB (ND28F-6 datasheet used as proxy).
+// On-axis 0° curve (black in PDF). Flat from 2 kHz to 20 kHz.
+const DAYTON_ND28F_4_ONAXIS: FrequencyDataPoint[] = [
+  {freq:500,magnitude:72}, {freq:700,magnitude:78}, {freq:900,magnitude:83}, {freq:1100,magnitude:86},
+  {freq:1300,magnitude:87.5}, {freq:1600,magnitude:88.2}, {freq:2000,magnitude:88.4}, {freq:2500,magnitude:88.5},
+  {freq:3000,magnitude:88.4}, {freq:4000,magnitude:88.5}, {freq:5000,magnitude:88.6}, {freq:6000,magnitude:88.4},
+  {freq:7000,magnitude:88.3}, {freq:8000,magnitude:88.5}, {freq:10000,magnitude:88.2}, {freq:12000,magnitude:87.8},
+  {freq:15000,magnitude:87.0}, {freq:18000,magnitude:86.0}, {freq:20000,magnitude:85.0}, {freq:25000,magnitude:82.0},
+  {freq:30000,magnitude:78.0}, {freq:35000,magnitude:74.0}, {freq:40000,magnitude:70.0},
+];
+
+// ScanSpeak 22W/8851T00 frequency response — digitized from Scan-Speak PDF datasheet
+// Revelator 22cm woofer, 8 Ω, 88 dB. On-axis curve (red in PDF).
+// Flat to ~1 kHz, cone breakup roll-off above.
+const SCANSPEAK_22W_8851T00_ONAXIS: FrequencyDataPoint[] = [
+  {freq:10,magnitude:68}, {freq:12,magnitude:72}, {freq:15,magnitude:76}, {freq:18,magnitude:79},
+  {freq:21,magnitude:82}, {freq:25,magnitude:84}, {freq:30,magnitude:85.5}, {freq:40,magnitude:86.8},
+  {freq:50,magnitude:87.4}, {freq:60,magnitude:87.7}, {freq:80,magnitude:87.9}, {freq:100,magnitude:88.0},
+  {freq:150,magnitude:88.1}, {freq:200,magnitude:88.0}, {freq:300,magnitude:88.0}, {freq:500,magnitude:87.9},
+  {freq:700,magnitude:87.8}, {freq:1000,magnitude:87.5}, {freq:1200,magnitude:87.0}, {freq:1500,magnitude:86.0},
+  {freq:2000,magnitude:84.0}, {freq:2500,magnitude:81.0}, {freq:3000,magnitude:78.0}, {freq:4000,magnitude:74.0},
+  {freq:5000,magnitude:71.0}, {freq:7000,magnitude:67.0}, {freq:10000,magnitude:63.0}, {freq:15000,magnitude:58.0},
+  {freq:20000,magnitude:54.0},
+];
+
+// ScanSpeak 12MU/4731T00 frequency response — digitized from Scan-Speak PDF datasheet
+// Illuminator 4.5" midrange, 4 Ω, 90 dB. On-axis curve (red in PDF).
+// Flat 90-92 dB plateau to ~2 kHz, roll-off above with breakup.
+const SCANSPEAK_12MU_4731T00_ONAXIS: FrequencyDataPoint[] = [
+  {freq:10.0,magnitude:91.6}, {freq:12.8,magnitude:92.1}, {freq:16.5,magnitude:91.5}, {freq:21.2,magnitude:92.0},
+  {freq:27.2,magnitude:92.2}, {freq:45.0,magnitude:91.9}, {freq:74.2,magnitude:92.0}, {freq:95.3,magnitude:91.8},
+  {freq:122.4,magnitude:92.0}, {freq:157.3,magnitude:92.5}, {freq:202.1,magnitude:92.6}, {freq:259.6,magnitude:91.4},
+  {freq:333.5,magnitude:90.9}, {freq:428.4,magnitude:91.3}, {freq:550.4,magnitude:90.6}, {freq:707.1,magnitude:90.1},
+  {freq:908.4,magnitude:90.0}, {freq:1167.0,magnitude:89.8}, {freq:1499.2,magnitude:89.0}, {freq:1926.0,magnitude:88.4},
+  {freq:3178.7,magnitude:84.2}, {freq:4083.5,magnitude:84.4}, {freq:5246.0,magnitude:84.4}, {freq:6739.4,magnitude:82.0},
+  {freq:8658.0,magnitude:78.6}, {freq:11122.7,magnitude:78.6}, {freq:14289.1,magnitude:79.5}, {freq:18356.8,magnitude:83.0},
+  {freq:23582.5,magnitude:77.6}, {freq:30295.9,magnitude:78.5}, {freq:38920.4,magnitude:77.0}, {freq:50000.0,magnitude:74.6},
+];
+
+// ScanSpeak D3004/602000 frequency response — digitized from Scan-Speak PDF datasheet
+// Illuminator 26mm textile dome tweeter, 4 Ω, 89 dB. On-axis curve (red in PDF).
+// Fs peak ~170 Hz, flat 89-91 dB from 2-10 kHz, roll-off above.
+const SCANSPEAK_D3004_602000_ONAXIS: FrequencyDataPoint[] = [
+  {freq:100.0,magnitude:88.8}, {freq:120.1,magnitude:90.8}, {freq:144.1,magnitude:92.5}, {freq:173.0,magnitude:93.2},
+  {freq:207.7,magnitude:93.0}, {freq:249.4,magnitude:92.6}, {freq:299.4,magnitude:92.3}, {freq:359.5,magnitude:91.8},
+  {freq:431.6,magnitude:91.2}, {freq:518.1,magnitude:90.9}, {freq:622.0,magnitude:91.0}, {freq:746.8,magnitude:90.8},
+  {freq:896.6,magnitude:90.6}, {freq:1076.4,magnitude:90.5}, {freq:1551.4,magnitude:90.6}, {freq:1862.5,magnitude:90.0},
+  {freq:2236.1,magnitude:89.4}, {freq:2684.5,magnitude:88.9}, {freq:3222.9,magnitude:88.8}, {freq:3869.3,magnitude:89.2},
+  {freq:4645.3,magnitude:89.0}, {freq:5576.9,magnitude:88.7}, {freq:6695.4,magnitude:88.5}, {freq:8038.1,magnitude:87.4},
+  {freq:9650.2,magnitude:86.2}, {freq:11585.6,magnitude:84.8}, {freq:13909.1,magnitude:80.9}, {freq:16698.6,magnitude:78.8},
+  {freq:20047.6,magnitude:78.8}, {freq:24068.2,magnitude:78.8}, {freq:28895.2,magnitude:78.4}, {freq:34690.2,magnitude:78.4},
+  {freq:41647.5,magnitude:78.2}, {freq:50000.0,magnitude:73.6},
+];
+
+// ScanSpeak D2905/990000 frequency response — digitized from Scan-Speak PDF datasheet
+// Revelator 28mm dome tweeter, 6 Ω, 91 dB. On-axis curve (red in PDF).
+// Fs ~500 Hz, flat 91 dB from 2-10 kHz, roll-off above.
+const SCANSPEAK_D2905_990000_ONAXIS: FrequencyDataPoint[] = [
+  {freq:100,magnitude:72}, {freq:150,magnitude:76}, {freq:200,magnitude:80}, {freq:250,magnitude:83},
+  {freq:300,magnitude:85}, {freq:400,magnitude:87}, {freq:500,magnitude:88}, {freq:700,magnitude:89.5},
+  {freq:1000,magnitude:90.5}, {freq:1500,magnitude:91.0}, {freq:2000,magnitude:91.2}, {freq:2500,magnitude:91.0},
+  {freq:3000,magnitude:91.0}, {freq:4000,magnitude:91.0}, {freq:5000,magnitude:91.0}, {freq:6000,magnitude:91.0},
+  {freq:8000,magnitude:90.8}, {freq:10000,magnitude:90.5}, {freq:12000,magnitude:90.0}, {freq:15000,magnitude:88.5},
+  {freq:18000,magnitude:87.0}, {freq:20000,magnitude:86.0}, {freq:25000,magnitude:83.0}, {freq:30000,magnitude:80.0},
+  {freq:40000,magnitude:75.0}, {freq:50000,magnitude:71.0},
+];
+
+// SB Acoustics SB34NRX75-6 frequency response — digitized from SB Acoustics PDF datasheet
+// 12" Norex woofer, 6 Ω, 90 dB. On-axis curve (blue in PDF), upper graph only.
+// Flat ~88-90 dB to ~2 kHz, irregular breakup above.
+const SB_ACOUSTICS_SB34NRX75_6_ONAXIS: FrequencyDataPoint[] = [
+  {freq:10.0,magnitude:76.1}, {freq:12.3,magnitude:76.0}, {freq:15.0,magnitude:85.6}, {freq:18.4,magnitude:86.3},
+  {freq:22.5,magnitude:87.1}, {freq:27.6,magnitude:87.8}, {freq:33.8,magnitude:88.4}, {freq:50.8,magnitude:89.1},
+  {freq:62.2,magnitude:90.3}, {freq:76.3,magnitude:89.5}, {freq:93.5,magnitude:90.0}, {freq:114.5,magnitude:90.4},
+  {freq:140.3,magnitude:88.6}, {freq:171.9,magnitude:88.2}, {freq:210.6,magnitude:88.3}, {freq:258.1,magnitude:88.7},
+  {freq:316.2,magnitude:87.0}, {freq:387.5,magnitude:88.1}, {freq:474.8,magnitude:88.1}, {freq:581.7,magnitude:87.9},
+  {freq:712.8,magnitude:86.7}, {freq:873.3,magnitude:87.7}, {freq:1070.1,magnitude:87.3}, {freq:1311.1,magnitude:86.2},
+  {freq:1606.5,magnitude:84.9}, {freq:1968.4,magnitude:83.3}, {freq:2411.9,magnitude:86.1}, {freq:2955.2,magnitude:88.2},
+  {freq:3621.0,magnitude:87.1}, {freq:4436.7,magnitude:84.6}, {freq:5436.2,magnitude:86.2}, {freq:6660.8,magnitude:84.1},
+  {freq:8161.4,magnitude:82.0}, {freq:10000.0,magnitude:75.7},
+];
+
+// SB Acoustics SB12NRX25-4 frequency response — digitized from SB Acoustics PDF datasheet
+// 4" Norex midbass, 4 Ω, 87.5 dB. On-axis curve (blue in PDF), upper graph only.
+// Fs ~55 Hz, flat 87-89 dB to ~7 kHz, roll-off above.
+const SB_ACOUSTICS_SB12NRX25_4_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:24.5,magnitude:74.8}, {freq:30.0,magnitude:77.4}, {freq:36.8,magnitude:78.8},
+  {freq:45.1,magnitude:80.9}, {freq:67.7,magnitude:84.1}, {freq:82.9,magnitude:85.0}, {freq:101.6,magnitude:88.5},
+  {freq:124.5,magnitude:88.5}, {freq:152.5,magnitude:89.3}, {freq:186.9,magnitude:87.1}, {freq:229.0,magnitude:87.9},
+  {freq:280.6,magnitude:86.8}, {freq:343.8,magnitude:87.3}, {freq:421.3,magnitude:86.9}, {freq:516.2,magnitude:87.5},
+  {freq:632.5,magnitude:87.1}, {freq:774.9,magnitude:87.9}, {freq:949.5,magnitude:87.5}, {freq:1163.4,magnitude:87.3},
+  {freq:1425.5,magnitude:85.4}, {freq:1746.7,magnitude:85.0}, {freq:2140.1,magnitude:86.3}, {freq:2622.3,magnitude:87.5},
+  {freq:3213.0,magnitude:87.9}, {freq:3936.8,magnitude:88.4}, {freq:4823.7,magnitude:89.2}, {freq:5910.4,magnitude:89.5},
+  {freq:7241.9,magnitude:89.0}, {freq:8873.4,magnitude:88.2}, {freq:10872.4,magnitude:83.8}, {freq:13321.7,magnitude:83.9},
+  {freq:16322.8,magnitude:79.2}, {freq:20000.0,magnitude:76.1},
+];
+
+// SB Acoustics SB29RDC-C000-4 frequency response — digitized from SB Acoustics PDF datasheet
+// 1.1" fabric dome tweeter, 4 Ω, 93 dB. On-axis curve (blue in PDF), upper graph only.
+// Fs ~600 Hz, flat 93 dB from 1-20 kHz, gentle roll-off above.
+const SB_ACOUSTICS_TWEETER_ONAXIS: FrequencyDataPoint[] = [
+  {freq:100.0,magnitude:77.1}, {freq:120.1,magnitude:78.7}, {freq:144.1,magnitude:80.2}, {freq:173.0,magnitude:82.0},
+  {freq:207.7,magnitude:83.6}, {freq:249.4,magnitude:85.1}, {freq:299.4,magnitude:86.7}, {freq:359.5,magnitude:88.5},
+  {freq:431.6,magnitude:89.3}, {freq:896.6,magnitude:93.1}, {freq:1076.4,magnitude:93.0}, {freq:1551.4,magnitude:93.7},
+  {freq:1862.5,magnitude:93.1}, {freq:2236.1,magnitude:93.1}, {freq:3222.9,magnitude:92.7}, {freq:3869.3,magnitude:93.0},
+  {freq:4645.3,magnitude:93.0}, {freq:5576.9,magnitude:92.7}, {freq:6695.4,magnitude:92.8}, {freq:8038.1,magnitude:92.6},
+  {freq:9650.2,magnitude:92.5}, {freq:11585.6,magnitude:92.6}, {freq:13909.1,magnitude:93.4}, {freq:16699.6,magnitude:93.4},
+  {freq:20047.6,magnitude:92.7}, {freq:24068.2,magnitude:92.8}, {freq:28895.2,magnitude:92.2}, {freq:34690.2,magnitude:91.1},
+  {freq:41647.5,magnitude:90.9}, {freq:50000.0,magnitude:89.2},
+];
+
+// Markaudio Alpair 7MS frequency response — digitized from Markaudio PDF datasheet
+// 4" fullrange, 8 Ω, 86.3 dB. SPL curve (orange in PDF).
+// Fs ~75 Hz, flat 86-88 dB to ~10 kHz, gradual roll-off to 30 kHz.
+const MARKAUDIO_ALPAIR_7MS_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20,magnitude:64}, {freq:30,magnitude:72}, {freq:40,magnitude:77}, {freq:50,magnitude:80},
+  {freq:60,magnitude:82.5}, {freq:75,magnitude:84}, {freq:100,magnitude:85.5}, {freq:150,magnitude:86.0},
+  {freq:200,magnitude:86.2}, {freq:300,magnitude:86.3}, {freq:500,magnitude:86.3}, {freq:700,magnitude:86.4},
+  {freq:1000,magnitude:86.5}, {freq:1500,magnitude:86.8}, {freq:2000,magnitude:87.0}, {freq:3000,magnitude:87.3},
+  {freq:4000,magnitude:87.5}, {freq:5000,magnitude:87.8}, {freq:6000,magnitude:88.0}, {freq:7000,magnitude:87.8},
+  {freq:8000,magnitude:87.5}, {freq:10000,magnitude:86.5}, {freq:12000,magnitude:85.5}, {freq:15000,magnitude:84.0},
+  {freq:18000,magnitude:82.0}, {freq:20000,magnitude:80.0}, {freq:25000,magnitude:76.0}, {freq:30000,magnitude:72.0},
+  {freq:35000,magnitude:68.0}, {freq:40000,magnitude:64.0},
+];
+
 // ---------------------------------------------------------------------------
 // Driver catalog
 // ---------------------------------------------------------------------------
@@ -288,6 +442,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 125, magnetDepth: 40, weight: 1900,
     },
     notes: 'Reference Series 8" woofer. God til sealed eller ported. Papir-membran, støbt kurv.',
+    frequencyResponse: DAYTON_RS225_8_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -307,6 +462,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 150, magnetDepth: 45, weight: 3100,
     },
     notes: 'Reference Series 10" woofer. Høj følsomhed, glat respons til ~2 kHz. Velegnet til 2-vejs med stor båndbredde.',
+    frequencyResponse: DAYTON_RS270S_8_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -326,6 +482,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 128, magnetDepth: 40, weight: 3200,
     },
     notes: 'Revelator 8" woofer med SD-1 membran. Exceptionel mellemtone-kvalitet. 4 ohm version. kræver god forstærker.',
+    frequencyResponse: SCANSPEAK_22W_8851T00_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -345,6 +502,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 160, magnetDepth: 50, weight: 3800,
     },
     notes: 'SB NRX 12" subwoofer. Høj xmax, papir/hamp-membran. Velegnet til sealed eller stor ported.',
+    frequencyResponse: SB_ACOUSTICS_SB34NRX75_6_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -436,6 +594,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 65, magnetDepth: 20, weight: 470,
     },
     notes: 'Illuminator 4.5" mellemtone med glassfiber-membran. Lav Fs for en mellemtone. Kan gå ned til ~120 Hz i 3-vejs.',
+    frequencyResponse: SCANSPEAK_12MU_4731T00_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -455,6 +614,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 70, magnetDepth: 22, weight: 530,
     },
     notes: 'SB NRX 4.5" mellemtone. Papir-membran med glat respons. Kan bruges som wide-range (200 Hz - 5 kHz).',
+    frequencyResponse: SB_ACOUSTICS_SB12NRX25_4_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -474,6 +634,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 60, magnetDepth: 18, weight: 350,
     },
     notes: '4" full-range med metal-membran. Glat respons fra ~80 Hz til 20 kHz. Kan stå alene eller med subwoofer.',
+    frequencyResponse: MARKAUDIO_ALPAIR_7MS_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -549,6 +710,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 72, magnetDepth: 15, weight: 350,
     },
     notes: 'Illuminator D3004/602000 med bølgeleder. 34 mm tekstil-dome, SD-2 motor. Lav Fs (600 Hz) muliggør lav krydsning (~1.5-1.8 kHz LR4).',
+    frequencyResponse: SCANSPEAK_D3004_602000_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -568,6 +730,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 70, magnetDepth: 12, weight: 250,
     },
     notes: 'Klassisk 25 mm tekstil-dome diskant. Velkendt glat respons. Har været brugt i utallige kommercielle højttalere.',
+    frequencyResponse: SCANSPEAK_D2905_990000_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -587,6 +750,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 60, magnetDepth: 12, weight: 180,
     },
     notes: 'ND Series 28 mm neodymium-diskant. Høj følsomhed, kompakt. Velegnet til 2-vejs med krydsning > 2 kHz. God pris/ydelse.',
+    frequencyResponse: DAYTON_ND28F_4_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -606,6 +770,7 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 75, magnetDepth: 15, weight: 380,
     },
     notes: '29 mm ringradiator-diskant. Lav Fs (550 Hz) tillader krydsning helt ned til ~1.2 kHz. Høj xmax. Godt alternativ til horn-diskant.',
+    frequencyResponse: SB_ACOUSTICS_TWEETER_ONAXIS,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
