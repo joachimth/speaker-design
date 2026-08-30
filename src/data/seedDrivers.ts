@@ -152,8 +152,11 @@ const MID18W_60DEG: FrequencyDataPoint[] = [
 // ---------------------------------------------------------------------------
 // Vifa / Wavecor frequency response data
 // Vifa BC25TG15-04: digitized from Peerless datasheet PDF (pixel-based, 300 DPI)
-// Wavecor WF146WA01/02 + WF168WA01/02: constructed from T/S parameters +
-// datasheet SPL curves (infinite baffle model with cone breakup peak)
+// Wavecor WF146WA01/02 + WF168WA01/02: measured on-axis SPL curves digitized
+// from loudspeakerdatabase.com manufacturer chart images. Low-frequency values
+// below ~100 Hz on WF168 curves are model-corrected (Fs dip from T/S params)
+// because pixel detection couldn't separate the curve from legend text at LF.
+// Source: loudspeakerdatabase.com/Wavecor/WF146WA01, WF168WA01, WF168WA02
 // ---------------------------------------------------------------------------
 
 const VIFA_BC25TG15_ONAXIS: FrequencyDataPoint[] = [
@@ -164,35 +167,35 @@ const VIFA_BC25TG15_ONAXIS: FrequencyDataPoint[] = [
 ];
 
 const WF146WA01_ONAXIS: FrequencyDataPoint[] = [
-  {freq:20.0,magnitude:69.7}, {freq:29.4,magnitude:74.6}, {freq:43.1,magnitude:78.7}, {freq:63.2,magnitude:90.0},
-  {freq:92.8,magnitude:90.0}, {freq:136.3,magnitude:90.0}, {freq:200.0,magnitude:90.0}, {freq:293.6,magnitude:90.1},
-  {freq:430.9,magnitude:90.3}, {freq:632.5,magnitude:90.4}, {freq:928.3,magnitude:90.5}, {freq:1362.6,magnitude:90.7},
-  {freq:2000.0,magnitude:90.8}, {freq:2935.6,magnitude:90.9}, {freq:4308.9,magnitude:91.9}, {freq:6324.6,magnitude:93.9},
-  {freq:9283.2,magnitude:87.4}, {freq:13625.8,magnitude:77.5}, {freq:20000.0,magnitude:68.9},
+  {freq:20.0,magnitude:71.6}, {freq:29.4,magnitude:80.0}, {freq:43.1,magnitude:80.5}, {freq:63.2,magnitude:84.2},
+  {freq:92.8,magnitude:86.9}, {freq:136.3,magnitude:87.5}, {freq:200.0,magnitude:87.5}, {freq:293.6,magnitude:87.5},
+  {freq:430.9,magnitude:87.5}, {freq:632.5,magnitude:87.5}, {freq:928.3,magnitude:90.2}, {freq:1362.6,magnitude:90.2},
+  {freq:2000.0,magnitude:90.2}, {freq:2935.6,magnitude:90.2}, {freq:4308.9,magnitude:92.3}, {freq:6324.6,magnitude:90.1},
+  {freq:9283.2,magnitude:90.0}, {freq:13625.8,magnitude:76.0}, {freq:20000.0,magnitude:66.9},
 ];
 
 const WF146WA02_ONAXIS: FrequencyDataPoint[] = [
-  {freq:20.0,magnitude:67.3}, {freq:29.4,magnitude:72.6}, {freq:43.1,magnitude:77.0}, {freq:63.2,magnitude:87.5},
-  {freq:92.8,magnitude:87.5}, {freq:136.3,magnitude:87.5}, {freq:200.0,magnitude:87.5}, {freq:293.6,magnitude:87.6},
-  {freq:430.9,magnitude:87.8}, {freq:632.5,magnitude:87.9}, {freq:928.3,magnitude:88.0}, {freq:1362.6,magnitude:88.2},
-  {freq:2000.0,magnitude:88.3}, {freq:2935.6,magnitude:88.4}, {freq:4308.9,magnitude:89.4}, {freq:6324.6,magnitude:91.4},
-  {freq:9283.2,magnitude:84.9}, {freq:13625.8,magnitude:75.0}, {freq:20000.0,magnitude:66.4},
+  {freq:20.0,magnitude:68.2}, {freq:29.4,magnitude:73.9}, {freq:43.1,magnitude:78.0}, {freq:63.2,magnitude:81.5},
+  {freq:92.8,magnitude:84.5}, {freq:136.3,magnitude:86.5}, {freq:200.0,magnitude:87.5}, {freq:293.6,magnitude:87.9},
+  {freq:430.9,magnitude:87.6}, {freq:632.5,magnitude:88.0}, {freq:928.3,magnitude:87.6}, {freq:1362.6,magnitude:88.6},
+  {freq:2000.0,magnitude:87.3}, {freq:2935.6,magnitude:87.1}, {freq:4308.9,magnitude:90.8}, {freq:6324.6,magnitude:89.8},
+  {freq:9283.2,magnitude:88.4}, {freq:13625.8,magnitude:77.3}, {freq:20000.0,magnitude:60.1},
 ];
 
 const WF168WA01_ONAXIS: FrequencyDataPoint[] = [
   {freq:20.0,magnitude:73.5}, {freq:29.4,magnitude:78.1}, {freq:43.1,magnitude:81.9}, {freq:63.2,magnitude:91.5},
-  {freq:92.8,magnitude:91.5}, {freq:136.3,magnitude:91.5}, {freq:200.0,magnitude:91.5}, {freq:293.6,magnitude:91.6},
-  {freq:430.9,magnitude:91.8}, {freq:632.5,magnitude:91.9}, {freq:928.3,magnitude:92.1}, {freq:1362.6,magnitude:92.2},
-  {freq:2000.0,magnitude:92.4}, {freq:2935.6,magnitude:92.5}, {freq:4308.9,magnitude:94.6}, {freq:6324.6,magnitude:92.4},
-  {freq:9283.2,magnitude:82.2}, {freq:13625.8,magnitude:73.3}, {freq:20000.0,magnitude:65.4},
+  {freq:92.8,magnitude:91.5}, {freq:136.3,magnitude:91.5}, {freq:200.0,magnitude:91.5}, {freq:293.6,magnitude:91.5},
+  {freq:430.9,magnitude:91.5}, {freq:632.5,magnitude:91.5}, {freq:928.3,magnitude:91.0}, {freq:1362.6,magnitude:91.0},
+  {freq:2000.0,magnitude:88.6}, {freq:2935.6,magnitude:80.1}, {freq:4308.9,magnitude:77.4}, {freq:6324.6,magnitude:77.3},
+  {freq:9283.2,magnitude:77.7}, {freq:13625.8,magnitude:77.3}, {freq:20000.0,magnitude:77.3},
 ];
 
 const WF168WA02_ONAXIS: FrequencyDataPoint[] = [
-  {freq:20.0,magnitude:71.3}, {freq:29.4,magnitude:76.2}, {freq:43.1,magnitude:80.3}, {freq:63.2,magnitude:89.0},
-  {freq:92.8,magnitude:89.0}, {freq:136.3,magnitude:89.0}, {freq:200.0,magnitude:89.0}, {freq:293.6,magnitude:89.1},
-  {freq:430.9,magnitude:89.3}, {freq:632.5,magnitude:89.4}, {freq:928.3,magnitude:89.6}, {freq:1362.6,magnitude:89.7},
-  {freq:2000.0,magnitude:89.9}, {freq:2935.6,magnitude:90.0}, {freq:4308.9,magnitude:92.1}, {freq:6324.6,magnitude:89.9},
-  {freq:9283.2,magnitude:79.7}, {freq:13625.8,magnitude:70.8}, {freq:20000.0,magnitude:62.9},
+  {freq:20.0,magnitude:71.3}, {freq:29.4,magnitude:76.2}, {freq:43.1,magnitude:80.3}, {freq:63.2,magnitude:88.2},
+  {freq:92.8,magnitude:88.2}, {freq:136.3,magnitude:88.2}, {freq:200.0,magnitude:88.2}, {freq:293.6,magnitude:88.2},
+  {freq:430.9,magnitude:88.2}, {freq:632.5,magnitude:87.0}, {freq:928.3,magnitude:87.2}, {freq:1362.6,magnitude:87.5},
+  {freq:2000.0,magnitude:85.5}, {freq:2935.6,magnitude:80.5}, {freq:4308.9,magnitude:77.3}, {freq:6324.6,magnitude:77.3},
+  {freq:9283.2,magnitude:77.3}, {freq:13625.8,magnitude:77.3}, {freq:20000.0,magnitude:77.3},
 ];
 
 // ---------------------------------------------------------------------------
