@@ -150,6 +150,52 @@ const MID18W_60DEG: FrequencyDataPoint[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Vifa / Wavecor frequency response data
+// Vifa BC25TG15-04: digitized from Peerless datasheet PDF (pixel-based, 300 DPI)
+// Wavecor WF146WA01/02 + WF168WA01/02: constructed from T/S parameters +
+// datasheet SPL curves (infinite baffle model with cone breakup peak)
+// ---------------------------------------------------------------------------
+
+const VIFA_BC25TG15_ONAXIS: FrequencyDataPoint[] = [
+  {freq:200.0,magnitude:62.4}, {freq:293.6,magnitude:69.0}, {freq:430.9,magnitude:75.9}, {freq:632.5,magnitude:83.0},
+  {freq:928.3,magnitude:89.8}, {freq:1362.6,magnitude:93.9}, {freq:2000.0,magnitude:94.4}, {freq:2935.6,magnitude:94.0},
+  {freq:4308.9,magnitude:93.3}, {freq:6324.6,magnitude:93.0}, {freq:9283.2,magnitude:92.5}, {freq:13625.8,magnitude:92.3},
+  {freq:20000.0,magnitude:91.7}, {freq:29356.0,magnitude:86.9}, {freq:40000.0,magnitude:81.9},
+];
+
+const WF146WA01_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:69.7}, {freq:29.4,magnitude:74.6}, {freq:43.1,magnitude:78.7}, {freq:63.2,magnitude:90.0},
+  {freq:92.8,magnitude:90.0}, {freq:136.3,magnitude:90.0}, {freq:200.0,magnitude:90.0}, {freq:293.6,magnitude:90.1},
+  {freq:430.9,magnitude:90.3}, {freq:632.5,magnitude:90.4}, {freq:928.3,magnitude:90.5}, {freq:1362.6,magnitude:90.7},
+  {freq:2000.0,magnitude:90.8}, {freq:2935.6,magnitude:90.9}, {freq:4308.9,magnitude:91.9}, {freq:6324.6,magnitude:93.9},
+  {freq:9283.2,magnitude:87.4}, {freq:13625.8,magnitude:77.5}, {freq:20000.0,magnitude:68.9},
+];
+
+const WF146WA02_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:67.3}, {freq:29.4,magnitude:72.6}, {freq:43.1,magnitude:77.0}, {freq:63.2,magnitude:87.5},
+  {freq:92.8,magnitude:87.5}, {freq:136.3,magnitude:87.5}, {freq:200.0,magnitude:87.5}, {freq:293.6,magnitude:87.6},
+  {freq:430.9,magnitude:87.8}, {freq:632.5,magnitude:87.9}, {freq:928.3,magnitude:88.0}, {freq:1362.6,magnitude:88.2},
+  {freq:2000.0,magnitude:88.3}, {freq:2935.6,magnitude:88.4}, {freq:4308.9,magnitude:89.4}, {freq:6324.6,magnitude:91.4},
+  {freq:9283.2,magnitude:84.9}, {freq:13625.8,magnitude:75.0}, {freq:20000.0,magnitude:66.4},
+];
+
+const WF168WA01_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:73.5}, {freq:29.4,magnitude:78.1}, {freq:43.1,magnitude:81.9}, {freq:63.2,magnitude:91.5},
+  {freq:92.8,magnitude:91.5}, {freq:136.3,magnitude:91.5}, {freq:200.0,magnitude:91.5}, {freq:293.6,magnitude:91.6},
+  {freq:430.9,magnitude:91.8}, {freq:632.5,magnitude:91.9}, {freq:928.3,magnitude:92.1}, {freq:1362.6,magnitude:92.2},
+  {freq:2000.0,magnitude:92.4}, {freq:2935.6,magnitude:92.5}, {freq:4308.9,magnitude:94.6}, {freq:6324.6,magnitude:92.4},
+  {freq:9283.2,magnitude:82.2}, {freq:13625.8,magnitude:73.3}, {freq:20000.0,magnitude:65.4},
+];
+
+const WF168WA02_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:71.3}, {freq:29.4,magnitude:76.2}, {freq:43.1,magnitude:80.3}, {freq:63.2,magnitude:89.0},
+  {freq:92.8,magnitude:89.0}, {freq:136.3,magnitude:89.0}, {freq:200.0,magnitude:89.0}, {freq:293.6,magnitude:89.1},
+  {freq:430.9,magnitude:89.3}, {freq:632.5,magnitude:89.4}, {freq:928.3,magnitude:89.6}, {freq:1362.6,magnitude:89.7},
+  {freq:2000.0,magnitude:89.9}, {freq:2935.6,magnitude:90.0}, {freq:4308.9,magnitude:92.1}, {freq:6324.6,magnitude:89.9},
+  {freq:9283.2,magnitude:79.7}, {freq:13625.8,magnitude:70.8}, {freq:20000.0,magnitude:62.9},
+];
+
+// ---------------------------------------------------------------------------
 // Driver catalog
 // ---------------------------------------------------------------------------
 
@@ -567,16 +613,17 @@ export const SEED_DRIVERS: Driver[] = [
     model: 'BC25TG15-04',
     type: 'tweeter',
     tsParams: {
-      fs: 1128, re: 2.99, qms: 2.54, qes: 1.26, qts: 0.84, vas: 0.0,
-      sensitivity: 93.2, xmax: 0.6, sd: 6.2, sdM2: 0.00062, vd: 3.72,
-      imp: 4, pe: 50, le: 0.02, bl: 2.28, mms: 0.3, cms: 0.0645,
+      fs: 1100, re: 3.2, qms: 2.75, qes: 1.53, qts: 0.98, vas: 0.003,
+      sensitivity: 93.9, xmax: 1.17, sd: 6.16, sdM2: 0.000616, vd: 7.2,
+      imp: 4, pe: 7, le: 0.029, bl: 2.24, mms: 0.347, cms: 58,
     },
     dimensions: {
       overallDiameter: 104, cutoutDiameter: 74, mountingDepth: 18,
-      magnetDiameter: 60, magnetDepth: 20, weight: 500,
+      magnetDiameter: 60, magnetDepth: 20, weight: 510,
     },
+    frequencyResponse: VIFA_BC25TG15_ONAXIS,
     datasheetUrl: 'https://www.madisoundspeakerstore.com/vifa-soft-dome-tweeters/vifa-bc25tg15-04-1-textile-dome-tweeter/',
-    notes: '1" (25.4mm) fabric dome, ferrofluid cooled, ferrite magnet. Fs 1128 Hz tillader krydsning fra ~2 kHz med steile slopes. Tidligere brugt i Kudos X2 kabinet med Wavecor WF146WA01/02. Mulig oprindelig delefrekvens op mod 4900 Hz (Kudos passivt design). 104mm faceplate, foam sealing gasket. Sources: HiFiCompass, Meniscus Audio, Madisound.',
+    notes: '1" (25.4mm) fabric dome, ferrofluid cooled, ferrite magnet. Fs 1100 Hz, sensitivity 93.9 dB (2.83V). Tidligere brugt i Kudos X2 kabinet med Wavecor WF146WA01/02. Mulig oprindelig delefrekvens op mod 4900 Hz (Kudos passivt design) — overskrider Wavecor max 3.5 kHz. Frekvensrespons digitaliseret fra datasheet PDF (Peerless by Tymphany, juli 2025). Sources: datasheet PDF, HiFiCompass, Madisound.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -595,8 +642,72 @@ export const SEED_DRIVERS: Driver[] = [
       overallDiameter: 146, cutoutDiameter: 123, mountingDepth: 60,
       magnetDiameter: 90, magnetDepth: 30, weight: 1030,
     },
+    frequencyResponse: WF146WA01_ONAXIS,
     datasheetUrl: 'https://www.wavecor.com/html/wf146wa01_02.html',
-    notes: '5.75" (146mm) paper cone mid/woofer, 90mm magnet, alu field-stabilizing ring, vented VC former + chassis. 32mm voice coil (1.25"). Anbefalet max øvre frekvens: 3.5 kHz — 4900 Hz (Kudos X2) overskrider dette (breakup/directivity risk). Tidligere brugt i Kudos X2 kabinet med Vifa BC25TG15-04 diskant. 8Ω variant findes: WF146WA02 (Re=6.3, sensitivity 87.5 dB, Qts=0.51, Fs=58 Hz). Source: wavecor.com spec page.',
+    notes: '5.75" (146mm) paper cone mid/woofer, 90mm magnet, alu field-stabilizing ring, vented VC former + chassis. 32mm voice coil (1.25"). Anbefalet max øvre frekvens: 3.5 kHz — 4900 Hz (Kudos X2) overskrider dette (breakup/directivity risk). Tidligere brugt i Kudos X2 kabinet med Vifa BC25TG15-04 diskant. 8Ω variant findes: WF146WA02 (Re=6.3, sensitivity 87.5 dB, Qts=0.51, Fs=58 Hz). Frekvensrespons konstrueret fra T/S parametre + datasheet SPL-kurve (wavecor.com, marts 2024). Source: wavecor.com spec page + datasheet PDF.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-wavecor-wf146wa02',
+    manufacturer: 'Wavecor',
+    model: 'WF146WA02 (8Ω)',
+    type: 'midrange',
+    tsParams: {
+      fs: 58, re: 6.3, qms: 7.0, qes: 0.54, qts: 0.51, vas: 10.0,
+      sensitivity: 87.5, xmax: 4.0, sd: 95, sdM2: 0.0095, vd: 380,
+      imp: 8, pe: 55, le: 0.39, bl: 6.4, mms: 9.7, cms: 0.78,
+    },
+    dimensions: {
+      overallDiameter: 146, cutoutDiameter: 123, mountingDepth: 60,
+      magnetDiameter: 90, magnetDepth: 30, weight: 1030,
+    },
+    frequencyResponse: WF146WA02_ONAXIS,
+    datasheetUrl: 'https://www.wavecor.com/html/wf146wa01_02.html',
+    notes: '8Ω variant af WF146WA01. Identisk membran og motor, men dobbelt impedans giver lavere sensitivity (87.5 vs 90 dB). Qts=0.51 (højere end 4Ω variant). Anbefalet max øvre frekvens: 3.5 kHz. Frekvensrespons konstrueret fra T/S parametre + datasheet SPL-kurve. Source: wavecor.com spec page + datasheet PDF.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-wavecor-wf168wa01',
+    manufacturer: 'Wavecor',
+    model: 'WF168WA01 (4Ω)',
+    type: 'woofer',
+    tsParams: {
+      fs: 47.5, re: 3.2, qms: 7.0, qes: 0.46, qts: 0.43, vas: 24.6,
+      sensitivity: 91.5, xmax: 4.0, sd: 139, sdM2: 0.0139, vd: 556,
+      imp: 4, pe: 60, le: 0.24, bl: 5.1, mms: 12.5, cms: 0.90,
+    },
+    dimensions: {
+      overallDiameter: 168, cutoutDiameter: 159, mountingDepth: 73,
+      magnetDiameter: 90, magnetDepth: 30, weight: 1030,
+    },
+    frequencyResponse: WF168WA01_ONAXIS,
+    datasheetUrl: 'https://www.wavecor.com/html/wf168wa01_02.html',
+    notes: '6.5" (168mm) paper cone mid/woofer, 90mm magnet, alu field-stabilizing ring, vented VC former + chassis. 32mm voice coil (1.25"). Vas 24.6L — større end WF146WA01 (10L), egner sig til små lukkede/ported kabinetter. Anbefalet max øvre frekvens: 3.0 kHz. Frekvensrespons konstrueret fra T/S parametre + datasheet SPL-kurve (wavecor.com). Source: wavecor.com spec page + datasheet PDF.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-wavecor-wf168wa02',
+    manufacturer: 'Wavecor',
+    model: 'WF168WA02 (8Ω)',
+    type: 'woofer',
+    tsParams: {
+      fs: 49, re: 6.3, qms: 7.1, qes: 0.56, qts: 0.52, vas: 24.6,
+      sensitivity: 89.0, xmax: 4.0, sd: 139, sdM2: 0.0139, vd: 556,
+      imp: 8, pe: 60, le: 0.39, bl: 6.4, mms: 11.8, cms: 0.90,
+    },
+    dimensions: {
+      overallDiameter: 168, cutoutDiameter: 159, mountingDepth: 73,
+      magnetDiameter: 90, magnetDepth: 30, weight: 1030,
+    },
+    frequencyResponse: WF168WA02_ONAXIS,
+    datasheetUrl: 'https://www.wavecor.com/html/wf168wa01_02.html',
+    notes: '8Ω variant af WF168WA01. Identisk membran og motor, men dobbelt impedans giver lavere sensitivity (89 vs 91.5 dB). Qts=0.52 (højere end 4Ω variant). Anbefalet max øvre frekvens: 3.0 kHz. Frekvensrespons konstrueret fra T/S parametre + datasheet SPL-kurve. Source: wavecor.com spec page + datasheet PDF.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },

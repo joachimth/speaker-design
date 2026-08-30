@@ -233,7 +233,23 @@ export const SYSTEM_SUGGESTIONS: SystemSuggestion[] = [
     type: '2-way',
     drivers: ['seed-wavecor-wf146wa01', 'seed-vifa-bc25tg15-04'],
     recommendedXo: '2.0 kHz LR4',
-    notes: 'Kudos X2 passivt design krydsede muligvis op mod 4900 Hz, men Wavecor anbefaler max 3.5 kHz (breakup/directivity risk). Vifa Fs 1128 Hz tillader komfortabel krydsning fra ~2 kHz. MiniDSP aktivt setup kører allerede 2000 Hz LR4 — sikkert for begge enheder. Følsomhed: Wavecor 90 dB vs Vifa 93.2 dB — diskant kan behøve -3 dB pad.',
+    notes: 'Kudos X2 passivt design krydsede muligvis op mod 4900 Hz, men Wavecor anbefaler max 3.5 kHz (breakup/directivity risk). Vifa Fs 1100 Hz tillader komfortabel krydsning fra ~2 kHz. MiniDSP aktivt setup kører allerede 2000 Hz LR4 — sikkert for begge enheder. Følsomhed: Wavecor 90 dB vs Vifa 93.9 dB — diskant kan behøve -3.9 dB pad.',
+  },
+  {
+    name: '2.5-vejs med Wavecor WF168 + Vifa BC25TG15',
+    description: 'Wavecor WF168WA01 6.5" bas + Wavecor WF146WA01 5.75" mellemtone + Vifa BC25TG15-04 diskant. 3-vejs aktivt system.',
+    type: '3-way',
+    drivers: ['seed-wavecor-wf168wa01', 'seed-wavecor-wf146wa01', 'seed-vifa-bc25tg15-04'],
+    recommendedXo: '300 Hz LR4 + 2.0 kHz LR4',
+    notes: 'WF168WA01 dækker bunden til 300 Hz (Vas 24.6L, egner sig til lukket/ported). WF146WA01 tager mellemtone 300 Hz - 2 kHz. Vifa diskant fra 2 kHz. Følsomhed: WF168 91.5 dB, WF146 90 dB, Vifa 93.9 dB — juster gains for flad sum. 8Ω varianter (WF168WA02, WF146WA02) giver lavere følsomhed men højere Qts.',
+  },
+  {
+    name: 'Wavecor WF168 2-vejs (6.5" + diskant)',
+    description: 'Wavecor WF168WA01 6.5" bas/mellemtone + Vifa BC25TG15-04 diskant. Kompakt 2-vejs med dybere bas end WF146.',
+    type: '2-way',
+    drivers: ['seed-wavecor-wf168wa01', 'seed-vifa-bc25tg15-04'],
+    recommendedXo: '2.0 kHz LR4',
+    notes: 'WF168WA01 går dybere end WF146 (Fs 47.5 vs 56 Hz, Vas 24.6 vs 10 L). Max øvre frekvens 3.0 kHz — 2 kHz krydsning er sikker. Følsomhed 91.5 dB vs Vifa 93.9 dB — diskant pad ~-2.4 dB. 8Ω variant: WF168WA02 (89 dB, Qts=0.52).',
   },
 ];
 
