@@ -561,6 +561,46 @@ export const SEED_DRIVERS: Driver[] = [
     updatedAt: Date.now(),
   },
 
+  {
+    id: 'seed-vifa-bc25tg15-04',
+    manufacturer: 'Vifa (Peerless by Tymphany)',
+    model: 'BC25TG15-04',
+    type: 'tweeter',
+    tsParams: {
+      fs: 1128, re: 2.99, qms: 2.54, qes: 1.26, qts: 0.84, vas: 0.0,
+      sensitivity: 93.2, xmax: 0.6, sd: 6.2, sdM2: 0.00062, vd: 3.72,
+      imp: 4, pe: 50, le: 0.02, bl: 2.28, mms: 0.3, cms: 0.0645,
+    },
+    dimensions: {
+      overallDiameter: 104, cutoutDiameter: 74, mountingDepth: 18,
+      magnetDiameter: 60, magnetDepth: 20, weight: 500,
+    },
+    datasheetUrl: 'https://www.madisoundspeakerstore.com/vifa-soft-dome-tweeters/vifa-bc25tg15-04-1-textile-dome-tweeter/',
+    notes: '1" (25.4mm) fabric dome, ferrofluid cooled, ferrite magnet. Fs 1128 Hz tillader krydsning fra ~2 kHz med steile slopes. Tidligere brugt i Kudos X2 kabinet med Wavecor WF146WA01/02. Mulig oprindelig delefrekvens op mod 4900 Hz (Kudos passivt design). 104mm faceplate, foam sealing gasket. Sources: HiFiCompass, Meniscus Audio, Madisound.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  {
+    id: 'seed-wavecor-wf146wa01',
+    manufacturer: 'Wavecor',
+    model: 'WF146WA01 (4Ω)',
+    type: 'midrange',
+    tsParams: {
+      fs: 56, re: 3.2, qms: 7.0, qes: 0.45, qts: 0.42, vas: 10.0,
+      sensitivity: 90.0, xmax: 4.0, sd: 95, sdM2: 0.0095, vd: 380,
+      imp: 4, pe: 55, le: 0.24, bl: 5.1, mms: 10.4, cms: 0.78,
+    },
+    dimensions: {
+      overallDiameter: 146, cutoutDiameter: 123, mountingDepth: 60,
+      magnetDiameter: 90, magnetDepth: 30, weight: 1030,
+    },
+    datasheetUrl: 'https://www.wavecor.com/html/wf146wa01_02.html',
+    notes: '5.75" (146mm) paper cone mid/woofer, 90mm magnet, alu field-stabilizing ring, vented VC former + chassis. 32mm voice coil (1.25"). Anbefalet max øvre frekvens: 3.5 kHz — 4900 Hz (Kudos X2) overskrider dette (breakup/directivity risk). Tidligere brugt i Kudos X2 kabinet med Vifa BC25TG15-04 diskant. 8Ω variant findes: WF146WA02 (Re=6.3, sensitivity 87.5 dB, Qts=0.51, Fs=58 Hz). Source: wavecor.com spec page.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
   // ===== DATS-Measured parameter sets (Jul 25-26, 2026) =====
   // Archived in parameterSets on the parent seed drivers above.
   // Standalone DATS entries removed in favor of in-driver parameter set switching.

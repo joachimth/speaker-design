@@ -227,6 +227,14 @@ export const SYSTEM_SUGGESTIONS: SystemSuggestion[] = [
     recommendedXo: '80-120 Hz',
     notes: 'Alpair 7MS dækker 80 Hz - 20 kHz alene. Subwoofer afhjælper bunden. Velegnet til rørhøjttalere eller minimalistiske systemer. Aktiv dæmpning/delay påkrævet.',
   },
+  {
+    name: 'Kudos X2 restaurering (Vifa + Wavecor)',
+    description: 'Vifa BC25TG15-04 diskant + Wavecor WF146WA01 mellem/bas. Oprindeligt Kudos X2 kabinet, nu med MiniDSP 2x4 aktivt delefilter.',
+    type: '2-way',
+    drivers: ['seed-wavecor-wf146wa01', 'seed-vifa-bc25tg15-04'],
+    recommendedXo: '2.0 kHz LR4',
+    notes: 'Kudos X2 passivt design krydsede muligvis op mod 4900 Hz, men Wavecor anbefaler max 3.5 kHz (breakup/directivity risk). Vifa Fs 1128 Hz tillader komfortabel krydsning fra ~2 kHz. MiniDSP aktivt setup kører allerede 2000 Hz LR4 — sikkert for begge enheder. Følsomhed: Wavecor 90 dB vs Vifa 93.2 dB — diskant kan behøve -3 dB pad.',
+  },
 ];
 
 // ---------------------------------------------------------------------------
