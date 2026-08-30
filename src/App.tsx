@@ -4,6 +4,7 @@ import DriverManager from './pages/DriverManager'
 import CabinetDesigner from './pages/CabinetDesigner'
 import CrossoverDesigner from './pages/CrossoverDesigner'
 import SimulationView from './pages/SimulationView'
+import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
 import { useDriverStore } from './store/driverStore'
 import { SEED_DRIVERS } from './data/seedDrivers'
@@ -48,6 +49,7 @@ export default function App() {
     { to: '/cabinet', label: 'Kabinet' },
     { to: '/crossover', label: 'Delingsfilter' },
     { to: '/simulation', label: 'Simulering' },
+    { to: '/system', label: 'System Sim.' },
   ]
 
   return (
@@ -153,6 +155,7 @@ export default function App() {
           <Route path="/cabinet" element={<CabinetDesigner />} />
           <Route path="/crossover" element={<CrossoverDesigner />} />
           <Route path="/simulation" element={<SimulationView />} />
+          <Route path="/system" element={<SystemSimulation />} />
         </Routes>
       </main>
     </div>
