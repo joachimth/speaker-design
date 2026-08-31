@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
-import { Card, Select, NumberInput, Badge } from '@/components/common/UI'
+import { Card, Select, NumberInput, Badge, Button } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
+import { suggestCrossover } from '@/lib/acoustic/autoDesign'
 import type { CrossoverType, FrequencyDataPoint } from '@/types'
 
 const XOVER_TYPES: { value: CrossoverType; label: string }[] = [
@@ -58,6 +59,68 @@ export default function CrossoverDesigner() {
 
   function updateBand(index: number, updates: Partial<typeof bands[0]>) {
     setBands(bands.map((b, i) => (i === index ? { ...b, ...updates } : b)))
+  }
+
+  // Auto-suggest: compute crossover from selected drivers
+  const [autoReasoning, setAutoReasoning] = useState<string[] | null>(null)
+
+  function handleAutoSuggest() {
+    // Collect selected drivers from current bands
+    const selectedDrivers = bands
+      .slice(0, ways)
+      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .filter((d): d is NonNullable<typeof d> => !!d)
+
+    // If not enough drivers selected, auto-pick by type from the store
+    if (selectedDrivers.length < 2) {
+      const roleToType: Record<string, string[]> = {
+        low: ['woofer', 'subwoofer'],
+        mid: ['midrange', 'fullrange'],
+        high: ['tweeter'],
+      }
+      const needed = bands.slice(0, ways).map((band) => {
+        if (band.driverId && drivers.find((d) => d.id === band.driverId)) {
+          return drivers.find((d) => d.id === band.driverId)!
+        }
+        const types = roleToType[band.role] || []
+        const existing = selectedDrivers.map((d) => d.id)
+        return drivers.find((d) => types.includes(d.type) && !existing.includes(d.id))
+      }).filter((d): d is NonNullable<typeof d> => !!d)
+
+      if (needed.length < 2) {
+        setAutoReasoning(['Ikke nok enheder valgt. Vælg mindst 2 enheder før auto-forslag.'])
+        return
+      }
+      const result = suggestCrossover(needed, ways)
+      applySuggestion(result)
+      return
+    }
+
+    const result = suggestCrossover(selectedDrivers, ways)
+    applySuggestion(result)
+  }
+
+  function applySuggestion(result: ReturnType<typeof suggestCrossover>) {
+    setAutoReasoning(result.reasoning)
+    if (result.bands.length === 0) return
+
+    // Build new bands array from suggestion, preserving structure for unused slots
+    const newBands = [...bands]
+    for (let i = 0; i < ways && i < result.bands.length; i++) {
+      const sug = result.bands[i]!
+      newBands[i] = {
+        driverId: sug.driverId,
+        role: sug.role as 'low' | 'mid' | 'high',
+        lowpassFreq: sug.lowpassFreq,
+        lowpassType: sug.lowpassType,
+        highpassFreq: sug.highpassFreq,
+        highpassType: sug.highpassType,
+        gain: sug.gain,
+        polarity: sug.polarity,
+        delay: sug.delay,
+      }
+    }
+    setBands(newBands)
   }
 
   // Generate preview curves for the crossover response plot
@@ -291,13 +354,30 @@ function findClosestIndex(arr: number[], target: number): number {
       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delingsfilter</h2>
 
       <Card title="Systemkonfiguration">
-        <Select
-          label="Antal veje"
-          value={ways}
-          onChange={handleWaysChange}
-          options={WAYS_OPTIONS}
-        />
+        <div className="flex items-end gap-3">
+          <Select
+            label="Antal veje"
+            value={ways}
+            onChange={handleWaysChange}
+            options={WAYS_OPTIONS}
+            className="flex-1"
+          />
+          <Button onClick={handleAutoSuggest} variant="primary">
+            Auto-forslag
+          </Button>
+        </div>
       </Card>
+
+      {/* Auto-suggest reasoning */}
+      {autoReasoning && autoReasoning.length > 0 && (
+        <Card title="Auto-forslag begrundelse">
+          <div className="space-y-1">
+            {autoReasoning.map((line, i) => (
+              <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Band configuration */}
       {bands.slice(0, ways).map((band, i) => (

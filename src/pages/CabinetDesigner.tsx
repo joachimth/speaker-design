@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useDriverStore } from '@/store/driverStore'
-import { Card, Select, NumberInput, StatCard } from '@/components/common/UI'
+import { Card, Select, NumberInput, StatCard, Button } from '@/components/common/UI'
 import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
 import BreakInCard from '@/components/BreakInCard'
@@ -12,7 +12,8 @@ import {
   recommendCabinetType,
   calcInternalVolume,
 } from '@/lib/acoustic/thieleSmall'
-import type { CabinetType } from '@/types'
+import { suggestCabinet, suggestBaffle } from '@/lib/acoustic/autoDesign'
+import type { CabinetType, Driver } from '@/types'
 
 export default function CabinetDesigner() {
   const { drivers, updateDriver } = useDriverStore()
@@ -33,6 +34,64 @@ export default function CabinetDesigner() {
     baffleHeight: 1180,
     frontRoundoverRadius: 19,
   })
+
+  // Auto-suggest state
+  const [cabinetReasoning, setCabinetReasoning] = useState<string[] | null>(null)
+  const [baffleReasoning, setBaffleReasoning] = useState<string[] | null>(null)
+
+  // Auto-suggest cabinet type + dimensions from driver T/S params
+  function handleAutoCabinet() {
+    if (!selectedDriver?.tsParams) return
+    const result = suggestCabinet(selectedDriver, cabinetType)
+    setCabinetReasoning(result.reasoning)
+    setCabinetDims({
+      width: result.dimensions.width,
+      height: result.dimensions.height,
+      depth: result.dimensions.depth,
+      wallThickness: result.dimensions.wallThickness,
+      baffleWidth: result.dimensions.baffleWidth,
+      baffleHeight: result.dimensions.baffleHeight,
+      frontRoundoverRadius: result.dimensions.frontRoundoverRadius,
+    })
+    if (result.ported && result.portLength) {
+      setPortDiameter(60)
+      setNumPorts(1)
+    }
+  }
+
+  // Auto-suggest + auto-select best cabinet type, then suggest dimensions
+  function handleAutoCabinetType() {
+    if (!selectedDriver?.tsParams) return
+    const rec = recommendCabinetType(selectedDriver.tsParams)
+    setCabinetType(rec.recommended)
+    const result = suggestCabinet(selectedDriver, rec.recommended)
+    setCabinetReasoning([
+      `Anbefalet type: ${rec.recommended} — ${rec.reason}`,
+      ...result.reasoning,
+    ])
+    setCabinetDims({
+      width: result.dimensions.width,
+      height: result.dimensions.height,
+      depth: result.dimensions.depth,
+      wallThickness: result.dimensions.wallThickness,
+      baffleWidth: result.dimensions.baffleWidth,
+      baffleHeight: result.dimensions.baffleHeight,
+      frontRoundoverRadius: result.dimensions.frontRoundoverRadius,
+    })
+  }
+
+  // Auto-suggest baffle dimensions from driver
+  function handleAutoBaffle() {
+    if (!selectedDriver) return
+    const result = suggestBaffle([selectedDriver as Driver], [])
+    setBaffleReasoning(result.reasoning)
+    setCabinetDims((prev) => ({
+      ...prev,
+      baffleWidth: result.width,
+      baffleHeight: result.height,
+      frontRoundoverRadius: result.roundoverRadius,
+    }))
+  }
 
   // Fall back to the first driver: the store loads async, so drivers[0] is
   // not yet available when the initial selectedDriverId state is captured
@@ -144,7 +203,38 @@ export default function CabinetDesigner() {
             </button>
           ))}
         </div>
+        <div className="mt-3 flex gap-2 flex-wrap">
+          <Button onClick={handleAutoCabinetType} variant="primary" size="sm">
+            Auto type + dimensioner
+          </Button>
+          <Button onClick={handleAutoCabinet} variant="secondary" size="sm">
+            Auto dimensioner (valgt type)
+          </Button>
+          <Button onClick={handleAutoBaffle} variant="secondary" size="sm">
+            Auto baffel
+          </Button>
+        </div>
       </Card>
+
+      {/* Auto-suggest reasoning */}
+      {cabinetReasoning && cabinetReasoning.length > 0 && (
+        <Card title="Auto kabinet begrundelse">
+          <div className="space-y-1">
+            {cabinetReasoning.map((line, i) => (
+              <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+            ))}
+          </div>
+        </Card>
+      )}
+      {baffleReasoning && baffleReasoning.length > 0 && (
+        <Card title="Auto baffel begrundelse">
+          <div className="space-y-1">
+            {baffleReasoning.map((line, i) => (
+              <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Cabinet dimensions */}
       <Card title="Kabinetdimensioner">

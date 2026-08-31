@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
-import { Card, Select, NumberInput, Badge, StatCard } from '@/components/common/UI'
+import { Card, Select, NumberInput, Badge, StatCard, Button } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
+import { suggestCrossover, suggestBaffle } from '@/lib/acoustic/autoDesign'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import type { CrossoverType, FrequencyDataPoint, Driver } from '@/types'
 
@@ -127,6 +128,71 @@ export default function SystemSimulation() {
 
   function updateBand(index: number, updates: Partial<Band>) {
     setBands(bands.map((b, i) => (i === index ? { ...b, ...updates } : b)))
+  }
+
+  // Auto-suggest state
+  const [autoReasoning, setAutoReasoning] = useState<string[] | null>(null)
+  const [baffleReasoning, setBaffleReasoning] = useState<string[] | null>(null)
+
+  // Auto-suggest crossover from selected drivers
+  function handleAutoCrossover() {
+    const selectedDrivers = bands
+      .slice(0, ways)
+      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .filter((d): d is Driver => !!d)
+
+    if (selectedDrivers.length < 2) {
+      setAutoReasoning(['Vælg mindst 2 enheder før auto-forslag.'])
+      return
+    }
+
+    const result = suggestCrossover(selectedDrivers, ways)
+    setAutoReasoning(result.reasoning)
+    if (result.bands.length === 0) return
+
+    const newBands = [...bands]
+    for (let i = 0; i < ways && i < result.bands.length; i++) {
+      const sug = result.bands[i]!
+      newBands[i] = {
+        driverId: sug.driverId,
+        role: sug.role as Band['role'],
+        lowpassFreq: sug.lowpassFreq,
+        lowpassType: sug.lowpassType,
+        highpassFreq: sug.highpassFreq,
+        highpassType: sug.highpassType,
+        gain: sug.gain,
+        polarity: sug.polarity,
+        delay: sug.delay,
+      }
+    }
+    setBands(newBands)
+
+    // Also auto-suggest baffle based on new crossover frequencies
+    const xoFreqs = result.bands.map((b) => b.lowpassFreq)
+    handleAutoBaffle(selectedDrivers, xoFreqs)
+  }
+
+  // Auto-suggest baffle dimensions from drivers and crossover frequencies
+  function handleAutoBaffle(
+    driverList?: Driver[],
+    xoFreqs?: number[],
+  ) {
+    const selectedDrivers = driverList ?? bands
+      .slice(0, ways)
+      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .filter((d): d is Driver => !!d)
+
+    if (selectedDrivers.length === 0) {
+      setBaffleReasoning(['Ingen enheder valgt for baffel-forslag.'])
+      return
+    }
+
+    const freqs = xoFreqs ?? bands.slice(0, ways).map((b) => b.lowpassFreq)
+    const result = suggestBaffle(selectedDrivers, freqs)
+    setBaffleReasoning(result.reasoning)
+    setBaffleWidth(result.width)
+    setBaffleHeight(result.height)
+    setRoundoverRadius(result.roundoverRadius)
   }
 
   // -----------------------------------------------------------------------
@@ -367,6 +433,14 @@ export default function SystemSimulation() {
           <NumberField label="Baffel højde" unit="mm" value={baffleHeight} onChange={setBaffleHeight} />
           <NumberField label="Afrunding radius" unit="mm" value={roundoverRadius} onChange={setRoundoverRadius} />
         </div>
+        <div className="mt-3 flex gap-2 flex-wrap">
+          <Button onClick={handleAutoCrossover} variant="primary">
+            Auto delefilter + baffel
+          </Button>
+          <Button onClick={() => handleAutoBaffle()} variant="secondary">
+            Kun auto baffel
+          </Button>
+        </div>
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Baffelstep ved" value={fStep.toFixed(0)} unit="Hz" />
           <StatCard label="Aktive enheder" value={activeDriverCount} unit={`/${ways}`} />
@@ -374,6 +448,26 @@ export default function SystemSimulation() {
           <StatCard label="Baffel" value={`${baffleWidth}×${baffleHeight}`} unit="mm" />
         </div>
       </Card>
+
+      {/* Auto-suggest reasoning */}
+      {autoReasoning && autoReasoning.length > 0 && (
+        <Card title="Auto delefilter begrundelse">
+          <div className="space-y-1">
+            {autoReasoning.map((line, i) => (
+              <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+            ))}
+          </div>
+        </Card>
+      )}
+      {baffleReasoning && baffleReasoning.length > 0 && (
+        <Card title="Auto baffel begrundelse">
+          <div className="space-y-1">
+            {baffleReasoning.map((line, i) => (
+              <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Band configurations */}
       {bands.slice(0, ways).map((band, i) => {
