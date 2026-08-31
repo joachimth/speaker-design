@@ -28,6 +28,7 @@ import {
   type PortedDesignParams,
 } from './thieleSmall';
 import { baffleStepFrequency } from './baffle';
+import { calcInRoomResponse, type RoomAcousticsParams } from './roomAcoustics';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -770,4 +771,210 @@ export function suggestSystem(
   const cabinet = suggestCabinet(woofer, cabinetType);
 
   return { crossover, cabinet, baffle };
+}
+
+// ===========================================================================
+// Auto-tuning: optimize per-band gains to flatten the in-room response
+// ===========================================================================
+
+export interface RoomOptimizationResult {
+  /** Optimized gain per band [dB] */
+  optimizedGains: number[];
+  /** Original gains [dB] */
+  originalGains: number[];
+  /** Standard deviation of in-room response before optimization [dB] */
+  beforeFlatness: number;
+  /** Standard deviation of in-room response after optimization [dB] */
+  afterFlatness: number;
+  /** Improvement in flatness [dB] */
+  improvement: number;
+  /** Target level (mean SPL) after optimization [dB] */
+  targetLevel: number;
+  /** Human-readable reasoning lines */
+  reasoning: string[];
+}
+
+/**
+ * Sum a set of band curves (with per-band gain and polarity) into a single
+ * frequency-response curve via voltage summation.
+ *
+ * @param bandCurves  Each band's curve at the band's base level (gain already
+ *                    may or may not be applied — see bandGains).
+ * @param bandGains   Per-band gain in dB to apply on top of each curve.
+ * @param polarities  Per-band polarity (0 or 180).
+ * @returns Summed frequency-response points.
+ */
+function sumBands(
+  bandCurves: FrequencyDataPoint[][],
+  bandGains: number[],
+  polarities: (0 | 180)[],
+): FrequencyDataPoint[] {
+  if (bandCurves.length === 0) return [];
+  const freqs = bandCurves[0]!.map((p) => p.freq);
+  return freqs.map((f, i) => {
+    let sumLinear = 0;
+    for (let b = 0; b < bandCurves.length; b++) {
+      const curve = bandCurves[b]!;
+      const db = curve[i]!.magnitude + bandGains[b]!;
+      const sign = polarities[b] === 180 ? -1 : 1;
+      sumLinear += sign * Math.pow(10, db / 20);
+    }
+    return { freq: f, magnitude: 20 * Math.log10(Math.max(Math.abs(sumLinear), 1e-10)) };
+  });
+}
+
+/**
+ * Standard deviation of dB values over a target frequency range, weighted
+ * equally per frequency point. Lower = flatter.
+ */
+function flatnessScore(
+  curve: FrequencyDataPoint[],
+  fMin: number,
+  fMax: number,
+): number {
+  const inRange = curve.filter((p) => p.freq >= fMin && p.freq <= fMax);
+  if (inRange.length === 0) return Infinity;
+  const mean = inRange.reduce((a, p) => a + p.magnitude, 0) / inRange.length;
+  const variance = inRange.reduce((a, p) => a + (p.magnitude - mean) ** 2, 0) / inRange.length;
+  return Math.sqrt(variance);
+}
+
+/**
+ * Optimize per-band gains to flatten the simulated in-room response.
+ *
+ * Uses coordinate descent: for each band, scan a range of gain values and
+ * pick the one that minimises the standard deviation of the smoothed
+ * in-room response over the target frequency range. The room acoustics
+ * model (boundary gain + modes + smoothing) is applied at each evaluation
+ * so the optimiser works on the actual predicted in-room curve.
+ *
+ * @param bandCurvesZero    Each band's processed curve with gain=0 applied
+ *                          (crossover + baffle step + cabinet loading done,
+ *                          gain/polarity NOT applied). Curves share the same
+ *                          frequency grid.
+ * @param polarities        Per-band polarity (0 or 180), fixed during optimisation.
+ * @param initialGains      Starting gains [dB] per band.
+ * @param roomParams        Room acoustics parameters for the in-room model.
+ * @param smoothingFraction Fractional-octave smoothing (1, 3, 6, 12).
+ * @param fMin              Lower bound of target flatness range [Hz].
+ * @param fMax              Upper bound of target flatness range [Hz].
+ * @returns Optimisation result with optimized gains, flatness metrics, reasoning.
+ */
+export function optimizeGainsForRoom(
+  bandCurvesZero: FrequencyDataPoint[][],
+  polarities: (0 | 180)[],
+  initialGains: number[],
+  roomParams: RoomAcousticsParams,
+  smoothingFraction: number = 3,
+  fMin: number = 80,
+  fMax: number = 8000,
+): RoomOptimizationResult {
+  const reasoning: string[] = [];
+  const nBands = bandCurvesZero.length;
+
+  if (nBands === 0 || nBands !== initialGains.length) {
+    reasoning.push('Antal bånd matcher ikke — optimering ikke mulig.');
+    return {
+      optimizedGains: initialGains.slice(),
+      originalGains: initialGains.slice(),
+      beforeFlatness: Infinity,
+      afterFlatness: Infinity,
+      improvement: 0,
+      targetLevel: 0,
+      reasoning,
+    };
+  }
+
+  // Baseline: current gains, compute in-room flatness
+  const baselineSum = sumBands(bandCurvesZero, initialGains, polarities);
+  const baselineInRoom = calcInRoomResponse(baselineSum, roomParams, smoothingFraction);
+  const beforeScore = flatnessScore(baselineInRoom.inRoomResponse, fMin, fMax);
+  const beforeMean = meanInRange(baselineInRoom.inRoomResponse, fMin, fMax);
+  reasoning.push(
+    `Start: in-room fladheds-score (std dev) = ${beforeScore.toFixed(2)} dB ` +
+    `over ${fMin}-${fMax} Hz, gennemsnit ${beforeMean.toFixed(1)} dB.`,
+  );
+
+  // Coordinate descent: optimise each band's gain in turn, repeat passes
+  let bestGains = initialGains.slice();
+  const gainStep = 0.5; // dB resolution
+  const gainRange = 6;  // ±6 dB search window
+  const maxPasses = 5;
+
+  for (let pass = 0; pass < maxPasses; pass++) {
+    let improvedThisPass = false;
+
+    for (let band = 0; band < nBands; band++) {
+      let bestBandGain = bestGains[band]!;
+      let bestBandScore = Infinity;
+
+      // Scan gain from (current - range) to (current + range) in steps
+      const start = bestGains[band]! - gainRange;
+      const end = bestGains[band]! + gainRange;
+      for (let g = start; g <= end + 1e-9; g += gainStep) {
+        const trialGains = bestGains.slice();
+        trialGains[band] = g;
+        const trialSum = sumBands(bandCurvesZero, trialGains, polarities);
+        const trialInRoom = calcInRoomResponse(trialSum, roomParams, smoothingFraction);
+        const score = flatnessScore(trialInRoom.inRoomResponse, fMin, fMax);
+        if (score < bestBandScore - 1e-9) {
+          bestBandScore = score;
+          bestBandGain = g;
+        }
+      }
+
+      if (Math.abs(bestBandGain - bestGains[band]!) > 1e-9) {
+        bestGains[band] = Math.round(bestBandGain * 10) / 10;
+        improvedThisPass = true;
+      }
+    }
+
+    if (!improvedThisPass) {
+      reasoning.push(`Optimering konvergeret efter ${pass + 1} passage(r).`);
+      break;
+    }
+    if (pass === maxPasses - 1) {
+      reasoning.push(`Maks antal passager (${maxPasses}) nået.`);
+    }
+  }
+
+  // Final evaluation
+  const optimizedSum = sumBands(bandCurvesZero, bestGains, polarities);
+  const optimizedInRoom = calcInRoomResponse(optimizedSum, roomParams, smoothingFraction);
+  const afterScore = flatnessScore(optimizedInRoom.inRoomResponse, fMin, fMax);
+  const afterMean = meanInRange(optimizedInRoom.inRoomResponse, fMin, fMax);
+  const improvement = beforeScore - afterScore;
+
+  reasoning.push(
+    `Optimeret gains: [${bestGains.map((g) => g.toFixed(1)).join(', ')}] dB.`,
+  );
+  reasoning.push(
+    `Resultat: fladheds-score ${afterScore.toFixed(2)} dB ` +
+    `(forbedring ${improvement.toFixed(2)} dB), gennemsnit ${afterMean.toFixed(1)} dB.`,
+  );
+
+  // Per-band delta
+  for (let b = 0; b < nBands; b++) {
+    const delta = bestGains[b]! - initialGains[b]!;
+    if (Math.abs(delta) > 0.05) {
+      reasoning.push(`Bånd ${b + 1}: gain ${initialGains[b]!.toFixed(1)} → ${bestGains[b]!.toFixed(1)} dB (Δ${delta > 0 ? '+' : ''}${delta.toFixed(1)}).`);
+    }
+  }
+
+  return {
+    optimizedGains: bestGains,
+    originalGains: initialGains.slice(),
+    beforeFlatness: beforeScore,
+    afterFlatness: afterScore,
+    improvement,
+    targetLevel: afterMean,
+    reasoning,
+  };
+}
+
+/** Mean magnitude over a frequency range. */
+function meanInRange(curve: FrequencyDataPoint[], fMin: number, fMax: number): number {
+  const inRange = curve.filter((p) => p.freq >= fMin && p.freq <= fMax);
+  if (inRange.length === 0) return 0;
+  return inRange.reduce((a, p) => a + p.magnitude, 0) / inRange.length;
 }

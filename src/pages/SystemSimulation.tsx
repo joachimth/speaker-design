@@ -5,7 +5,7 @@ import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSl
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
-import { suggestCrossover, suggestBaffle } from '@/lib/acoustic/autoDesign'
+import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
 import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
@@ -125,6 +125,15 @@ export default function SystemSimulation() {
   // Cabinet type state
   const [cabinetType, setCabinetType] = useState<CabinetType>('sealed')
 
+  // Port tuning state (for ported cabinets)
+  const [portFb, setPortFb] = useState<number | null>(null) // null = auto
+  const [portVb, setPortVb] = useState<number | null>(null) // null = auto
+  const [portDiameter, setPortDiameter] = useState(60)
+  const [numPorts, setNumPorts] = useState(1)
+
+  // Auto-tune result state
+  const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
+
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
 
   // Adjust bands when ways changes
@@ -205,8 +214,40 @@ export default function SystemSimulation() {
     setRoundoverRadius(result.roundoverRadius)
   }
 
-  // -----------------------------------------------------------------------
-  // Process each driver through crossover + baffle step
+  // Auto-tune: optimize per-band gains to flatten the in-room response
+  function handleAutoTune() {
+    const activeBands = processedBands.slice(0, ways)
+    if (activeBands.length < 2) {
+      setTuneResult(null)
+      return
+    }
+
+    // Build band curves at gain=0 (undo current gain so optimizer works from neutral)
+    const bandCurvesZero = activeBands.map((pb) =>
+      pb.curve.map((p) => ({ freq: p.freq, magnitude: p.magnitude - pb.band.gain })),
+    )
+    const polarities = activeBands.map((pb) => pb.band.polarity)
+    const initialGains = activeBands.map((pb) => pb.band.gain)
+
+    const result = optimizeGainsForRoom(
+      bandCurvesZero,
+      polarities,
+      initialGains,
+      roomParams,
+      smoothingFraction,
+      80,
+      8000,
+    )
+    setTuneResult(result)
+
+    // Apply optimized gains to bands
+    const newBands = [...bands]
+    for (let i = 0; i < ways && i < result.optimizedGains.length; i++) {
+      newBands[i] = { ...newBands[i]!, gain: result.optimizedGains[i]! }
+    }
+    setBands(newBands)
+  }
+
   // -----------------------------------------------------------------------
   const fStep = baffleStepFrequency(baffleWidth)
   const fStep3x = fStep * 3
@@ -239,7 +280,7 @@ export default function SystemSimulation() {
 
       // Apply cabinet loading to woofer/subwoofer band
       if (isLowDriver && driver) {
-        const cabinetResp = calcCabinetResponse(driver, cabinetType, freqs, baffleWidth)
+        const cabinetResp = calcCabinetResponse(driver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
         curve = curve.map((p, i) => ({
           freq: p.freq,
           magnitude: p.magnitude + (cabinetResp.response[i]?.magnitude ?? 0),
@@ -276,7 +317,7 @@ export default function SystemSimulation() {
     }
 
     return results
-  }, [bands, ways, drivers, freqs, baffleStepCurve, fStep, fStep3x, cabinetType, baffleWidth])
+  }, [bands, ways, drivers, freqs, baffleStepCurve, fStep, fStep3x, cabinetType, baffleWidth, portFb, portVb, portDiameter, numPorts])
 
   // -----------------------------------------------------------------------
   // Summed system response (voltage summation)
@@ -481,12 +522,65 @@ export default function SystemSimulation() {
           </div>
         </div>
 
+        {/* Port tuning controls (only for ported cabinets) */}
+        {cabinetType === 'ported' && (
+          <div className="mt-3 p-3 rounded-md bg-gray-50 dark:bg-gray-800/50">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Port tuning</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Tuning Fb [Hz] (0=auto)</label>
+                <input
+                  type="number"
+                  value={portFb ?? 0}
+                  step={1}
+                  onChange={(e) => setPortFb(parseFloat(e.target.value) || null)}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Volumen Vb [L] (0=auto)</label>
+                <input
+                  type="number"
+                  value={portVb ?? 0}
+                  step={1}
+                  onChange={(e) => setPortVb(parseFloat(e.target.value) || null)}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Port diameter [mm]</label>
+                <input
+                  type="number"
+                  value={portDiameter}
+                  step={5}
+                  onChange={(e) => setPortDiameter(parseFloat(e.target.value) || 60)}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Antal porte</label>
+                <input
+                  type="number"
+                  value={numPorts}
+                  step={1}
+                  min={1}
+                  onChange={(e) => setNumPorts(Math.max(1, Math.round(parseFloat(e.target.value) || 1)))}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-3 flex gap-2 flex-wrap">
           <Button onClick={handleAutoCrossover} variant="primary">
             Auto delefilter + baffel
           </Button>
           <Button onClick={() => handleAutoBaffle()} variant="secondary">
             Kun auto baffel
+          </Button>
+          <Button onClick={handleAutoTune} variant="secondary">
+            Auto-tilpas til in-room
           </Button>
         </div>
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -513,6 +607,37 @@ export default function SystemSimulation() {
             {baffleReasoning.map((line, i) => (
               <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Auto-tune result */}
+      {tuneResult && (
+        <Card title="Auto-tilpasning resultat (in-room optimering)">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Før (std dev)" value={tuneResult.beforeFlatness.toFixed(2)} unit="dB" />
+              <StatCard label="Efter (std dev)" value={tuneResult.afterFlatness.toFixed(2)} unit="dB" />
+              <StatCard label="Forbedring" value={tuneResult.improvement.toFixed(2)} unit="dB" />
+              <StatCard label="Mål niveau" value={tuneResult.targetLevel.toFixed(1)} unit="dB" />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {tuneResult.optimizedGains.map((g, i) => (
+                <Badge key={i} color={i === 0 ? 'blue' : i === 1 ? 'green' : i === 2 ? 'orange' : 'red'}>
+                  Bånd {i + 1}: {g.toFixed(1)} dB
+                  {g - tuneResult.originalGains[i]! !== 0 && (
+                    <span className="ml-1 text-gray-400">
+                      (Δ{g - tuneResult.originalGains[i]! > 0 ? '+' : ''}{(g - tuneResult.originalGains[i]!).toFixed(1)})
+                    </span>
+                  )}
+                </Badge>
+              ))}
+            </div>
+            <div className="space-y-1">
+              {tuneResult.reasoning.map((line, i) => (
+                <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+              ))}
+            </div>
           </div>
         </Card>
       )}
@@ -663,7 +788,7 @@ export default function SystemSimulation() {
       {(() => {
         const lowBand = processedBands.find((pb) => pb.driver && (pb.driver.type === 'woofer' || pb.driver.type === 'subwoofer'))
         if (!lowBand?.driver) return null
-        const cabResp = calcCabinetResponse(lowBand.driver, cabinetType, freqs, baffleWidth)
+        const cabResp = calcCabinetResponse(lowBand.driver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
         return (
           <Card title={`Kabinet respons (${cabinetType === 'sealed' ? 'Lukket' : cabinetType === 'ported' ? 'Med port' : cabinetType === 'transmission_line' ? 'Trans. line' : 'Ren baffel'})`}>
             <div className="space-y-2">
@@ -675,6 +800,9 @@ export default function SystemSimulation() {
                 {cabResp.params.vb && <StatCard label="Vb" value={cabResp.params.vb.toFixed(1)} unit="L" />}
                 {cabResp.params.qtc && <StatCard label="Qtc" value={cabResp.params.qtc.toFixed(3)} />}
                 {cabResp.params.lineLength && <StatCard label="Line længde" value={cabResp.params.lineLength} unit="mm" />}
+                {cabResp.params.portLength && <StatCard label="Port længde" value={cabResp.params.portLength.toFixed(0)} unit="mm" />}
+                {cabResp.params.portDiameter && <StatCard label="Port Ø" value={cabResp.params.portDiameter} unit="mm" />}
+                {cabResp.params.numPorts && cabResp.params.numPorts > 1 && <StatCard label="Antal porte" value={cabResp.params.numPorts} />}
               </div>
               <ResponsivePlot
                 data={[
@@ -848,6 +976,12 @@ export default function SystemSimulation() {
             <p className="text-sm text-gray-500">
               Samlet system directivity. Normaliseret til on-axis (0 dB). Viser Listening Window,
               Early Reflections, Sound Power, Directivity Index og Predicted In-Room.
+              <br />
+              <span className="text-xs text-gray-400">
+                NB: Spinorama er baseret på frit felt / anechoic directivity-modellen.
+                "Predicted In-Room" er en vægtet kombination af directivity-kurver, ikke
+                den detaljerede stue-simulering (rum gain + modes) som vises i "Forventet in-room respons" ovenfor.
+              </span>
             </p>
             <ResponsivePlot
               data={[

@@ -24,7 +24,7 @@ import type {
   ThieleSmallParams,
   SealedAlignment,
 } from '@/types';
-import { calcSealed, calcPorted, calcTransmissionLine } from './thieleSmall';
+import { calcSealed, calcPorted, calcPort, calcTransmissionLine } from './thieleSmall';
 import type { PortedDesignParams } from './thieleSmall';
 
 // Speed of sound [mm/s]
@@ -47,6 +47,9 @@ export interface CabinetResponseResult {
     vb?: number;
     qtc?: number;
     lineLength?: number;
+    portLength?: number;
+    portDiameter?: number;
+    numPorts?: number;
   };
   /** Human-readable description */
   description: string;
@@ -150,12 +153,21 @@ function calcSealedLoading(
  *
  * This is positive between Fb and Fs (port extends bass), and negative
  * below Fb (steeper roll-off than free air).
+ *
+ * @param overrideFb  Optional user-specified tuning frequency. When provided,
+ *                    the box volume from calcPorted is kept but Fb is replaced.
+ * @param overrideVb  Optional user-specified box volume [L]. When provided,
+ *                    replaces the alignment volume.
  */
 function calcPortedLoading(
   ts: ThieleSmallParams,
   frequencies: number[],
+  overrideFb?: number,
+  overrideVb?: number,
 ): { response: FrequencyDataPoint[]; design: PortedDesignParams } {
   const design = calcPorted(ts);
+  if (overrideFb && overrideFb > 0) design.fb = overrideFb;
+  if (overrideVb && overrideVb > 0) design.vb = overrideVb;
 
   const response = frequencies.map((f) => {
     const portedDb = hp4MagnitudeDb(f, design.fb);
@@ -236,6 +248,11 @@ function calcOpenBaffleLoading(
  * @param frequencies  Frequency array [Hz]
  * @param baffleWidth  Baffle width [mm] (used for open baffle dipole)
  * @param qtcTarget    Target Qtc for sealed (default 0.707)
+ * @param portTuning   Optional port tuning override for ported cabinets:
+ *                     { fb?: number (tuning freq), vb?: number (box volume L),
+ *                       portDiameter?: number (mm), numPorts?: number }.
+ *                     When fb/vb are omitted, the auto-calculated alignment is used.
+ *                     portDiameter/numPorts only affect the displayed port length.
  */
 export function calcCabinetResponse(
   driver: Driver,
@@ -243,6 +260,12 @@ export function calcCabinetResponse(
   frequencies: number[],
   baffleWidth: number = 300,
   qtcTarget: number = 0.707,
+  portTuning?: {
+    fb?: number;
+    vb?: number;
+    portDiameter?: number;
+    numPorts?: number;
+  },
 ): CabinetResponseResult {
   const ts = driver.tsParams;
 
@@ -272,7 +295,18 @@ export function calcCabinetResponse(
     }
 
     case 'ported': {
-      const { response, design } = calcPortedLoading(ts, frequencies);
+      const { response, design } = calcPortedLoading(
+        ts,
+        frequencies,
+        portTuning?.fb,
+        portTuning?.vb,
+      );
+
+      // Calculate port dimensions if requested
+      const portDiameter = portTuning?.portDiameter ?? 60;
+      const numPorts = portTuning?.numPorts ?? 1;
+      const portLen = calcPort(design.vb, design.fb, portDiameter, numPorts).portLength;
+
       return {
         response,
         type,
@@ -280,8 +314,11 @@ export function calcCabinetResponse(
           fb: design.fb,
           f3: design.f3,
           vb: design.vb,
+          portLength: portLen,
+          portDiameter,
+          numPorts,
         },
-        description: `Ported: ${design.alignmentType}, Fb=${design.fb.toFixed(0)}Hz, F3=${design.f3?.toFixed(0) || '—'}Hz, Vb=${design.vb.toFixed(1)}L. 24 dB/okt rul-af under Fb.`,
+        description: `Ported: ${design.alignmentType}, Fb=${design.fb.toFixed(0)}Hz, F3=${design.f3?.toFixed(0) || '—'}Hz, Vb=${design.vb.toFixed(1)}L. Port Ø${portDiameter}mm × ${numPorts}, længde ${portLen.toFixed(0)}mm. 24 dB/okt rul-af under Fb.`,
       };
     }
 

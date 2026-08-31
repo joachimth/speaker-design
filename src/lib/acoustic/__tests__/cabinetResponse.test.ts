@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calcCabinetResponse } from '../cabinetResponse';
-import { generateFrequencies } from '../thieleSmall';
+import { generateFrequencies, calcPorted } from '../thieleSmall';
 import type { Driver } from '@/types';
 import { SEED_DRIVERS } from '@/data/seedDrivers';
 
@@ -175,5 +175,57 @@ describe('calcCabinetResponse', () => {
     const result = calcCabinetResponse(woofer, 'sealed', FREQS);
     expect(result.description.length).toBeGreaterThan(10);
     expect(result.description).toContain('Sealed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Port tuning overrides (ported cabinet)
+// ---------------------------------------------------------------------------
+
+describe('calcCabinetResponse ported with port tuning', () => {
+  it('uses auto Fb when no portTuning given', () => {
+    const woofer = findDriver('seed-wavecor-wf146wa01');
+    const auto = calcPorted(woofer.tsParams);
+    const result = calcCabinetResponse(woofer, 'ported', FREQS);
+    expect(result.params.fb).toBe(auto.fb);
+    expect(result.params.portLength).toBeGreaterThan(0);
+    expect(result.params.portDiameter).toBe(60);
+    expect(result.params.numPorts).toBe(1);
+  });
+
+  it('respects user-specified Fb override', () => {
+    const woofer = findDriver('seed-wavecor-wf146wa01');
+    const auto = calcPorted(woofer.tsParams);
+    const result = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { fb: auto.fb + 10 });
+    expect(result.params.fb).toBe(auto.fb + 10);
+  });
+
+  it('respects user-specified Vb override', () => {
+    const woofer = findDriver('seed-wavecor-wf146wa01');
+    const result = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { vb: 50 });
+    expect(result.params.vb).toBe(50);
+  });
+
+  it('changes port length with different port diameter', () => {
+    const woofer = findDriver('seed-wavecor-wf146wa01');
+    const small = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { portDiameter: 50 });
+    const large = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { portDiameter: 100 });
+    // Larger diameter port = longer port for same tuning
+    expect(large.params.portLength!).toBeGreaterThan(small.params.portLength!);
+  });
+
+  it('changes port length with multiple ports', () => {
+    const woofer = findDriver('seed-wavecor-wf146wa01');
+    const single = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { portDiameter: 60, numPorts: 1 });
+    const dual = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { portDiameter: 60, numPorts: 2 });
+    // More ports = more total area = longer port
+    expect(dual.params.portLength!).toBeGreaterThan(single.params.portLength!);
+  });
+
+  it('includes port dimensions in description', () => {
+    const woofer = findDriver('seed-wavecor-wf146wa01');
+    const result = calcCabinetResponse(woofer, 'ported', FREQS, 300, 0.707, { portDiameter: 80, numPorts: 2 });
+    expect(result.description).toContain('Ø80');
+    expect(result.description).toContain('× 2');
   });
 });
