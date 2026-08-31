@@ -840,6 +840,40 @@ function flatnessScore(
 }
 
 /**
+ * Composite cost function: flatness (std dev) + penalty for large gain
+ * excursions. This prevents the optimizer from driving gains to extremes
+ * while still finding meaningful flatness improvements.
+ *
+ * @param curve        The in-room response curve to evaluate.
+ * @param fMin         Lower bound of target range [Hz].
+ * @param fMax         Upper bound of target range [Hz].
+ * @param trialGains   The gains being tried [dB per band].
+ * @param initialGains The original gains [dB per band].
+ */
+function costFunction(
+  curve: FrequencyDataPoint[],
+  fMin: number,
+  fMax: number,
+  trialGains: number[],
+  initialGains: number[],
+): number {
+  const inRange = curve.filter((p) => p.freq >= fMin && p.freq <= fMax);
+  if (inRange.length === 0) return Infinity;
+  const mean = inRange.reduce((a, p) => a + p.magnitude, 0) / inRange.length;
+  const variance = inRange.reduce((a, p) => a + (p.magnitude - mean) ** 2, 0) / inRange.length;
+  const stdDev = Math.sqrt(variance);
+  // Penalise large gain excursions from initial: 0.01× the sum of squared deltas
+  // Very low weight: allows ±3-5 dB adjustments, only discourages ±10 dB extremes
+  let gainPenalty = 0;
+  for (let i = 0; i < trialGains.length; i++) {
+    const delta = trialGains[i]! - initialGains[i]!;
+    gainPenalty += delta * delta;
+  }
+  gainPenalty *= 0.01;
+  return stdDev + gainPenalty;
+}
+
+/**
  * Optimize per-band gains to flatten the simulated in-room response.
  *
  * Uses coordinate descent: for each band, scan a range of gain values and
@@ -889,16 +923,17 @@ export function optimizeGainsForRoom(
   const baselineSum = sumBands(bandCurvesZero, initialGains, polarities);
   const baselineInRoom = calcInRoomResponse(baselineSum, roomParams, smoothingFraction);
   const beforeScore = flatnessScore(baselineInRoom.inRoomResponse, fMin, fMax);
-  const beforeMean = meanInRange(baselineInRoom.inRoomResponse, fMin, fMax);
+  const targetMean = meanInRange(baselineInRoom.inRoomResponse, fMin, fMax);
   reasoning.push(
     `Start: in-room fladheds-score (std dev) = ${beforeScore.toFixed(2)} dB ` +
-    `over ${fMin}-${fMax} Hz, gennemsnit ${beforeMean.toFixed(1)} dB.`,
+    `over ${fMin}-${fMax} Hz, gennemsnit ${targetMean.toFixed(1)} dB.`,
   );
 
   // Coordinate descent: optimise each band's gain in turn, repeat passes
+  // Constraints: gain limited to ±10 dB from initial value (realistic DSP range)
+  const GAIN_CLAMP = 10;
   let bestGains = initialGains.slice();
   const gainStep = 0.5; // dB resolution
-  const gainRange = 6;  // ±6 dB search window
   const maxPasses = 5;
 
   for (let pass = 0; pass < maxPasses; pass++) {
@@ -906,19 +941,25 @@ export function optimizeGainsForRoom(
 
     for (let band = 0; band < nBands; band++) {
       let bestBandGain = bestGains[band]!;
-      let bestBandScore = Infinity;
+      let bestBandCost = Infinity;
 
-      // Scan gain from (current - range) to (current + range) in steps
-      const start = bestGains[band]! - gainRange;
-      const end = bestGains[band]! + gainRange;
-      for (let g = start; g <= end + 1e-9; g += gainStep) {
+      // Scan gain within ±6 dB of current, but clamped to ±GAIN_CLAMP of initial
+      const scanStart = Math.max(
+        initialGains[band]! - GAIN_CLAMP,
+        bestGains[band]! - 6,
+      );
+      const scanEnd = Math.min(
+        initialGains[band]! + GAIN_CLAMP,
+        bestGains[band]! + 6,
+      );
+      for (let g = scanStart; g <= scanEnd + 1e-9; g += gainStep) {
         const trialGains = bestGains.slice();
         trialGains[band] = g;
         const trialSum = sumBands(bandCurvesZero, trialGains, polarities);
         const trialInRoom = calcInRoomResponse(trialSum, roomParams, smoothingFraction);
-        const score = flatnessScore(trialInRoom.inRoomResponse, fMin, fMax);
-        if (score < bestBandScore - 1e-9) {
-          bestBandScore = score;
+        const cost = costFunction(trialInRoom.inRoomResponse, fMin, fMax, trialGains, initialGains);
+        if (cost < bestBandCost - 1e-9) {
+          bestBandCost = cost;
           bestBandGain = g;
         }
       }

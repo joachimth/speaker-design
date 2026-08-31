@@ -235,8 +235,8 @@ export default function SystemSimulation() {
       initialGains,
       roomParams,
       smoothingFraction,
-      80,
-      8000,
+      100,
+      10000,
     )
     setTuneResult(result)
 
