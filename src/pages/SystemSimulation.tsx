@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
+import { useProjectStore } from '@/store/projectStore'
 import { Card, Select, NumberInput, Badge, StatCard, Button } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
@@ -111,6 +112,7 @@ function interpolateAt(curve: FrequencyDataPoint[], freq: number): number {
 
 export default function SystemSimulation() {
   const { drivers } = useDriverStore()
+  const { simHandoff, setSimHandoff } = useProjectStore()
   const [ways, setWays] = useState<2 | 3 | 4>(2)
   const [bands, setBands] = useState<Band[]>(DEFAULT_BANDS_2)
   const [baffleWidth, setBaffleWidth] = useState(320)
@@ -135,6 +137,43 @@ export default function SystemSimulation() {
   const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
 
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
+
+  // Consume handoff from CabinetMatch (runs once on mount)
+  useEffect(() => {
+    if (!simHandoff) return
+    const h = simHandoff
+    setWays(h.ways)
+    setBaffleWidth(h.baffleWidth)
+    setBaffleHeight(h.baffleHeight)
+    setCabinetType(h.cabinetType)
+    setPortFb(h.portFb)
+    setPortVb(h.portVb)
+    setPortDiameter(h.portDiameter)
+    setNumPorts(h.numPorts)
+
+    // Map handoff bands to SystemSimulation Band format
+    const template = h.ways === 2 ? DEFAULT_BANDS_2 : h.ways === 3 ? DEFAULT_BANDS_3 : DEFAULT_BANDS_4
+    const newBands = template.map((t, i) => {
+      const hb = h.bands[i]
+      if (!hb) return t
+      return {
+        ...t,
+        driverId: hb.driverId,
+        role: hb.role as Band['role'],
+        lowpassFreq: hb.lowpassFreq,
+        lowpassType: hb.lowpassType as CrossoverType,
+        highpassFreq: hb.highpassFreq,
+        highpassType: hb.highpassType as CrossoverType,
+        gain: hb.gain,
+        polarity: hb.polarity,
+        delay: hb.delay,
+      }
+    })
+    setBands(newBands)
+
+    // Clear handoff so it doesn't re-apply on next visit
+    setSimHandoff(null)
+  }, [simHandoff, setSimHandoff])
 
   // Adjust bands when ways changes
   function handleWaysChange(value: string) {

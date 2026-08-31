@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDriverStore } from '@/store/driverStore'
+import { useProjectStore } from '@/store/projectStore'
 import { Card, Select, NumberInput, Button, StatCard, Badge } from '@/components/common/UI'
 import {
   CABINET_PRESETS,
@@ -292,6 +294,8 @@ function DriverFitCard({
 
 export default function CabinetMatch() {
   const { drivers } = useDriverStore()
+  const navigate = useNavigate()
+  const { setSimHandoff } = useProjectStore()
   const [presetName, setPresetName] = useState('Kudos X2')
   const [cabinetSpec, setCabinetSpec] = useState<CabinetSpec>(CABINET_PRESETS[0]!.spec)
   const [ways, setWays] = useState<2 | 3>(2)
@@ -482,6 +486,45 @@ export default function CabinetMatch() {
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                 Indtast disse værdier i MiniDSP plugin UI. PEQ filtre indsættes som biquad filtre
                 med de angivne frekvens, gain og Q værdier.
+              </div>
+
+              {/* Handoff to System Simulation */}
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  onClick={() => {
+                    const outputs = result.miniDspConfig.outputs
+                    const isPorted = cabinetSpec.portDiameter > 0 && cabinetSpec.portLength > 0
+                    const bands = outputs.map((o) => ({
+                      driverId: o.driverId,
+                      role: o.role === 'woofer' ? 'low' as const : o.role === 'mid' ? 'mid' as const : 'high' as const,
+                      lowpassFreq: o.lowpassFreq,
+                      lowpassType: o.lowpassType,
+                      highpassFreq: o.highpassFreq,
+                      highpassType: o.highpassType,
+                      gain: o.gain,
+                      polarity: o.polarity,
+                      delay: o.delay,
+                    }))
+                    setSimHandoff({
+                      bands,
+                      ways: result.ways,
+                      baffleWidth: cabinetSpec.width,
+                      baffleHeight: cabinetSpec.height,
+                      cabinetType: isPorted ? 'ported' : 'sealed',
+                      portFb: portTuning ?? null,
+                      portVb: internalVolume,
+                      portDiameter: cabinetSpec.portDiameter,
+                      numPorts: cabinetSpec.numPorts,
+                      projectName: `Kabinet Match — ${presetName}`,
+                    })
+                    navigate('/system')
+                  }}
+                >
+                  → Send til System Simulering
+                </Button>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Overfører kabinetstørrelse, valgte drivere og automatiske delefilter-indstillinger.
+                </div>
               </div>
             </div>
           </Card>
