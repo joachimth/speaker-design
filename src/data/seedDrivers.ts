@@ -110,68 +110,72 @@ const GRS12SW_ONAXIS: FrequencyDataPoint[] = [
 // Midrange — 18 cm Discovery series, 4 Ω, 91 dB. Replaces 15W/4434G00 in Mk3 v9.
 // Full on-axis curve digitized at 300 DPI from the datasheet SPL graph.
 // 30°/60° off-axis valid from ~150 Hz upward (cone directivity narrows above 2 kHz).
+// Scan-Speak 18W/4424G00: real measured on-axis + off-axis from
+// loudspeakerlab.com (475-point Plotly curves, subsampled to ~40 on-axis /
+// ~25 off-axis points). Replaces earlier pixel-digitized approximation.
 const MID18W_ONAXIS: FrequencyDataPoint[] = [
-  {freq:20.00,magnitude:74.8}, {freq:24.51,magnitude:79.1}, {freq:30.03,magnitude:79.1},
-  {freq:36.79,magnitude:83.0}, {freq:45.08,magnitude:84.7}, {freq:55.23,magnitude:87.3},
-  {freq:67.68,magnitude:88.5}, {freq:82.92,magnitude:90.5}, {freq:101.60,magnitude:91.2},
-  {freq:124.49,magnitude:92.5}, {freq:152.54,magnitude:92.8}, {freq:186.90,magnitude:92.8},
-  {freq:229.01,magnitude:92.2}, {freq:280.60,magnitude:92.5}, {freq:343.81,magnitude:93.0},
-  {freq:421.27,magnitude:92.3}, {freq:516.17,magnitude:92.2}, {freq:632.46,magnitude:92.2},
-  {freq:774.94,magnitude:92.2}, {freq:949.51,magnitude:92.5}, {freq:1163.42,magnitude:92.9},
-  {freq:1425.51,magnitude:94.1}, {freq:1746.65,magnitude:94.1}, {freq:2140.14,magnitude:94.5},
-  {freq:2622.27,magnitude:93.1}, {freq:3213.01,magnitude:92.7}, {freq:3936.84,magnitude:94.3},
-  {freq:4823.73,magnitude:93.4}, {freq:5910.42,magnitude:91.5}, {freq:7241.92,magnitude:91.2},
-  {freq:8873.37,magnitude:91.0}, {freq:10872.37,magnitude:87.2}, {freq:13321.69,magnitude:74.8},
-  {freq:16322.80,magnitude:68.3}, {freq:20000.00,magnitude:70.4},
+  {freq:20.9,magnitude:75.3}, {freq:24.8,magnitude:79.3}, {freq:29.5,magnitude:78.5}, {freq:35.1,magnitude:82.4}, {freq:42.4,magnitude:84.8}, {freq:50.4,magnitude:83.8}, {freq:59.9,magnitude:89.3}, {freq:71.3,magnitude:88.4},
+  {freq:84.8,magnitude:90.6}, {freq:100.8,magnitude:91.2}, {freq:121.6,magnitude:92.4}, {freq:144.6,magnitude:92.9}, {freq:172.0,magnitude:92.5}, {freq:204.5,magnitude:92.7}, {freq:243.2,magnitude:92.4}, {freq:289.2,magnitude:92.5},
+  {freq:344.0,magnitude:93.0}, {freq:415.0,magnitude:92.4}, {freq:493.5,magnitude:91.9}, {freq:586.9,magnitude:92.5}, {freq:697.9,magnitude:92.3}, {freq:830.0,magnitude:92.2}, {freq:987.0,magnitude:92.3}, {freq:1190.8,magnitude:92.9},
+  {freq:1416.2,magnitude:94.0}, {freq:1684.1,magnitude:93.9}, {freq:2002.7,magnitude:94.5}, {freq:2381.7,magnitude:94.0}, {freq:2832.3,magnitude:92.6}, {freq:3368.2,magnitude:93.5}, {freq:4063.7,magnitude:94.2}, {freq:4832.6,magnitude:93.4},
+  {freq:5747.0,magnitude:91.8}, {freq:6834.4,magnitude:91.4}, {freq:8127.5,magnitude:91.0}, {freq:9665.3,magnitude:89.1}, {freq:11661.2,magnitude:82.9}, {freq:13867.6,magnitude:73.8}, {freq:16491.4,magnitude:69.3}, {freq:19611.7,magnitude:69.7},
 ];
 
 const MID18W_30DEG: FrequencyDataPoint[] = [
-  {freq:152.54,magnitude:92.2}, {freq:186.90,magnitude:92.2}, {freq:229.01,magnitude:92.3},
-  {freq:280.60,magnitude:92.3}, {freq:343.81,magnitude:92.6}, {freq:421.27,magnitude:91.8},
-  {freq:516.17,magnitude:91.8}, {freq:632.46,magnitude:92.0}, {freq:774.94,magnitude:91.4},
-  {freq:949.51,magnitude:91.2}, {freq:1163.42,magnitude:90.9}, {freq:1425.51,magnitude:90.3},
-  {freq:1746.65,magnitude:90.1}, {freq:2140.14,magnitude:88.8}, {freq:2622.27,magnitude:85.4},
-  {freq:3213.01,magnitude:78.4}, {freq:3936.84,magnitude:80.6}, {freq:4823.73,magnitude:79.4},
-  {freq:5910.42,magnitude:69.2}, {freq:7241.92,magnitude:64.5}, {freq:8873.37,magnitude:71.8},
-  {freq:10872.37,magnitude:70.3}, {freq:13321.69,magnitude:58.0}, {freq:16322.80,magnitude:52.2},
-  {freq:20000.00,magnitude:52.2},
+  {freq:20.9,magnitude:75.0}, {freq:27.9,magnitude:77.2}, {freq:36.7,magnitude:82.7}, {freq:49.0,magnitude:83.0}, {freq:65.4,magnitude:88.6}, {freq:87.2,magnitude:90.5}, {freq:114.8,magnitude:91.9}, {freq:153.2,magnitude:92.6},
+  {freq:204.5,magnitude:92.5}, {freq:273.0,magnitude:92.1}, {freq:359.2,magnitude:92.5}, {freq:479.5,magnitude:91.6}, {freq:640.0,magnitude:92.0}, {freq:854.3,magnitude:91.9}, {freq:1124.0,magnitude:91.6}, {freq:1500.4,magnitude:92.5},
+  {freq:2002.7,magnitude:92.8}, {freq:2673.3,magnitude:90.2}, {freq:3517.3,magnitude:89.5}, {freq:4695.1,magnitude:84.6}, {freq:6267.2,magnitude:80.5}, {freq:8365.6,magnitude:70.2}, {freq:11006.7,magnitude:68.7}, {freq:14692.2,magnitude:52.4},
+  {freq:19611.7,magnitude:55.2},
 ];
 
 const MID18W_60DEG: FrequencyDataPoint[] = [
-  {freq:152.54,magnitude:92.3}, {freq:186.90,magnitude:92.3}, {freq:229.01,magnitude:92.2},
-  {freq:280.60,magnitude:92.0}, {freq:343.81,magnitude:92.7}, {freq:421.27,magnitude:92.2},
-  {freq:516.17,magnitude:91.9}, {freq:632.46,magnitude:92.1}, {freq:774.94,magnitude:92.0},
-  {freq:949.51,magnitude:91.9}, {freq:1163.42,magnitude:92.0}, {freq:1425.51,magnitude:92.4},
-  {freq:1746.65,magnitude:92.8}, {freq:2140.14,magnitude:92.3}, {freq:2622.27,magnitude:90.4},
-  {freq:3213.01,magnitude:89.5}, {freq:3936.84,magnitude:88.5}, {freq:4823.73,magnitude:84.8},
-  {freq:5910.42,magnitude:83.9}, {freq:7241.92,magnitude:78.6}, {freq:8873.37,magnitude:70.3},
-  {freq:10872.37,magnitude:70.5}, {freq:13321.69,magnitude:63.5}, {freq:16322.80,magnitude:53.4},
-  {freq:20000.00,magnitude:54.0},
+  {freq:20.9,magnitude:75.0}, {freq:27.9,magnitude:77.2}, {freq:36.7,magnitude:82.6}, {freq:49.0,magnitude:82.9}, {freq:65.4,magnitude:88.6}, {freq:87.2,magnitude:90.4}, {freq:114.8,magnitude:91.8}, {freq:153.2,magnitude:92.5},
+  {freq:204.5,magnitude:92.4}, {freq:273.0,magnitude:92.1}, {freq:359.2,magnitude:92.4}, {freq:479.5,magnitude:91.4}, {freq:640.0,magnitude:91.9}, {freq:854.3,magnitude:91.2}, {freq:1124.0,magnitude:90.8}, {freq:1500.4,magnitude:90.4},
+  {freq:2002.7,magnitude:89.5}, {freq:2673.3,magnitude:85.1}, {freq:3517.3,magnitude:75.5}, {freq:4695.1,magnitude:79.4}, {freq:6267.2,magnitude:56.4}, {freq:8365.6,magnitude:69.9}, {freq:11006.7,magnitude:69.3}, {freq:14692.2,magnitude:56.7},
+  {freq:19611.7,magnitude:56.7},
 ];
 
 // ---------------------------------------------------------------------------
 // Vifa / Wavecor frequency response data
-// Vifa BC25TG15-04: digitized from Peerless datasheet PDF (pixel-based, 300 DPI)
-// Wavecor WF146WA01/02 + WF168WA01/02: measured on-axis SPL curves digitized
-// from loudspeakerdatabase.com manufacturer chart images. Low-frequency values
-// below ~100 Hz on WF168 curves are model-corrected (Fs dip from T/S params)
-// because pixel detection couldn't separate the curve from legend text at LF.
-// Source: loudspeakerdatabase.com/Wavecor/WF146WA01, WF168WA01, WF168WA02
+// Vifa BC25TG15-04: real measured on-axis + off-axis from loudspeakerlab.com
+//   (321-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points)
+// Wavecor WF146WA01: real measured on-axis from loudspeakerlab.com (480-point
+//   Plotly curve, subsampled to 40 points). Replaces earlier pixel-digitized
+//   approximation from loudspeakerdatabase.com.
+// Wavecor WF146WA02 + WF168WA01/02: measured on-axis SPL curves digitized
+//   from loudspeakerdatabase.com manufacturer chart images. Low-frequency values
+//   below ~100 Hz on WF168 curves are model-corrected (Fs dip from T/S params)
+//   because pixel detection couldn't separate the curve from legend text at LF.
 // ---------------------------------------------------------------------------
 
 const VIFA_BC25TG15_ONAXIS: FrequencyDataPoint[] = [
-  {freq:200.0,magnitude:62.4}, {freq:293.6,magnitude:69.0}, {freq:430.9,magnitude:75.9}, {freq:632.5,magnitude:83.0},
-  {freq:928.3,magnitude:89.8}, {freq:1362.6,magnitude:93.9}, {freq:2000.0,magnitude:94.4}, {freq:2935.6,magnitude:94.0},
-  {freq:4308.9,magnitude:93.3}, {freq:6324.6,magnitude:93.0}, {freq:9283.2,magnitude:92.5}, {freq:13625.8,magnitude:92.3},
-  {freq:20000.0,magnitude:91.7}, {freq:29356.0,magnitude:86.9}, {freq:40000.0,magnitude:81.9},
+  {freq:198.7,magnitude:61.8}, {freq:223.0,magnitude:64.1}, {freq:250.3,magnitude:66.3}, {freq:285.1,magnitude:68.2}, {freq:320.0,magnitude:70.1}, {freq:359.2,magnitude:72.5}, {freq:403.2,magnitude:74.5}, {freq:452.5,magnitude:76.3},
+  {freq:515.4,magnitude:78.9}, {freq:578.5,magnitude:80.7}, {freq:649.3,magnitude:82.9}, {freq:728.8,magnitude:85.0}, {freq:818.1,magnitude:87.1}, {freq:931.6,magnitude:89.3}, {freq:1045.7,magnitude:90.6}, {freq:1173.8,magnitude:92.4},
+  {freq:1317.5,magnitude:93.2}, {freq:1478.9,magnitude:94.2}, {freq:1684.1,magnitude:94.2}, {freq:1890.3,magnitude:94.4}, {freq:2121.8,magnitude:94.3}, {freq:2381.7,magnitude:94.1}, {freq:2712.2,magnitude:94.1}, {freq:3044.4,magnitude:93.9},
+  {freq:3417.2,magnitude:93.8}, {freq:3835.7,magnitude:93.4}, {freq:4305.4,magnitude:92.1}, {freq:4902.9,magnitude:93.9}, {freq:5503.4,magnitude:94.4}, {freq:6177.3,magnitude:92.9}, {freq:6933.8,magnitude:93.2}, {freq:7782.9,magnitude:93.2},
+  {freq:8863.1,magnitude:92.9}, {freq:9948.5,magnitude:92.7}, {freq:11166.8,magnitude:92.9}, {freq:12534.3,magnitude:92.0}, {freq:14069.3,magnitude:92.3}, {freq:16021.9,magnitude:93.2}, {freq:17984.0,magnitude:93.7}, {freq:20186.4,magnitude:92.0},
+];
+
+const VIFA_BC25TG15_30DEG: FrequencyDataPoint[] = [
+  {freq:198.7,magnitude:61.7}, {freq:239.7,magnitude:66.2}, {freq:293.4,magnitude:68.9}, {freq:354.0,magnitude:72.3}, {freq:427.1,magnitude:75.6}, {freq:522.9,magnitude:79.4}, {freq:630.8,magnitude:82.3}, {freq:761.1,magnitude:86.0},
+  {freq:931.6,magnitude:89.2}, {freq:1124.0,magnitude:91.9}, {freq:1356.1,magnitude:93.5}, {freq:1660.0,magnitude:94.1}, {freq:2002.7,magnitude:94.1}, {freq:2416.3,magnitude:93.8}, {freq:2957.7,magnitude:93.3}, {freq:3568.5,magnitude:93.2},
+  {freq:4305.4,magnitude:92.9}, {freq:5270.0,magnitude:93.9}, {freq:6358.3,magnitude:91.8}, {freq:7671.3,magnitude:90.2}, {freq:9390.1,magnitude:91.0}, {freq:11329.2,magnitude:89.6}, {freq:13668.8,magnitude:87.5}, {freq:16731.3,magnitude:85.4},
+  {freq:20186.4,magnitude:81.9},
+];
+
+const VIFA_BC25TG15_60DEG: FrequencyDataPoint[] = [
+  {freq:198.7,magnitude:62.0}, {freq:239.7,magnitude:66.2}, {freq:293.4,magnitude:68.8}, {freq:354.0,magnitude:72.4}, {freq:427.1,magnitude:75.8}, {freq:522.9,magnitude:79.4}, {freq:630.8,magnitude:82.3}, {freq:761.1,magnitude:85.9},
+  {freq:931.6,magnitude:89.4}, {freq:1124.0,magnitude:92.1}, {freq:1356.1,magnitude:93.6}, {freq:1660.0,magnitude:93.8}, {freq:2002.7,magnitude:93.8}, {freq:2416.3,magnitude:93.0}, {freq:2957.7,magnitude:92.5}, {freq:3568.5,magnitude:91.7},
+  {freq:4305.4,magnitude:92.4}, {freq:5270.0,magnitude:90.5}, {freq:6358.3,magnitude:89.3}, {freq:7671.3,magnitude:89.2}, {freq:9390.1,magnitude:85.4}, {freq:11329.2,magnitude:82.5}, {freq:13668.8,magnitude:76.2}, {freq:16731.3,magnitude:74.1},
+  {freq:20186.4,magnitude:73.9},
 ];
 
 const WF146WA01_ONAXIS: FrequencyDataPoint[] = [
-  {freq:20.0,magnitude:71.6}, {freq:29.4,magnitude:80.0}, {freq:43.1,magnitude:80.5}, {freq:63.2,magnitude:84.2},
-  {freq:92.8,magnitude:86.9}, {freq:136.3,magnitude:87.5}, {freq:200.0,magnitude:87.5}, {freq:293.6,magnitude:87.5},
-  {freq:430.9,magnitude:87.5}, {freq:632.5,magnitude:87.5}, {freq:928.3,magnitude:90.2}, {freq:1362.6,magnitude:90.2},
-  {freq:2000.0,magnitude:90.2}, {freq:2935.6,magnitude:90.2}, {freq:4308.9,magnitude:92.3}, {freq:6324.6,magnitude:90.1},
-  {freq:9283.2,magnitude:90.0}, {freq:13625.8,magnitude:76.0}, {freq:20000.0,magnitude:66.9},
+  {freq:20.0,magnitude:71.7}, {freq:23.8,magnitude:74.4}, {freq:28.7,magnitude:76.6}, {freq:34.1,magnitude:78.5}, {freq:40.6,magnitude:80.2}, {freq:48.3,magnitude:81.7}, {freq:58.2,magnitude:83.3}, {freq:69.2,magnitude:84.7},
+  {freq:82.3,magnitude:86.0}, {freq:99.3,magnitude:87.3}, {freq:118.1,magnitude:88.3}, {freq:140.5,magnitude:89.1}, {freq:167.1,magnitude:89.7}, {freq:201.6,magnitude:90.1}, {freq:239.7,magnitude:90.4}, {freq:285.1,magnitude:90.5},
+  {freq:344.0,magnitude:90.7}, {freq:409.0,magnitude:90.5}, {freq:486.4,magnitude:90.7}, {freq:578.5,magnitude:90.6}, {freq:697.9,magnitude:90.8}, {freq:830.0,magnitude:90.7}, {freq:987.0,magnitude:90.4}, {freq:1173.8,magnitude:91.2},
+  {freq:1416.2,magnitude:91.1}, {freq:1684.1,magnitude:89.6}, {freq:2002.7,magnitude:89.1}, {freq:2416.3,magnitude:89.2}, {freq:2873.5,magnitude:88.8}, {freq:3417.2,magnitude:88.3}, {freq:4063.7,magnitude:90.9}, {freq:4902.9,magnitude:91.1},
+  {freq:5830.6,magnitude:90.5}, {freq:6933.8,magnitude:86.6}, {freq:8365.6,magnitude:89.0}, {freq:9948.5,magnitude:89.3}, {freq:11830.8,magnitude:82.5}, {freq:14069.3,magnitude:76.2}, {freq:16974.7,magnitude:66.5}, {freq:20186.4,magnitude:56.9},
 ];
 
 const WF146WA02_ONAXIS: FrequencyDataPoint[] = [
@@ -196,6 +200,39 @@ const WF168WA02_ONAXIS: FrequencyDataPoint[] = [
   {freq:430.9,magnitude:88.2}, {freq:632.5,magnitude:87.0}, {freq:928.3,magnitude:87.2}, {freq:1362.6,magnitude:87.5},
   {freq:2000.0,magnitude:85.5}, {freq:2935.6,magnitude:80.5}, {freq:4308.9,magnitude:77.3}, {freq:6324.6,magnitude:77.3},
   {freq:9283.2,magnitude:77.3}, {freq:13625.8,magnitude:77.3}, {freq:20000.0,magnitude:77.3},
+];
+
+// GRS 12SMP-4: real measured on-axis + off-axis from loudspeakerlab.com
+// (480-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points).
+// 12" surface-mount poly cone bass-midwoofer, 4 Ω, 91.9 dB, 90 W RMS.
+// Fs 28 Hz, Qts 0.51, Vas 132 L, Xmax 5.5 mm, Sd 516 cm², Bl 10.2 Tm.
+const GRS_12SMP_4_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:82.1}, {freq:23.8,magnitude:84.0}, {freq:28.7,magnitude:86.0}, {freq:34.1,magnitude:87.6}, {freq:40.6,magnitude:89.4}, {freq:48.3,magnitude:89.2}, {freq:58.2,magnitude:89.8}, {freq:69.2,magnitude:90.8},
+  {freq:82.3,magnitude:91.5}, {freq:99.3,magnitude:91.9}, {freq:118.1,magnitude:91.6}, {freq:140.5,magnitude:91.3}, {freq:167.1,magnitude:91.1}, {freq:201.6,magnitude:90.8}, {freq:239.7,magnitude:90.8}, {freq:285.1,magnitude:89.9},
+  {freq:344.0,magnitude:89.7}, {freq:409.0,magnitude:89.1}, {freq:486.4,magnitude:86.6}, {freq:578.5,magnitude:90.9}, {freq:697.9,magnitude:90.8}, {freq:830.0,magnitude:93.0}, {freq:987.0,magnitude:93.8}, {freq:1173.8,magnitude:95.0},
+  {freq:1416.2,magnitude:94.6}, {freq:1684.1,magnitude:96.3}, {freq:2002.7,magnitude:96.9}, {freq:2416.3,magnitude:92.9}, {freq:2873.5,magnitude:91.4}, {freq:3417.2,magnitude:89.4}, {freq:4063.7,magnitude:78.6}, {freq:4902.9,magnitude:79.7},
+  {freq:5830.6,magnitude:76.1}, {freq:6933.8,magnitude:72.8}, {freq:8365.6,magnitude:72.3}, {freq:9948.5,magnitude:59.8}, {freq:11830.8,magnitude:68.3}, {freq:14069.3,magnitude:59.6}, {freq:16974.7,magnitude:56.7}, {freq:20186.4,magnitude:53.4},
+];
+
+const GRS_12SMP_4_15DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:82.1}, {freq:26.7,magnitude:85.5}, {freq:35.6,magnitude:88.0}, {freq:47.6,magnitude:89.2}, {freq:63.5,magnitude:90.3}, {freq:84.8,magnitude:91.6}, {freq:113.1,magnitude:91.7}, {freq:151.0,magnitude:91.2},
+  {freq:201.6,magnitude:90.8}, {freq:269.1,magnitude:90.2}, {freq:359.2,magnitude:89.7}, {freq:479.5,magnitude:87.1}, {freq:630.8,magnitude:90.8}, {freq:842.0,magnitude:92.5}, {freq:1124.0,magnitude:94.7}, {freq:1500.4,magnitude:95.0},
+  {freq:2002.7,magnitude:95.3}, {freq:2673.3,magnitude:89.6}, {freq:3568.5,magnitude:85.6}, {freq:4763.4,magnitude:65.9}, {freq:6358.3,magnitude:53.7}, {freq:8487.3,magnitude:65.9}, {freq:11329.2,magnitude:65.3}, {freq:15122.7,magnitude:56.7},
+  {freq:20186.4,magnitude:49.6},
+];
+
+const GRS_12SMP_4_30DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:82.1}, {freq:26.7,magnitude:85.5}, {freq:35.6,magnitude:88.0}, {freq:47.6,magnitude:89.2}, {freq:63.5,magnitude:90.3}, {freq:84.8,magnitude:91.6}, {freq:113.1,magnitude:91.7}, {freq:151.0,magnitude:91.2},
+  {freq:201.6,magnitude:90.8}, {freq:269.1,magnitude:90.2}, {freq:359.2,magnitude:89.7}, {freq:479.5,magnitude:87.1}, {freq:630.8,magnitude:90.9}, {freq:842.0,magnitude:91.9}, {freq:1124.0,magnitude:93.7}, {freq:1500.4,magnitude:93.1},
+  {freq:2002.7,magnitude:90.7}, {freq:2673.3,magnitude:82.2}, {freq:3568.5,magnitude:68.2}, {freq:4763.4,magnitude:68.4}, {freq:6358.3,magnitude:65.1}, {freq:8487.3,magnitude:62.1}, {freq:11329.2,magnitude:57.1}, {freq:15122.7,magnitude:48.1},
+  {freq:20186.4,magnitude:52.8},
+];
+
+const GRS_12SMP_4_45DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:82.1}, {freq:26.7,magnitude:85.5}, {freq:35.6,magnitude:88.0}, {freq:47.6,magnitude:89.2}, {freq:63.5,magnitude:90.3}, {freq:84.8,magnitude:91.6}, {freq:113.1,magnitude:91.7}, {freq:151.0,magnitude:91.2},
+  {freq:201.6,magnitude:90.8}, {freq:269.1,magnitude:90.2}, {freq:359.2,magnitude:89.7}, {freq:479.5,magnitude:90.8}, {freq:630.8,magnitude:90.2}, {freq:842.0,magnitude:91.2}, {freq:1124.0,magnitude:92.1}, {freq:1500.4,magnitude:89.7},
+  {freq:2002.7,magnitude:82.0}, {freq:2673.3,magnitude:70.0}, {freq:3568.5,magnitude:74.7}, {freq:4763.4,magnitude:65.5}, {freq:6358.3,magnitude:54.0}, {freq:8487.3,magnitude:57.8}, {freq:11329.2,magnitude:60.8}, {freq:15122.7,magnitude:50.7},
+  {freq:20186.4,magnitude:50.2},
 ];
 
 // Dayton RS225-8 frequency response — digitized from Dayton Audio PDF datasheet
@@ -423,6 +460,36 @@ export const SEED_DRIVERS: Driver[] = [
     frequencyResponse: GRS12SW_ONAXIS,
     datasheetUrl: 'https://www.parts-express.com/GRS-12SW-4HE-12-Paper-Cone-Rubber-Surround-High-Excursion-Subwoofer-4-Ohm-292-824',
     notes: 'Mk3 v8 bas — 2× i push-push, sidemonteret på 370 mm dybe sidepaneler (Ø284 udskæring, 43 mm margin). Fs 22 Hz, Xmax 12.5 mm Klippel-verificeret, Sd 504 cm², Bl 16.2 Tm, Mms 237 g. 250 W AES. Lukket ~75 L/par: Fc ~39 Hz, Qtc ~0.76 → Linkwitz Transform til 28 Hz/0.707. Kobles ved ~150-200 Hz LR4. Forstærket papmembran + gummikant. 2" (50.8 mm) 4-lags svingspole. Koblingsklods bonded mellem modstående magneter for stiv mekanisk kobling (vibrationsudligning). Vælg parameter set for at skifte mellem datablad og DATS-målte værdier.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // GRS 12SMP-4 — 12" surface-mount poly cone bass-midwoofer, 4 Ω.
+  // Measured frequency response from loudspeakerlab.com (480-point on-axis +
+  // off-axis 15/30/45 degrees). Fs 28 Hz, Qts 0.51, Vas 132 L, 91.9 dB.
+  // Shallow-profile frame for surface-mount, 50 mm voice coil, copper cap.
+  {
+    id: 'seed-grs-12smp-4',
+    manufacturer: 'GRS',
+    model: '12SMP-4',
+    type: 'woofer',
+    tsParams: {
+      fs: 28, re: 3.9, qms: 3.1, qes: 0.61, qts: 0.51, vas: 132,
+      sensitivity: 91.9, xmax: 5.5, sd: 516, sdM2: 0.0516, vd: 2838,
+      imp: 4, pe: 90, bl: 10.2, mms: 93, cms: 0.35, le: 0.41,
+    },
+    dimensions: {
+      overallDiameter: 332, cutoutDiameter: 284, mountingDepth: 136,
+      magnetDiameter: 145, magnetDepth: 50, weight: 3500,
+    },
+    frequencyResponse: GRS_12SMP_4_ONAXIS,
+    offAxis: [
+      { angle: 15, curve: GRS_12SMP_4_15DEG },
+      { angle: 30, curve: GRS_12SMP_4_30DEG },
+      { angle: 45, curve: GRS_12SMP_4_45DEG },
+    ],
+    datasheetUrl: 'https://www.soundimports.eu/en/grs-12smp-4.html',
+    notes: '12" surface-mount poly cone bass-midwoofer. Damped poly cone + rubber surround, copper cap on pole piece, vented pole piece + aluminum VC former. Shallow-profile steel frame for surface-mount. Frekvensrespons fra loudspeakerlab.com reelle målinger (480-punkt on-axis + off-axis 15/30/45 grader). Fs 28 Hz, Qts 0.51, Vas 132 L, Bl 10.2 Tm, Mms 93 g. 90 W RMS, 50 mm svingspole.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
@@ -790,8 +857,12 @@ export const SEED_DRIVERS: Driver[] = [
       magnetDiameter: 60, magnetDepth: 20, weight: 510,
     },
     frequencyResponse: VIFA_BC25TG15_ONAXIS,
+    offAxis: [
+      { angle: 30, curve: VIFA_BC25TG15_30DEG },
+      { angle: 60, curve: VIFA_BC25TG15_60DEG },
+    ],
     datasheetUrl: 'https://www.madisoundspeakerstore.com/vifa-soft-dome-tweeters/vifa-bc25tg15-04-1-textile-dome-tweeter/',
-    notes: '1" (25.4mm) fabric dome, ferrofluid cooled, ferrite magnet. Fs 1100 Hz, sensitivity 93.9 dB (2.83V). Tidligere brugt i Kudos X2 kabinet med Wavecor WF146WA01/02. Mulig oprindelig delefrekvens op mod 4900 Hz (Kudos passivt design) — overskrider Wavecor max 3.5 kHz. Frekvensrespons digitaliseret fra datasheet PDF (Peerless by Tymphany, juli 2025). Sources: datasheet PDF, HiFiCompass, Madisound.',
+    notes: '1" (25.4mm) fabric dome, ferrofluid cooled, ferrite magnet. Fs 1100 Hz, sensitivity 93.9 dB (2.83V). Tidligere brugt i Kudos X2 kabinet med Wavecor WF146WA01/02. Mulig oprindelig delefrekvens op mod 4900 Hz (Kudos passivt design) — overskrider Wavecor max 3.5 kHz. Frekvensrespons fra loudspeakerlab.com reelle målinger (321-punkt on-axis + off-axis 30/60 grader). Sources: loudspeakerlab.com, datasheet PDF, HiFiCompass, Madisound.',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
