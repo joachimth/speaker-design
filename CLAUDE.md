@@ -111,11 +111,13 @@ Implemented: driver library (15+ seed drivers in `src/data/seedDrivers.ts`,
 seeded into IndexedDB on first load), PDF T/S extraction, sealed/ported/TL
 cabinet calculators with auto-recommendation, crossover designer with live
 response plot, baffle step, spinorama (normalized), polar diagram, directivity map (2D + 3D isometric), vertical lobing,
-responsive layout and dark mode.
+responsive layout and dark mode, automatic crossover/cabinet/baffle design
+suggestions (autoDesign.ts — crossover frequencies + gain + delay from driver
+specs and measured responses, cabinet dimensions from T/S params, optimal
+baffle sizing from driver diameters and crossover points).
 
 Not yet built (see `TODO.md`): 3D cabinet visualization (Three.js), STL
-export, graph digitizer UI, crossover auto-optimization,
-waveguide designer, DSP export, project save/load.
+export, graph digitizer UI, waveguide designer, DSP export, project save/load.
 
 ## Domain glossary
 
