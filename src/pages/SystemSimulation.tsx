@@ -7,8 +7,9 @@ import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle } from '@/lib/acoustic/autoDesign'
 import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
+import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
-import type { CrossoverType, FrequencyDataPoint, Driver } from '@/types'
+import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -120,6 +121,9 @@ export default function SystemSimulation() {
   const [roomParams, setRoomParams] = useState<RoomAcousticsParams>(DEFAULT_ROOM_PARAMS)
   const [smoothingFraction, setSmoothingFraction] = useState(3)
   const [showRoomSim, setShowRoomSim] = useState(true)
+
+  // Cabinet type state
+  const [cabinetType, setCabinetType] = useState<CabinetType>('sealed')
 
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
 
@@ -233,6 +237,15 @@ export default function SystemSimulation() {
       const isLowDriver = driverType === 'woofer' || driverType === 'subwoofer'
       const isMidDriver = driverType === 'midrange' || driverType === 'fullrange'
 
+      // Apply cabinet loading to woofer/subwoofer band
+      if (isLowDriver && driver) {
+        const cabinetResp = calcCabinetResponse(driver, cabinetType, freqs, baffleWidth)
+        curve = curve.map((p, i) => ({
+          freq: p.freq,
+          magnitude: p.magnitude + (cabinetResp.response[i]?.magnitude ?? 0),
+        }))
+      }
+
       if (isLowDriver || isMidDriver) {
         curve = curve.map((p, i) => {
           let bsFactor = baffleStepCurve.response[i] ?? 0
@@ -263,7 +276,7 @@ export default function SystemSimulation() {
     }
 
     return results
-  }, [bands, ways, drivers, freqs, baffleStepCurve, fStep, fStep3x])
+  }, [bands, ways, drivers, freqs, baffleStepCurve, fStep, fStep3x, cabinetType, baffleWidth])
 
   // -----------------------------------------------------------------------
   // Summed system response (voltage summation)
@@ -447,6 +460,27 @@ export default function SystemSimulation() {
           <NumberField label="Baffel højde" unit="mm" value={baffleHeight} onChange={setBaffleHeight} />
           <NumberField label="Afrunding radius" unit="mm" value={roundoverRadius} onChange={setRoundoverRadius} />
         </div>
+
+        {/* Cabinet type selector */}
+        <div className="mt-3">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kabinet type</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(['sealed', 'ported', 'transmission_line', 'open_baffle'] as CabinetType[]).map((type) => (
+              <button
+                key={type}
+                onClick={() => setCabinetType(type)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  cabinetType === type
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
+                }`}
+              >
+                {type === 'sealed' ? 'Lukket' : type === 'ported' ? 'Med port' : type === 'transmission_line' ? 'Trans. line' : 'Ren baffel'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-3 flex gap-2 flex-wrap">
           <Button onClick={handleAutoCrossover} variant="primary">
             Auto delefilter + baffel
@@ -611,7 +645,7 @@ export default function SystemSimulation() {
       <Card title="Baffelstep">
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatCard label="Baffelstep frekvens" value={fStep.toFixed(2200)} unit="Hz" />
+            <StatCard label="Baffelstep frekvens" value={fStep.toFixed(0)} unit="Hz" />
             <StatCard label="Baffel dimension" value={`${baffleWidth}x${baffleHeight}`} unit="mm" />
             <StatCard label="Tab ved lav freq" value="-6" unit="dB" />
           </div>
@@ -624,6 +658,35 @@ export default function SystemSimulation() {
           />
         </div>
       </Card>
+
+      {/* Cabinet loading response */}
+      {(() => {
+        const lowBand = processedBands.find((pb) => pb.driver && (pb.driver.type === 'woofer' || pb.driver.type === 'subwoofer'))
+        if (!lowBand?.driver) return null
+        const cabResp = calcCabinetResponse(lowBand.driver, cabinetType, freqs, baffleWidth)
+        return (
+          <Card title={`Kabinet respons (${cabinetType === 'sealed' ? 'Lukket' : cabinetType === 'ported' ? 'Med port' : cabinetType === 'transmission_line' ? 'Trans. line' : 'Ren baffel'})`}>
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500">{cabResp.description}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {cabResp.params.fc && <StatCard label="Fc" value={cabResp.params.fc.toFixed(0)} unit="Hz" />}
+                {cabResp.params.fb && <StatCard label="Fb" value={cabResp.params.fb.toFixed(0)} unit="Hz" />}
+                {cabResp.params.f3 && <StatCard label="F3" value={cabResp.params.f3.toFixed(0)} unit="Hz" />}
+                {cabResp.params.vb && <StatCard label="Vb" value={cabResp.params.vb.toFixed(1)} unit="L" />}
+                {cabResp.params.qtc && <StatCard label="Qtc" value={cabResp.params.qtc.toFixed(3)} />}
+                {cabResp.params.lineLength && <StatCard label="Line længde" value={cabResp.params.lineLength} unit="mm" />}
+              </div>
+              <ResponsivePlot
+                data={[
+                  { x: cabResp.response.map((p) => p.freq), y: cabResp.response.map((p) => p.magnitude), name: 'Kabinet loading (tilføjet til bas)', color: '#8b5cf6' },
+                ]}
+                yRange={[-30, 6]}
+                yLabel="dB"
+              />
+            </div>
+          </Card>
+        )
+      })()}
 
       {/* In-room response simulation */}
       {roomResult && (
