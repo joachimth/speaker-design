@@ -6,6 +6,7 @@ import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle } from '@/lib/acoustic/autoDesign'
+import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import type { CrossoverType, FrequencyDataPoint, Driver } from '@/types'
 
@@ -114,6 +115,11 @@ export default function SystemSimulation() {
   const [baffleWidth, setBaffleWidth] = useState(320)
   const [baffleHeight, setBaffleHeight] = useState(900)
   const [roundoverRadius, setRoundoverRadius] = useState(40)
+
+  // Room acoustics state
+  const [roomParams, setRoomParams] = useState<RoomAcousticsParams>(DEFAULT_ROOM_PARAMS)
+  const [smoothingFraction, setSmoothingFraction] = useState(3)
+  const [showRoomSim, setShowRoomSim] = useState(true)
 
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
 
@@ -301,6 +307,14 @@ export default function SystemSimulation() {
     if (!systemSpinorama || systemSpinorama.onAxis.length === 0) return 0
     return systemSpinorama.onAxis.reduce((a, b) => a + b, 0) / systemSpinorama.onAxis.length
   }, [systemSpinorama])
+
+  // -----------------------------------------------------------------------
+  // In-room response simulation (room modes + boundary gain + smoothing)
+  // -----------------------------------------------------------------------
+  const roomResult = useMemo(() => {
+    if (!summedResponse || !showRoomSim) return null
+    return calcInRoomResponse(summedResponse, roomParams, smoothingFraction)
+  }, [summedResponse, roomParams, smoothingFraction, showRoomSim])
 
   // -----------------------------------------------------------------------
   // System polar (summed directivity at each angle/freq)
@@ -597,7 +611,7 @@ export default function SystemSimulation() {
       <Card title="Baffelstep">
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatCard label="Baffelstep frekvens" value={fStep.toFixed(0)} unit="Hz" />
+            <StatCard label="Baffelstep frekvens" value={fStep.toFixed(2200)} unit="Hz" />
             <StatCard label="Baffel dimension" value={`${baffleWidth}x${baffleHeight}`} unit="mm" />
             <StatCard label="Tab ved lav freq" value="-6" unit="dB" />
           </div>
@@ -610,6 +624,159 @@ export default function SystemSimulation() {
           />
         </div>
       </Card>
+
+      {/* In-room response simulation */}
+      {roomResult && (
+        <Card title="Forventet in-room respons (stue simulering)">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Simulerer hvordan systemet lyder i et rigtigt rum. Rum gain (grænseflader),
+              stående bølger (room modes) og 1/{smoothingFraction} oktav udjævning indgår.
+            </p>
+
+            {/* Room preset selector */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select
+                label="Rum forudstilling"
+                value={ROOM_PRESETS.findIndex((p) =>
+                  p.params.dimensions.length === roomParams.dimensions.length &&
+                  p.params.dimensions.width === roomParams.dimensions.width &&
+                  p.params.dimensions.height === roomParams.dimensions.height
+                )}
+                onChange={(v) => {
+                  const idx = parseInt(v)
+                  if (idx >= 0 && idx < ROOM_PRESETS.length) {
+                    setRoomParams(ROOM_PRESETS[idx]!.params)
+                  }
+                }}
+                options={[
+                  { value: -1, label: '— Tilpasset —' },
+                  ...ROOM_PRESETS.map((p, i) => ({ value: i, label: p.name })),
+                ]}
+              />
+              <Select
+                label="Udjævning"
+                value={smoothingFraction}
+                onChange={(v) => setSmoothingFraction(parseInt(v))}
+                options={[
+                  { value: 1, label: '1 oktav' },
+                  { value: 3, label: '1/3 oktav' },
+                  { value: 6, label: '1/6 oktav' },
+                  { value: 12, label: '1/12 oktav' },
+                ]}
+              />
+              <div className="flex items-end">
+                <Button
+                  onClick={() => setShowRoomSim(!showRoomSim)}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                >
+                  {showRoomSim ? 'Skjul rum-sim' : 'Vis rum-sim'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Room dimension inputs */}
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+              <NumberInput label="Længde" unit="m" value={roomParams.dimensions.length} step={0.1} onChange={(v) => setRoomParams({ ...roomParams, dimensions: { ...roomParams.dimensions, length: v } })} />
+              <NumberInput label="Bredde" unit="m" value={roomParams.dimensions.width} step={0.1} onChange={(v) => setRoomParams({ ...roomParams, dimensions: { ...roomParams.dimensions, width: v } })} />
+              <NumberInput label="Højde" unit="m" value={roomParams.dimensions.height} step={0.1} onChange={(v) => setRoomParams({ ...roomParams, dimensions: { ...roomParams.dimensions, height: v } })} />
+              <NumberInput label="RT60" unit="s" value={roomParams.rt60} step={0.05} onChange={(v) => setRoomParams({ ...roomParams, rt60: v })} />
+              <NumberInput label="Afstand væg" unit="m" value={roomParams.speakerDistanceFromFront} step={0.1} onChange={(v) => setRoomParams({ ...roomParams, speakerDistanceFromFront: v })} />
+              <NumberInput label="Lytposition" unit="m" value={roomParams.listeningDistance} step={0.1} onChange={(v) => setRoomParams({ ...roomParams, listeningDistance: v })} />
+            </div>
+
+            {/* Room stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Rum volumen" value={roomResult.volume.toFixed(1)} unit="m³" />
+              <StatCard label="Schroeder freq" value={roomResult.schroederFreq.toFixed(0)} unit="Hz" />
+              <StatCard label="Antal modes" value={roomResult.modes.length} />
+              <StatCard label="Udjævning" value={`1/${smoothingFraction}`} unit="oktav" />
+            </div>
+
+            {/* In-room vs free-field plot */}
+            <ResponsivePlot
+              data={[
+                {
+                  x: roomResult.smoothedFreeField.map((p) => p.freq),
+                  y: roomResult.smoothedFreeField.map((p) => p.magnitude),
+                  name: 'Frit felt (udjævnet)',
+                  color: '#3b82f6',
+                  dash: true,
+                },
+                {
+                  x: roomResult.inRoomResponse.map((p) => p.freq),
+                  y: roomResult.inRoomResponse.map((p) => p.magnitude),
+                  name: 'In-room (simuleret)',
+                  color: '#f97316',
+                },
+                {
+                  x: roomResult.inRoomRaw.map((p) => p.freq),
+                  y: roomResult.inRoomRaw.map((p) => p.magnitude),
+                  name: 'In-room rå (med modes)',
+                  color: '#9ca3af',
+                },
+              ]}
+              yLabel="dB SPL"
+            />
+
+            {/* Room gain curve */}
+            <div className="text-xs text-gray-500 mb-1">Rum gain (grænseflade forstærkning fra gulv/vægge)</div>
+            <ResponsivePlot
+              data={[
+                { x: roomResult.roomGain.map((p) => p.freq), y: roomResult.roomGain.map((p) => p.magnitude), name: 'Rum gain', color: '#10b981' },
+              ]}
+              yRange={[0, 12]}
+              yLabel="dB"
+            />
+
+            {/* Room modes table */}
+            <div className="text-xs text-gray-500 mb-1">
+              Rum modes under Schroeder ({roomResult.schroederFreq.toFixed(0)} Hz):
+            </div>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-1 pr-3">Freq (Hz)</th>
+                    <th className="text-left py-1 pr-3">Type</th>
+                    <th className="text-left py-1 pr-3">L</th>
+                    <th className="text-left py-1 pr-3">W</th>
+                    <th className="text-left py-1 pr-3">H</th>
+                    <th className="text-left py-1">Styrke</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roomResult.modes.slice(0, 15).map((mode, i) => (
+                    <tr key={i} className="border-b border-gray-100 dark:border-gray-750">
+                      <td className="py-1 pr-3 font-mono text-gray-700 dark:text-gray-300">{mode.freq.toFixed(1)}</td>
+                      <td className="py-1 pr-3 text-gray-600 dark:text-gray-400">{mode.type}</td>
+                      <td className="py-1 pr-3 font-mono">{mode.indices[0]}</td>
+                      <td className="py-1 pr-3 font-mono">{mode.indices[1]}</td>
+                      <td className="py-1 pr-3 font-mono">{mode.indices[2]}</td>
+                      <td className="py-1">
+                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ width: '60px' }}>
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${mode.strength * 100}%`,
+                              backgroundColor: mode.type === 'axial' ? '#f97316' : mode.type === 'tangential' ? '#3b82f6' : '#9ca3af',
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {roomResult.modes.length > 15 && (
+                <div className="text-xs text-gray-400 mt-1">...og {roomResult.modes.length - 15} flere</div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* System Spinorama */}
       {systemSpinorama && (
