@@ -6,6 +6,7 @@ import CrossoverDesigner from './pages/CrossoverDesigner'
 import SimulationView from './pages/SimulationView'
 import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
+import CabinetMatch from './pages/CabinetMatch'
 import { useDriverStore } from './store/driverStore'
 import { SEED_DRIVERS } from './data/seedDrivers'
 import { db } from './db/database'
@@ -47,6 +48,7 @@ export default function App() {
     { to: '/', label: 'Overblik' },
     { to: '/drivers', label: 'Enheder' },
     { to: '/cabinet', label: 'Kabinet' },
+    { to: '/match', label: 'Kabinet Match' },
     { to: '/crossover', label: 'Delingsfilter' },
     { to: '/simulation', label: 'Simulering' },
     { to: '/system', label: 'System Sim.' },
@@ -153,6 +155,7 @@ export default function App() {
           <Route path="/" element={<ProjectOverview />} />
           <Route path="/drivers" element={<DriverManager />} />
           <Route path="/cabinet" element={<CabinetDesigner />} />
+          <Route path="/match" element={<CabinetMatch />} />
           <Route path="/crossover" element={<CrossoverDesigner />} />
           <Route path="/simulation" element={<SimulationView />} />
           <Route path="/system" element={<SystemSimulation />} />
