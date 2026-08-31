@@ -11,34 +11,90 @@ import type { Driver, FrequencyDataPoint, OffAxisData } from '@/types';
 // Extracted from official manufacturer PDFs in mk2-reference-loudspeaker repo.
 // ---------------------------------------------------------------------------
 
+// H2606/920000: real measured on-axis + off-axis from loudspeakerlab.com
+// (480-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points).
+// Replaces earlier PDF-digitized approximation. Full 10-90° off-axis coverage.
 const H2606_ONAXIS: FrequencyDataPoint[] = [
-  {freq:216.09,magnitude:62.78}, {freq:242.7,magnitude:65.39}, {freq:272.57,magnitude:67.21},
-  {freq:306.13,magnitude:68.79}, {freq:343.81,magnitude:71.09}, {freq:386.14,magnitude:73.24},
-  {freq:433.68,magnitude:75.32}, {freq:487.06,magnitude:77.09}, {freq:547.02,magnitude:79.48},
-  {freq:579.72,magnitude:80.8}, {freq:651.08,magnitude:82.7}, {freq:731.23,magnitude:84.94},
-  {freq:821.25,magnitude:87.16}, {freq:922.35,magnitude:89.23}, {freq:1035.89,magnitude:90.93},
-  {freq:1163.42,magnitude:92.15}, {freq:1306.64,magnitude:93.12}, {freq:1467.49,magnitude:93.71},
-  {freq:1648.15,magnitude:94.32}, {freq:1851.04,magnitude:94.92}, {freq:2078.91,magnitude:95.45},
-  {freq:2334.84,magnitude:95.83}, {freq:2622.27,magnitude:95.08}, {freq:2945.08,magnitude:95.91},
-  {freq:3307.63,magnitude:96.55}, {freq:3714.82,magnitude:95.32}, {freq:3936.84,magnitude:94.92},
-  {freq:4421.48,magnitude:94.7}, {freq:4965.79,magnitude:94.86}, {freq:5577.1,magnitude:95.25},
-  {freq:6263.66,magnitude:95.53}, {freq:7034.75,magnitude:95.99}, {freq:7900.76,magnitude:95.26},
-  {freq:8873.37,magnitude:94.55}, {freq:9965.73,magnitude:94.71},
+  {freq:20.0,magnitude:43.7}, {freq:23.8,magnitude:43.7}, {freq:28.7,magnitude:43.5}, {freq:34.1,magnitude:43.3}, {freq:40.6,magnitude:43.1}, {freq:48.3,magnitude:42.7}, {freq:58.2,magnitude:42.2}, {freq:69.2,magnitude:41.5},
+  {freq:82.3,magnitude:40.5}, {freq:99.3,magnitude:39.2}, {freq:118.1,magnitude:38.0}, {freq:140.5,magnitude:37.8}, {freq:167.1,magnitude:38.9}, {freq:201.6,magnitude:40.5}, {freq:239.7,magnitude:41.9}, {freq:285.1,magnitude:44.9},
+  {freq:344.0,magnitude:49.8}, {freq:409.0,magnitude:53.4}, {freq:486.4,magnitude:56.1}, {freq:578.5,magnitude:59.5}, {freq:697.9,magnitude:63.6}, {freq:830.0,magnitude:67.3}, {freq:987.0,magnitude:69.8}, {freq:1173.8,magnitude:72.0},
+  {freq:1416.2,magnitude:73.7}, {freq:1684.1,magnitude:74.8}, {freq:2002.7,magnitude:75.7}, {freq:2416.3,magnitude:76.0}, {freq:2873.5,magnitude:74.7}, {freq:3417.2,magnitude:72.3}, {freq:4063.7,magnitude:72.4}, {freq:4902.9,magnitude:74.3},
+  {freq:5830.6,magnitude:74.5}, {freq:6933.8,magnitude:74.6}, {freq:8365.6,magnitude:74.7}, {freq:9948.5,magnitude:73.5}, {freq:11830.8,magnitude:75.6}, {freq:14069.3,magnitude:75.2}, {freq:16974.7,magnitude:72.1}, {freq:20186.4,magnitude:66.7},
+];
+
+const H2606_10DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:41.1}, {freq:26.7,magnitude:41.3}, {freq:35.6,magnitude:41.4}, {freq:47.6,magnitude:41.7}, {freq:63.5,magnitude:41.8}, {freq:84.8,magnitude:41.5}, {freq:113.1,magnitude:39.6}, {freq:151.0,magnitude:31.5},
+  {freq:201.6,magnitude:36.6}, {freq:269.1,magnitude:44.6}, {freq:359.2,magnitude:49.6}, {freq:479.5,magnitude:55.8}, {freq:630.8,magnitude:61.2}, {freq:842.0,magnitude:67.4}, {freq:1124.0,magnitude:71.5}, {freq:1500.4,magnitude:74.0},
+  {freq:2002.7,magnitude:75.5}, {freq:2673.3,magnitude:75.6}, {freq:3568.5,magnitude:72.8}, {freq:4763.4,magnitude:73.5}, {freq:6358.3,magnitude:74.5}, {freq:8487.3,magnitude:74.5}, {freq:11329.2,magnitude:74.5}, {freq:15122.7,magnitude:73.3},
+  {freq:20186.4,magnitude:66.1},
+];
+
+const H2606_20DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:39.3}, {freq:26.7,magnitude:39.5}, {freq:35.6,magnitude:39.7}, {freq:47.6,magnitude:40.1}, {freq:63.5,magnitude:40.4}, {freq:84.8,magnitude:40.2}, {freq:113.1,magnitude:38.5}, {freq:151.0,magnitude:30.8},
+  {freq:201.6,magnitude:36.2}, {freq:269.1,magnitude:44.5}, {freq:359.2,magnitude:49.7}, {freq:479.5,magnitude:55.6}, {freq:630.8,magnitude:61.0}, {freq:842.0,magnitude:67.2}, {freq:1124.0,magnitude:71.1}, {freq:1500.4,magnitude:73.6},
+  {freq:2002.7,magnitude:75.0}, {freq:2673.3,magnitude:75.5}, {freq:3568.5,magnitude:73.5}, {freq:4763.4,magnitude:72.7}, {freq:6358.3,magnitude:72.9}, {freq:8487.3,magnitude:73.0}, {freq:11329.2,magnitude:73.2}, {freq:15122.7,magnitude:70.1},
+  {freq:20186.4,magnitude:63.7},
+];
+
+const H2606_30DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:40.2}, {freq:26.7,magnitude:40.1}, {freq:35.6,magnitude:39.8}, {freq:47.6,magnitude:39.4}, {freq:63.5,magnitude:38.9}, {freq:84.8,magnitude:38.3}, {freq:113.1,magnitude:38.7}, {freq:151.0,magnitude:40.6},
+  {freq:201.6,magnitude:42.7}, {freq:269.1,magnitude:45.4}, {freq:359.2,magnitude:51.2}, {freq:479.5,magnitude:56.0}, {freq:630.8,magnitude:60.9}, {freq:842.0,magnitude:66.8}, {freq:1124.0,magnitude:70.5}, {freq:1500.4,magnitude:72.8},
+  {freq:2002.7,magnitude:74.2}, {freq:2673.3,magnitude:75.1}, {freq:3568.5,magnitude:73.8}, {freq:4763.4,magnitude:71.9}, {freq:6358.3,magnitude:71.5}, {freq:8487.3,magnitude:69.9}, {freq:11329.2,magnitude:71.2}, {freq:15122.7,magnitude:65.5},
+  {freq:20186.4,magnitude:58.6},
+];
+
+const H2606_40DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:67.2}, {freq:26.7,magnitude:67.1}, {freq:35.6,magnitude:66.9}, {freq:47.6,magnitude:66.5}, {freq:63.5,magnitude:65.9}, {freq:84.8,magnitude:64.7}, {freq:113.1,magnitude:62.2}, {freq:151.0,magnitude:56.6},
+  {freq:201.6,magnitude:38.0}, {freq:269.1,magnitude:55.0}, {freq:359.2,magnitude:50.3}, {freq:479.5,magnitude:58.1}, {freq:630.8,magnitude:60.7}, {freq:842.0,magnitude:66.3}, {freq:1124.0,magnitude:70.0}, {freq:1500.4,magnitude:71.9},
+  {freq:2002.7,magnitude:73.2}, {freq:2673.3,magnitude:74.5}, {freq:3568.5,magnitude:73.4}, {freq:4763.4,magnitude:71.0}, {freq:6358.3,magnitude:70.3}, {freq:8487.3,magnitude:67.1}, {freq:11329.2,magnitude:68.9}, {freq:15122.7,magnitude:58.2},
+  {freq:20186.4,magnitude:55.1},
+];
+
+const H2606_50DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:37.2}, {freq:26.7,magnitude:37.0}, {freq:35.6,magnitude:36.7}, {freq:47.6,magnitude:36.3}, {freq:63.5,magnitude:35.7}, {freq:84.8,magnitude:35.5}, {freq:113.1,magnitude:36.7}, {freq:151.0,magnitude:39.4},
+  {freq:201.6,magnitude:42.1}, {freq:269.1,magnitude:45.3}, {freq:359.2,magnitude:50.6}, {freq:479.5,magnitude:55.6}, {freq:630.8,magnitude:60.1}, {freq:842.0,magnitude:65.3}, {freq:1124.0,magnitude:69.1}, {freq:1500.4,magnitude:70.7},
+  {freq:2002.7,magnitude:72.0}, {freq:2673.3,magnitude:73.5}, {freq:3568.5,magnitude:72.1}, {freq:4763.4,magnitude:69.7}, {freq:6358.3,magnitude:68.0}, {freq:8487.3,magnitude:64.7}, {freq:11329.2,magnitude:66.2}, {freq:15122.7,magnitude:54.4},
+  {freq:20186.4,magnitude:53.2},
+];
+
+const H2606_60DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:38.9}, {freq:26.7,magnitude:38.7}, {freq:35.6,magnitude:38.4}, {freq:47.6,magnitude:37.8}, {freq:63.5,magnitude:36.8}, {freq:84.8,magnitude:34.9}, {freq:113.1,magnitude:32.8}, {freq:151.0,magnitude:35.1},
+  {freq:201.6,magnitude:39.9}, {freq:269.1,magnitude:43.9}, {freq:359.2,magnitude:49.4}, {freq:479.5,magnitude:54.9}, {freq:630.8,magnitude:59.6}, {freq:842.0,magnitude:64.1}, {freq:1124.0,magnitude:68.4}, {freq:1500.4,magnitude:69.3},
+  {freq:2002.7,magnitude:70.8}, {freq:2673.3,magnitude:72.4}, {freq:3568.5,magnitude:70.3}, {freq:4763.4,magnitude:67.9}, {freq:6358.3,magnitude:65.4}, {freq:8487.3,magnitude:62.5}, {freq:11329.2,magnitude:63.0}, {freq:15122.7,magnitude:55.3},
+  {freq:20186.4,magnitude:52.9},
+];
+
+const H2606_70DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:43.0}, {freq:26.7,magnitude:42.9}, {freq:35.6,magnitude:42.9}, {freq:47.6,magnitude:42.7}, {freq:63.5,magnitude:42.3}, {freq:84.8,magnitude:41.2}, {freq:113.1,magnitude:38.4}, {freq:151.0,magnitude:29.0},
+  {freq:201.6,magnitude:39.4}, {freq:269.1,magnitude:45.6}, {freq:359.2,magnitude:48.8}, {freq:479.5,magnitude:54.9}, {freq:630.8,magnitude:59.4}, {freq:842.0,magnitude:63.0}, {freq:1124.0,magnitude:67.6}, {freq:1500.4,magnitude:67.7},
+  {freq:2002.7,magnitude:69.6}, {freq:2673.3,magnitude:70.7}, {freq:3568.5,magnitude:68.2}, {freq:4763.4,magnitude:65.7}, {freq:6358.3,magnitude:62.9}, {freq:8487.3,magnitude:60.6}, {freq:11329.2,magnitude:59.3}, {freq:15122.7,magnitude:53.5},
+  {freq:20186.4,magnitude:51.7},
+];
+
+const H2606_80DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:53.7}, {freq:26.7,magnitude:53.6}, {freq:35.6,magnitude:53.4}, {freq:47.6,magnitude:53.0}, {freq:63.5,magnitude:52.4}, {freq:84.8,magnitude:51.3}, {freq:113.1,magnitude:49.4}, {freq:151.0,magnitude:46.7},
+  {freq:201.6,magnitude:42.9}, {freq:269.1,magnitude:41.6}, {freq:359.2,magnitude:49.8}, {freq:479.5,magnitude:53.8}, {freq:630.8,magnitude:59.3}, {freq:842.0,magnitude:62.2}, {freq:1124.0,magnitude:66.3}, {freq:1500.4,magnitude:66.4},
+  {freq:2002.7,magnitude:68.0}, {freq:2673.3,magnitude:68.6}, {freq:3568.5,magnitude:65.7}, {freq:4763.4,magnitude:63.0}, {freq:6358.3,magnitude:60.4}, {freq:8487.3,magnitude:58.1}, {freq:11329.2,magnitude:55.5}, {freq:15122.7,magnitude:49.9},
+  {freq:20186.4,magnitude:47.5},
+];
+
+const H2606_90DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:51.5}, {freq:26.7,magnitude:51.4}, {freq:35.6,magnitude:51.2}, {freq:47.6,magnitude:50.8}, {freq:63.5,magnitude:50.1}, {freq:84.8,magnitude:49.0}, {freq:113.1,magnitude:47.0}, {freq:151.0,magnitude:44.4},
+  {freq:201.6,magnitude:41.5}, {freq:269.1,magnitude:40.3}, {freq:359.2,magnitude:48.8}, {freq:479.5,magnitude:53.3}, {freq:630.8,magnitude:59.0}, {freq:842.0,magnitude:62.1}, {freq:1124.0,magnitude:64.6}, {freq:1500.4,magnitude:65.6},
+  {freq:2002.7,magnitude:66.6}, {freq:2673.3,magnitude:67.1}, {freq:3568.5,magnitude:63.5}, {freq:4763.4,magnitude:60.7}, {freq:6358.3,magnitude:58.0}, {freq:8487.3,magnitude:55.2}, {freq:11329.2,magnitude:51.8}, {freq:15122.7,magnitude:45.9},
+  {freq:20186.4,magnitude:43.1},
 ];
 
 const H2606_OFFAXIS: OffAxisData[] = [
-  { angle: 30, curve: [
-    {freq:1035.89,magnitude:90.73}, {freq:1306.64,magnitude:93.15}, {freq:1648.15,magnitude:93.71},
-    {freq:2078.91,magnitude:94.62}, {freq:2622.27,magnitude:95.23}, {freq:3307.63,magnitude:94.56},
-    {freq:4172.13,magnitude:93.77}, {freq:4965.79,magnitude:93.03}, {freq:5910.42,magnitude:92.23},
-    {freq:7034.75,magnitude:91.82}, {freq:8873.37,magnitude:88.26}, {freq:9965.73,magnitude:90.33},
-  ]},
-  { angle: 60, curve: [
-    {freq:1035.89,magnitude:90.20}, {freq:1306.64,magnitude:92.65}, {freq:1648.15,magnitude:93.56},
-    {freq:2078.91,magnitude:93.27}, {freq:2622.27,magnitude:93.48}, {freq:3307.63,magnitude:92.24},
-    {freq:4172.13,magnitude:90.38}, {freq:4965.79,magnitude:89.55}, {freq:5910.42,magnitude:87.05},
-    {freq:7034.75,magnitude:85.39}, {freq:8873.37,magnitude:83.34}, {freq:9965.73,magnitude:78.51},
-  ]},
+  { angle: 10, curve: H2606_10DEG },
+  { angle: 20, curve: H2606_20DEG },
+  { angle: 30, curve: H2606_30DEG },
+  { angle: 40, curve: H2606_40DEG },
+  { angle: 50, curve: H2606_50DEG },
+  { angle: 60, curve: H2606_60DEG },
+  { angle: 70, curve: H2606_70DEG },
+  { angle: 80, curve: H2606_80DEG },
+  { angle: 90, curve: H2606_90DEG },
 ];
 
 const MID15W_ONAXIS: FrequencyDataPoint[] = [
@@ -233,6 +289,195 @@ const GRS_12SMP_4_45DEG: FrequencyDataPoint[] = [
   {freq:201.6,magnitude:90.8}, {freq:269.1,magnitude:90.2}, {freq:359.2,magnitude:89.7}, {freq:479.5,magnitude:90.8}, {freq:630.8,magnitude:90.2}, {freq:842.0,magnitude:91.2}, {freq:1124.0,magnitude:92.1}, {freq:1500.4,magnitude:89.7},
   {freq:2002.7,magnitude:82.0}, {freq:2673.3,magnitude:70.0}, {freq:3568.5,magnitude:74.7}, {freq:4763.4,magnitude:65.5}, {freq:6358.3,magnitude:54.0}, {freq:8487.3,magnitude:57.8}, {freq:11329.2,magnitude:60.8}, {freq:15122.7,magnitude:50.7},
   {freq:20186.4,magnitude:50.2},
+];
+
+// ===== Batch 2: real measured data from loudspeakerlab.com =====
+// SB Acoustics SB19ST-C000-4: 3/4" textile dome tweeter, 4 Ω, 88.5 dB.
+// 367-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points.
+// Measured off-axis: 30° and 60° only (others marked "est." in source).
+const SB19ST_C000_ONAXIS: FrequencyDataPoint[] = [
+  {freq:102.3,magnitude:51.3}, {freq:116.5,magnitude:52.2}, {freq:134.5,magnitude:55.4}, {freq:153.2,magnitude:59.2}, {freq:177.0,magnitude:60.6}, {freq:201.6,magnitude:63.7}, {freq:229.6,magnitude:63.1}, {freq:265.2,magnitude:65.5},
+  {freq:302.0,magnitude:68.0}, {freq:344.0,magnitude:71.6}, {freq:397.4,magnitude:74.3}, {freq:452.5,magnitude:75.3}, {freq:522.9,magnitude:79.5}, {freq:595.4,magnitude:80.6}, {freq:678.1,magnitude:83.0}, {freq:783.4,magnitude:85.2},
+  {freq:892.1,magnitude:88.4}, {freq:1030.7,magnitude:90.0}, {freq:1173.8,magnitude:90.3}, {freq:1336.7,magnitude:89.6}, {freq:1544.3,magnitude:90.4}, {freq:1758.7,magnitude:89.6}, {freq:2002.7,magnitude:88.6}, {freq:2313.9,magnitude:89.2},
+  {freq:2635.0,magnitude:88.6}, {freq:3044.4,magnitude:89.3}, {freq:3466.9,magnitude:89.6}, {freq:3948.1,magnitude:89.7}, {freq:4561.4,magnitude:90.2}, {freq:5194.5,magnitude:90.0}, {freq:6001.4,magnitude:89.3}, {freq:6834.4,magnitude:89.2},
+  {freq:7782.9,magnitude:88.8}, {freq:8992.0,magnitude:88.5}, {freq:10240.0,magnitude:88.7}, {freq:11661.2,magnitude:88.9}, {freq:13472.8,magnitude:88.6}, {freq:15342.7,magnitude:88.4}, {freq:17726.2,magnitude:89.3}, {freq:20186.4,magnitude:89.4},
+];
+
+const SB19ST_C000_30DEG: FrequencyDataPoint[] = [
+  {freq:102.3,magnitude:51.4}, {freq:127.0,magnitude:54.1}, {freq:157.7,magnitude:56.6}, {freq:198.7,magnitude:62.9}, {freq:246.8,magnitude:66.1}, {freq:306.4,magnitude:68.0}, {freq:380.5,magnitude:73.1}, {freq:479.5,magnitude:77.4},
+  {freq:595.4,magnitude:80.1}, {freq:739.4,magnitude:84.2}, {freq:918.3,magnitude:88.5}, {freq:1156.9,magnitude:90.1}, {freq:1436.8,magnitude:89.9}, {freq:1784.2,magnitude:88.8}, {freq:2215.8,magnitude:89.2}, {freq:2791.7,magnitude:88.0},
+  {freq:3466.9,magnitude:88.8}, {freq:4305.4,magnitude:89.0}, {freq:5346.7,magnitude:88.6}, {freq:6736.4,magnitude:88.3}, {freq:8365.6,magnitude:87.9}, {freq:10388.9,magnitude:87.3}, {freq:12901.6,magnitude:86.4}, {freq:16255.0,magnitude:86.6},
+  {freq:20186.4,magnitude:86.1},
+];
+
+const SB19ST_C000_60DEG: FrequencyDataPoint[] = [
+  {freq:102.3,magnitude:48.9}, {freq:127.0,magnitude:53.4}, {freq:157.7,magnitude:57.3}, {freq:198.7,magnitude:63.2}, {freq:246.8,magnitude:67.3}, {freq:306.4,magnitude:68.5}, {freq:380.5,magnitude:73.7}, {freq:479.5,magnitude:77.5},
+  {freq:595.4,magnitude:80.3}, {freq:739.4,magnitude:84.7}, {freq:918.3,magnitude:88.7}, {freq:1156.9,magnitude:89.6}, {freq:1436.8,magnitude:90.9}, {freq:1784.2,magnitude:88.8}, {freq:2215.8,magnitude:88.6}, {freq:2791.7,magnitude:88.1},
+  {freq:3466.9,magnitude:88.5}, {freq:4305.4,magnitude:88.4}, {freq:5346.7,magnitude:87.5}, {freq:6736.4,magnitude:87.6}, {freq:8365.6,magnitude:86.7}, {freq:10388.9,magnitude:84.8}, {freq:12901.6,magnitude:83.8}, {freq:16255.0,magnitude:81.9},
+  {freq:20186.4,magnitude:80.0},
+];
+
+// SB Acoustics SB13PFCR25-4: 5" fiber cone midbass, 4 Ω, 89 dB.
+// 480-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points.
+// Full 10-90° measured off-axis (10° steps). Nearfield 54587-pt trace skipped.
+const SB13PFCR25_4_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:23.8,magnitude:75.6}, {freq:28.7,magnitude:78.4}, {freq:34.1,magnitude:80.3}, {freq:40.6,magnitude:82.2}, {freq:48.3,magnitude:84.2}, {freq:58.2,magnitude:86.3}, {freq:69.2,magnitude:87.2},
+  {freq:82.3,magnitude:88.6}, {freq:99.3,magnitude:89.6}, {freq:118.1,magnitude:90.3}, {freq:140.5,magnitude:90.2}, {freq:167.1,magnitude:91.2}, {freq:201.6,magnitude:91.6}, {freq:239.7,magnitude:91.5}, {freq:285.1,magnitude:91.8},
+  {freq:344.0,magnitude:91.6}, {freq:409.0,magnitude:92.0}, {freq:486.4,magnitude:91.5}, {freq:578.5,magnitude:91.6}, {freq:697.9,magnitude:91.5}, {freq:830.0,magnitude:90.3}, {freq:987.0,magnitude:89.8}, {freq:1173.8,magnitude:90.8},
+  {freq:1416.2,magnitude:91.6}, {freq:1684.1,magnitude:89.6}, {freq:2002.7,magnitude:89.4}, {freq:2416.3,magnitude:89.7}, {freq:2873.5,magnitude:88.2}, {freq:3417.2,magnitude:86.7}, {freq:4063.7,magnitude:86.8}, {freq:4902.9,magnitude:88.6},
+  {freq:5830.6,magnitude:90.9}, {freq:6933.8,magnitude:90.7}, {freq:8365.6,magnitude:88.4}, {freq:9948.5,magnitude:87.1}, {freq:11830.8,magnitude:83.6}, {freq:14069.3,magnitude:74.8}, {freq:16974.7,magnitude:56.8}, {freq:20186.4,magnitude:51.6},
+];
+
+const SB13PFCR25_4_10DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.8}, {freq:1500.4,magnitude:91.2},
+  {freq:2002.7,magnitude:89.1}, {freq:2673.3,magnitude:88.5}, {freq:3568.5,magnitude:86.9}, {freq:4763.4,magnitude:87.8}, {freq:6358.3,magnitude:94.2}, {freq:8487.3,magnitude:85.7}, {freq:11329.2,magnitude:82.3}, {freq:15122.7,magnitude:67.3},
+  {freq:20186.4,magnitude:56.0},
+];
+
+const SB13PFCR25_4_20DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.8}, {freq:1500.4,magnitude:91.3},
+  {freq:2002.7,magnitude:88.7}, {freq:2673.3,magnitude:87.8}, {freq:3568.5,magnitude:86.4}, {freq:4763.4,magnitude:86.2}, {freq:6358.3,magnitude:92.6}, {freq:8487.3,magnitude:77.6}, {freq:11329.2,magnitude:69.8}, {freq:15122.7,magnitude:64.6},
+  {freq:20186.4,magnitude:57.7},
+];
+
+const SB13PFCR25_4_30DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.8}, {freq:1500.4,magnitude:91.2},
+  {freq:2002.7,magnitude:88.2}, {freq:2673.3,magnitude:86.9}, {freq:3568.5,magnitude:85.2}, {freq:4763.4,magnitude:83.4}, {freq:6358.3,magnitude:89.5}, {freq:8487.3,magnitude:64.7}, {freq:11329.2,magnitude:69.7}, {freq:15122.7,magnitude:57.5},
+  {freq:20186.4,magnitude:62.5},
+];
+
+const SB13PFCR25_4_40DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.6}, {freq:1500.4,magnitude:90.8},
+  {freq:2002.7,magnitude:87.9}, {freq:2673.3,magnitude:85.6}, {freq:3568.5,magnitude:83.8}, {freq:4763.4,magnitude:79.4}, {freq:6358.3,magnitude:85.7}, {freq:8487.3,magnitude:70.4}, {freq:11329.2,magnitude:69.5}, {freq:15122.7,magnitude:56.6},
+  {freq:20186.4,magnitude:60.4},
+];
+
+const SB13PFCR25_4_50DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.5}, {freq:1500.4,magnitude:90.4},
+  {freq:2002.7,magnitude:87.5}, {freq:2673.3,magnitude:84.4}, {freq:3568.5,magnitude:81.8}, {freq:4763.4,magnitude:73.7}, {freq:6358.3,magnitude:81.8}, {freq:8487.3,magnitude:69.0}, {freq:11329.2,magnitude:63.3}, {freq:15122.7,magnitude:61.4},
+  {freq:20186.4,magnitude:52.1},
+];
+
+const SB13PFCR25_4_60DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.5}, {freq:1500.4,magnitude:89.9},
+  {freq:2002.7,magnitude:87.3}, {freq:2673.3,magnitude:82.9}, {freq:3568.5,magnitude:79.6}, {freq:4763.4,magnitude:65.7}, {freq:6358.3,magnitude:78.4}, {freq:8487.3,magnitude:68.6}, {freq:11329.2,magnitude:52.5}, {freq:15122.7,magnitude:58.8},
+  {freq:20186.4,magnitude:38.7},
+];
+
+const SB13PFCR25_4_70DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.5}, {freq:1500.4,magnitude:89.5},
+  {freq:2002.7,magnitude:87.2}, {freq:2673.3,magnitude:82.1}, {freq:3568.5,magnitude:76.8}, {freq:4763.4,magnitude:62.1}, {freq:6358.3,magnitude:76.8}, {freq:8487.3,magnitude:70.0}, {freq:11329.2,magnitude:54.5}, {freq:15122.7,magnitude:57.4},
+  {freq:20186.4,magnitude:45.3},
+];
+
+const SB13PFCR25_4_80DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.4}, {freq:1500.4,magnitude:88.9},
+  {freq:2002.7,magnitude:87.0}, {freq:2673.3,magnitude:82.0}, {freq:3568.5,magnitude:75.8}, {freq:4763.4,magnitude:65.6}, {freq:6358.3,magnitude:76.3}, {freq:8487.3,magnitude:71.0}, {freq:11329.2,magnitude:56.4}, {freq:15122.7,magnitude:56.0},
+  {freq:20186.4,magnitude:41.7},
+];
+
+const SB13PFCR25_4_90DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:72.9}, {freq:26.7,magnitude:77.3}, {freq:35.6,magnitude:80.7}, {freq:47.6,magnitude:84.1}, {freq:63.5,magnitude:86.8}, {freq:84.8,magnitude:88.7}, {freq:113.1,magnitude:90.3}, {freq:151.0,magnitude:90.9},
+  {freq:201.6,magnitude:91.6}, {freq:269.1,magnitude:91.1}, {freq:359.2,magnitude:92.1}, {freq:479.5,magnitude:92.0}, {freq:630.8,magnitude:91.2}, {freq:842.0,magnitude:90.4}, {freq:1124.0,magnitude:90.1}, {freq:1500.4,magnitude:88.8},
+  {freq:2002.7,magnitude:86.5}, {freq:2673.3,magnitude:81.4}, {freq:3568.5,magnitude:74.5}, {freq:4763.4,magnitude:68.3}, {freq:6358.3,magnitude:76.4}, {freq:8487.3,magnitude:71.0}, {freq:11329.2,magnitude:57.6}, {freq:15122.7,magnitude:57.0},
+  {freq:20186.4,magnitude:41.7},
+];
+
+// Purifi PTT5.25X08-NFA-01: 5.25" ultra-low distortion midbass, 8 Ω, 84.7 dB.
+// 475-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points.
+// Measured off-axis: 30° and 60° only (others marked "est." in source).
+const PURIFI_PTT5_25X08_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:55.7}, {freq:23.8,magnitude:64.9}, {freq:28.3,magnitude:68.6}, {freq:33.6,magnitude:70.5}, {freq:40.6,magnitude:72.1}, {freq:48.3,magnitude:73.5}, {freq:57.4,magnitude:75.8}, {freq:68.3,magnitude:77.9},
+  {freq:81.2,magnitude:79.3}, {freq:96.5,magnitude:81.7}, {freq:116.5,magnitude:82.9}, {freq:138.5,magnitude:82.7}, {freq:164.7,magnitude:83.3}, {freq:195.8,magnitude:83.8}, {freq:232.9,magnitude:84.5}, {freq:277.0,magnitude:84.5},
+  {freq:329.4,magnitude:84.3}, {freq:397.4,magnitude:85.4}, {freq:472.6,magnitude:85.6}, {freq:562.0,magnitude:85.2}, {freq:668.3,magnitude:84.9}, {freq:794.8,magnitude:83.7}, {freq:945.2,magnitude:83.4}, {freq:1140.4,magnitude:82.1},
+  {freq:1356.1,magnitude:83.1}, {freq:1612.7,magnitude:83.6}, {freq:1917.8,magnitude:82.9}, {freq:2280.7,magnitude:82.6}, {freq:2712.2,magnitude:83.0}, {freq:3225.4,magnitude:83.1}, {freq:3891.5,magnitude:85.2}, {freq:4627.7,magnitude:87.0},
+  {freq:5503.4,magnitude:81.5}, {freq:6544.6,magnitude:77.8}, {freq:7782.9,magnitude:73.1}, {freq:9255.5,magnitude:69.6}, {freq:11166.8,magnitude:65.5}, {freq:13279.6,magnitude:67.1}, {freq:15792.2,magnitude:61.3}, {freq:18780.2,magnitude:52.0},
+];
+
+const PURIFI_PTT5_25X08_30DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:55.7}, {freq:26.7,magnitude:67.7}, {freq:35.1,magnitude:70.9}, {freq:46.9,magnitude:73.3}, {freq:62.6,magnitude:77.0}, {freq:83.5,magnitude:79.7}, {freq:109.9,magnitude:82.8}, {freq:146.7,magnitude:82.9},
+  {freq:195.8,magnitude:83.8}, {freq:261.4,magnitude:84.4}, {freq:344.0,magnitude:84.1}, {freq:459.1,magnitude:85.3}, {freq:612.9,magnitude:85.2}, {freq:818.1,magnitude:83.6}, {freq:1076.3,magnitude:82.2}, {freq:1436.8,magnitude:82.6},
+  {freq:1917.8,magnitude:81.9}, {freq:2560.0,magnitude:80.9}, {freq:3368.2,magnitude:80.7}, {freq:4496.0,magnitude:84.4}, {freq:6001.4,magnitude:70.5}, {freq:8011.0,magnitude:63.8}, {freq:10540.1,magnitude:55.2}, {freq:14069.3,magnitude:56.6},
+  {freq:18780.2,magnitude:55.9},
+];
+
+const PURIFI_PTT5_25X08_60DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:55.7}, {freq:26.7,magnitude:67.7}, {freq:35.1,magnitude:70.9}, {freq:46.9,magnitude:73.3}, {freq:62.6,magnitude:77.0}, {freq:83.5,magnitude:79.7}, {freq:109.9,magnitude:82.8}, {freq:146.7,magnitude:82.9},
+  {freq:195.8,magnitude:83.8}, {freq:261.4,magnitude:84.4}, {freq:344.0,magnitude:84.1}, {freq:459.1,magnitude:85.3}, {freq:612.9,magnitude:85.2}, {freq:818.1,magnitude:83.6}, {freq:1076.3,magnitude:81.4}, {freq:1436.8,magnitude:81.7},
+  {freq:1917.8,magnitude:80.6}, {freq:2560.0,magnitude:78.0}, {freq:3368.2,magnitude:76.4}, {freq:4496.0,magnitude:75.0}, {freq:6001.4,magnitude:61.0}, {freq:8011.0,magnitude:60.7}, {freq:10540.1,magnitude:52.6}, {freq:14069.3,magnitude:52.6},
+  {freq:18780.2,magnitude:52.6},
+];
+
+// Dayton Audio DC28F-8: 1-1/8" silk dome tweeter, 8 Ω, 89 dB.
+// 480-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points.
+// Measured off-axis: 15°, 30°, 45° (others marked "est." in source).
+const DAYTON_DC28F_8_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:64.9}, {freq:23.8,magnitude:74.6}, {freq:28.7,magnitude:48.4}, {freq:34.1,magnitude:40.4}, {freq:40.6,magnitude:59.3}, {freq:48.3,magnitude:56.1}, {freq:58.2,magnitude:51.0}, {freq:69.2,magnitude:46.7},
+  {freq:82.3,magnitude:30.1}, {freq:99.3,magnitude:56.0}, {freq:118.1,magnitude:60.9}, {freq:140.5,magnitude:62.9}, {freq:167.1,magnitude:65.6}, {freq:201.6,magnitude:64.6}, {freq:239.7,magnitude:64.3}, {freq:285.1,magnitude:75.6},
+  {freq:344.0,magnitude:73.5}, {freq:409.0,magnitude:76.5}, {freq:486.4,magnitude:79.8}, {freq:578.5,magnitude:83.0}, {freq:697.9,magnitude:83.6}, {freq:830.0,magnitude:83.3}, {freq:987.0,magnitude:85.3}, {freq:1173.8,magnitude:86.3},
+  {freq:1416.2,magnitude:89.1}, {freq:1684.1,magnitude:90.6}, {freq:2002.7,magnitude:89.5}, {freq:2416.3,magnitude:89.4}, {freq:2873.5,magnitude:89.5}, {freq:3417.2,magnitude:88.2}, {freq:4063.7,magnitude:88.2}, {freq:4902.9,magnitude:87.4},
+  {freq:5830.6,magnitude:88.3}, {freq:6933.8,magnitude:88.8}, {freq:8365.6,magnitude:85.8}, {freq:9948.5,magnitude:85.4}, {freq:11830.8,magnitude:89.4}, {freq:14069.3,magnitude:86.9}, {freq:16974.7,magnitude:87.0}, {freq:20186.4,magnitude:81.2},
+];
+
+const DAYTON_DC28F_8_15DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:70.8}, {freq:26.7,magnitude:64.3}, {freq:35.6,magnitude:54.3}, {freq:47.6,magnitude:62.7}, {freq:63.5,magnitude:59.1}, {freq:84.8,magnitude:53.4}, {freq:113.1,magnitude:58.8}, {freq:151.0,magnitude:63.5},
+  {freq:201.6,magnitude:66.3}, {freq:269.1,magnitude:73.2}, {freq:359.2,magnitude:76.2}, {freq:479.5,magnitude:79.8}, {freq:630.8,magnitude:83.3}, {freq:842.0,magnitude:83.3}, {freq:1124.0,magnitude:86.0}, {freq:1500.4,magnitude:89.6},
+  {freq:2002.7,magnitude:90.0}, {freq:2673.3,magnitude:89.8}, {freq:3568.5,magnitude:87.5}, {freq:4763.4,magnitude:86.8}, {freq:6358.3,magnitude:87.8}, {freq:8487.3,magnitude:85.1}, {freq:11329.2,magnitude:85.4}, {freq:15122.7,magnitude:86.3},
+  {freq:20186.4,magnitude:77.8},
+];
+
+const DAYTON_DC28F_8_30DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:69.8}, {freq:26.7,magnitude:67.7}, {freq:35.6,magnitude:58.5}, {freq:47.6,magnitude:61.6}, {freq:63.5,magnitude:60.9}, {freq:84.8,magnitude:53.3}, {freq:113.1,magnitude:55.0}, {freq:151.0,magnitude:64.3},
+  {freq:201.6,magnitude:66.5}, {freq:269.1,magnitude:71.6}, {freq:359.2,magnitude:75.9}, {freq:479.5,magnitude:79.4}, {freq:630.8,magnitude:82.9}, {freq:842.0,magnitude:83.3}, {freq:1124.0,magnitude:86.6}, {freq:1500.4,magnitude:89.4},
+  {freq:2002.7,magnitude:90.0}, {freq:2673.3,magnitude:90.3}, {freq:3568.5,magnitude:87.3}, {freq:4763.4,magnitude:86.0}, {freq:6358.3,magnitude:86.7}, {freq:8487.3,magnitude:83.5}, {freq:11329.2,magnitude:84.6}, {freq:15122.7,magnitude:82.7},
+  {freq:20186.4,magnitude:68.1},
+];
+
+const DAYTON_DC28F_8_45DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:70.9}, {freq:26.7,magnitude:65.8}, {freq:35.6,magnitude:47.2}, {freq:47.6,magnitude:62.8}, {freq:63.5,magnitude:58.0}, {freq:84.8,magnitude:57.1}, {freq:113.1,magnitude:56.3}, {freq:151.0,magnitude:62.6},
+  {freq:201.6,magnitude:66.7}, {freq:269.1,magnitude:72.2}, {freq:359.2,magnitude:74.6}, {freq:479.5,magnitude:80.4}, {freq:630.8,magnitude:83.4}, {freq:842.0,magnitude:83.1}, {freq:1124.0,magnitude:86.1}, {freq:1500.4,magnitude:89.6},
+  {freq:2002.7,magnitude:89.5}, {freq:2673.3,magnitude:89.6}, {freq:3568.5,magnitude:87.4}, {freq:4763.4,magnitude:86.4}, {freq:6358.3,magnitude:84.7}, {freq:8487.3,magnitude:80.7}, {freq:11329.2,magnitude:82.1}, {freq:15122.7,magnitude:78.8},
+  {freq:20186.4,magnitude:62.7},
+];
+
+// Dayton Audio DC130BS-8: 5-1/4" classic shielded woofer, 8 Ω, 86 dB.
+// 480-point Plotly curves, subsampled to ~40 on-axis / ~25 off-axis points.
+// Measured off-axis: 15°, 30°, 45° (others marked "est." in source).
+const DAYTON_DC130BS_8_ONAXIS: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:60.4}, {freq:23.8,magnitude:65.6}, {freq:28.7,magnitude:69.9}, {freq:34.1,magnitude:74.8}, {freq:40.6,magnitude:77.9}, {freq:48.3,magnitude:78.8}, {freq:58.2,magnitude:81.7}, {freq:69.2,magnitude:82.6},
+  {freq:82.3,magnitude:85.0}, {freq:99.3,magnitude:86.5}, {freq:118.1,magnitude:87.2}, {freq:140.5,magnitude:87.2}, {freq:167.1,magnitude:87.6}, {freq:201.6,magnitude:88.1}, {freq:239.7,magnitude:88.3}, {freq:285.1,magnitude:88.2},
+  {freq:344.0,magnitude:88.1}, {freq:409.0,magnitude:87.9}, {freq:486.4,magnitude:88.1}, {freq:578.5,magnitude:88.0}, {freq:697.9,magnitude:88.2}, {freq:830.0,magnitude:88.4}, {freq:987.0,magnitude:88.7}, {freq:1173.8,magnitude:88.8},
+  {freq:1416.2,magnitude:88.7}, {freq:1684.1,magnitude:88.4}, {freq:2002.7,magnitude:89.1}, {freq:2416.3,magnitude:90.1}, {freq:2873.5,magnitude:94.2}, {freq:3417.2,magnitude:94.9}, {freq:4063.7,magnitude:93.2}, {freq:4902.9,magnitude:86.2},
+  {freq:5830.6,magnitude:81.5}, {freq:6933.8,magnitude:77.1}, {freq:8365.6,magnitude:74.5}, {freq:9948.5,magnitude:68.4}, {freq:11830.8,magnitude:53.4}, {freq:14069.3,magnitude:53.5}, {freq:16974.7,magnitude:57.0}, {freq:20186.4,magnitude:44.9},
+];
+
+const DAYTON_DC130BS_8_15DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:60.4}, {freq:26.7,magnitude:67.7}, {freq:35.6,magnitude:75.8}, {freq:47.6,magnitude:78.7}, {freq:63.5,magnitude:82.9}, {freq:84.8,magnitude:84.6}, {freq:113.1,magnitude:86.8}, {freq:151.0,magnitude:87.7},
+  {freq:201.6,magnitude:88.1}, {freq:269.1,magnitude:88.2}, {freq:359.2,magnitude:88.0}, {freq:479.5,magnitude:87.8}, {freq:630.8,magnitude:88.7}, {freq:842.0,magnitude:88.5}, {freq:1124.0,magnitude:88.7}, {freq:1500.4,magnitude:89.1},
+  {freq:2002.7,magnitude:89.5}, {freq:2673.3,magnitude:92.1}, {freq:3568.5,magnitude:93.6}, {freq:4763.4,magnitude:87.1}, {freq:6358.3,magnitude:76.5}, {freq:8487.3,magnitude:75.3}, {freq:11329.2,magnitude:59.1}, {freq:15122.7,magnitude:50.9},
+  {freq:20186.4,magnitude:45.2},
+];
+
+const DAYTON_DC130BS_8_30DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:60.4}, {freq:26.7,magnitude:67.7}, {freq:35.6,magnitude:75.8}, {freq:47.6,magnitude:78.7}, {freq:63.5,magnitude:82.9}, {freq:84.8,magnitude:84.6}, {freq:113.1,magnitude:86.8}, {freq:151.0,magnitude:87.7},
+  {freq:201.6,magnitude:88.1}, {freq:269.1,magnitude:88.2}, {freq:359.2,magnitude:88.0}, {freq:479.5,magnitude:87.6}, {freq:630.8,magnitude:88.6}, {freq:842.0,magnitude:88.2}, {freq:1124.0,magnitude:88.4}, {freq:1500.4,magnitude:88.1},
+  {freq:2002.7,magnitude:89.1}, {freq:2673.3,magnitude:91.1}, {freq:3568.5,magnitude:90.5}, {freq:4763.4,magnitude:83.0}, {freq:6358.3,magnitude:72.2}, {freq:8487.3,magnitude:68.8}, {freq:11329.2,magnitude:48.5}, {freq:15122.7,magnitude:48.0},
+  {freq:20186.4,magnitude:45.6},
+];
+
+const DAYTON_DC130BS_8_45DEG: FrequencyDataPoint[] = [
+  {freq:20.0,magnitude:60.4}, {freq:26.7,magnitude:67.7}, {freq:35.6,magnitude:75.8}, {freq:47.6,magnitude:78.7}, {freq:63.5,magnitude:82.9}, {freq:84.8,magnitude:84.6}, {freq:113.1,magnitude:86.8}, {freq:151.0,magnitude:87.7},
+  {freq:201.6,magnitude:88.1}, {freq:269.1,magnitude:88.2}, {freq:359.2,magnitude:88.0}, {freq:479.5,magnitude:87.8}, {freq:630.8,magnitude:88.5}, {freq:842.0,magnitude:87.9}, {freq:1124.0,magnitude:88.0}, {freq:1500.4,magnitude:87.7},
+  {freq:2002.7,magnitude:88.5}, {freq:2673.3,magnitude:89.0}, {freq:3568.5,magnitude:87.1}, {freq:4763.4,magnitude:79.0}, {freq:6358.3,magnitude:64.6}, {freq:8487.3,magnitude:60.7}, {freq:11329.2,magnitude:48.9}, {freq:15122.7,magnitude:40.8},
+  {freq:20186.4,magnitude:44.4},
 ];
 
 // Dayton RS225-8 frequency response — digitized from Dayton Audio PDF datasheet
@@ -947,6 +1192,157 @@ export const SEED_DRIVERS: Driver[] = [
     frequencyResponse: WF168WA02_ONAXIS,
     datasheetUrl: 'https://www.wavecor.com/html/wf168wa01_02.html',
     notes: '8Ω variant af WF168WA01. Identisk membran og motor, men dobbelt impedans giver lavere sensitivity (89 vs 91.5 dB). Qts=0.52 (højere end 4Ω variant). Anbefalet max øvre frekvens: 3.0 kHz. Frekvensrespons konstrueret fra T/S parametre + datasheet SPL-kurve. Source: wavecor.com spec page + datasheet PDF.',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // ===== Batch 2: new drivers from loudspeakerlab.com measured data =====
+
+  // SB Acoustics SB19ST-C000-4 — 3/4" textile dome tweeter, 4 Ω, 88.5 dB.
+  // Real measured on-axis + off-axis 30°/60° from loudspeakerlab.com.
+  // Fs 980 Hz, Re 3.4 Ω, Sd 3.8 cm², 19 mm CCAW voice coil, 88 mm faceplate.
+  {
+    id: 'seed-sb-acoustics-sb19st-c000-4',
+    manufacturer: 'SB Acoustics',
+    model: 'SB19ST-C000-4',
+    type: 'tweeter',
+    tsParams: {
+      fs: 980, re: 3.4, qms: 1.2, qes: 1.0, qts: 0.55, vas: 0.01,
+      sensitivity: 88.5, xmax: 0.6, sd: 3.8, sdM2: 0.00038, vd: 2.28,
+      imp: 4, pe: 30, le: 0.07,
+    },
+    dimensions: {
+      overallDiameter: 88, cutoutDiameter: 36, mountingDepth: 15,
+      magnetDiameter: 50, magnetDepth: 12, weight: 120,
+    },
+    frequencyResponse: SB19ST_C000_ONAXIS,
+    offAxis: [
+      { angle: 30, curve: SB19ST_C000_30DEG },
+      { angle: 60, curve: SB19ST_C000_60DEG },
+    ],
+    datasheetUrl: 'https://sbacoustics.com/wp-content/uploads/2020/05/SB19ST-C000-4.pdf',
+    notes: '3/4" tekstil dome diskant. Damped pole cavity, fine weave soft fabric dome, CCAW svingspole, silver lead wires. Glat frekvensrespons med fremragende off-axis spredning. Fs 980 Hz, Re 3.4 Ω, Sd 3.8 cm², 19 mm svingspole. Frekvensrespons fra loudspeakerlab.com reelle målinger (367-punkt on-axis + off-axis 30/60 grader).',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // SB Acoustics SB13PFCR25-4 — 5" fiber cone midbass, 4 Ω, 89 dB.
+  // Real measured on-axis + full 10-90° off-axis from loudspeakerlab.com.
+  // Fs 44 Hz, Qts 0.29, Vas 9 L, Xmax 4.5 mm, Sd 87 cm², 25 mm voice coil.
+  {
+    id: 'seed-sb-acoustics-sb13pfcr25-4',
+    manufacturer: 'SB Acoustics',
+    model: 'SB13PFCR25-4',
+    type: 'woofer',
+    tsParams: {
+      fs: 44, re: 3.2, qms: 2.6, qes: 0.33, qts: 0.29, vas: 9,
+      sensitivity: 89, xmax: 4.5, sd: 87, sdM2: 0.0087, vd: 391.5,
+      imp: 4, pe: 80, bl: 6.2, mms: 6.5, cms: 1.35, le: 0.56,
+    },
+    dimensions: {
+      overallDiameter: 138, cutoutDiameter: 117, mountingDepth: 58,
+      magnetDiameter: 90, magnetDepth: 25, weight: 910,
+    },
+    frequencyResponse: SB13PFCR25_4_ONAXIS,
+    offAxis: [
+      { angle: 10, curve: SB13PFCR25_4_10DEG },
+      { angle: 20, curve: SB13PFCR25_4_20DEG },
+      { angle: 30, curve: SB13PFCR25_4_30DEG },
+      { angle: 40, curve: SB13PFCR25_4_40DEG },
+      { angle: 50, curve: SB13PFCR25_4_50DEG },
+      { angle: 60, curve: SB13PFCR25_4_60DEG },
+      { angle: 70, curve: SB13PFCR25_4_70DEG },
+      { angle: 80, curve: SB13PFCR25_4_80DEG },
+      { angle: 90, curve: SB13PFCR25_4_90DEG },
+    ],
+    datasheetUrl: 'https://sbacoustics.com/product/sb13pfcr25-4/',
+    notes: '5" fiber cone midbass. Vented reinforced plastic chassis, proprietary natural fiber cone, soft rubber surround. Fs 44 Hz, Qts 0.29, Vas 9 L, Sd 87 cm², Xmax 4.5 mm, 25 mm svingspole, 80 W RMS. Frekvensrespons fra loudspeakerlab.com reelle målinger (480-punkt on-axis + fuld off-axis 10-90 grader i 10° skridt).',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // Purifi PTT5.25X08-NFA-01 — 5.25" ultra-low distortion midbass, 8 Ω, 84.7 dB.
+  // Real measured on-axis + off-axis 30°/60° from loudspeakerlab.com.
+  // Fs 32 Hz, Qts 0.26, Vas 13 L, Xmax 9.8 mm, Sd 84.9 cm², 39 mm VC, 250 W RMS.
+  {
+    id: 'seed-purifi-ptt5-25x08-nfa-01',
+    manufacturer: 'Purifi',
+    model: 'PTT5.25X08-NFA-01',
+    type: 'woofer',
+    tsParams: {
+      fs: 32, re: 3.8, qms: 3.5, qes: 0.28, qts: 0.26, vas: 13,
+      sensitivity: 84.7, xmax: 9.8, sd: 84.9, sdM2: 0.00849, vd: 832,
+      imp: 8, pe: 250, bl: 9.0, mms: 19.6, cms: 1.30, le: 0.55,
+    },
+    dimensions: {
+      overallDiameter: 147, cutoutDiameter: 121, mountingDepth: 83,
+      magnetDiameter: 100, magnetDepth: 25, weight: 1500,
+    },
+    frequencyResponse: PURIFI_PTT5_25X08_ONAXIS,
+    offAxis: [
+      { angle: 30, curve: PURIFI_PTT5_25X08_30DEG },
+      { angle: 60, curve: PURIFI_PTT5_25X08_60DEG },
+    ],
+    datasheetUrl: 'https://www.soundimports.eu/en/purifi-ptt525x08-nfa-01.html',
+    notes: '5.25" ultra-low distortion midbass. Purifi NeutralSurround + PureDrive motor. Negligible force factor modulation, ultra-low magnetic hysteresis distortion. Fs 32 Hz, Qts 0.26, Vas 13 L, Sd 84.9 cm², Xmax 9.8 mm, 39 mm svingspole (CCAW), 250 W RMS. Frekvensrespons fra loudspeakerlab.com reelle målinger (475-punkt on-axis + off-axis 30/60 grader).',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // Dayton Audio DC28F-8 — 1-1/8" silk dome tweeter, 8 Ω, 89 dB.
+  // Real measured on-axis + off-axis 15°/30°/45° from loudspeakerlab.com.
+  // Fs 834 Hz, Re 5.4 Ω, Qts 0.50, Sd 6.6 cm², 29 mm voice coil, 50 W RMS.
+  {
+    id: 'seed-dayton-dc28f-8',
+    manufacturer: 'Dayton Audio',
+    model: 'DC28F-8',
+    type: 'tweeter',
+    tsParams: {
+      fs: 834, re: 5.4, qms: 0.81, qes: 1.33, qts: 0.50, vas: 0.02,
+      sensitivity: 89, xmax: 0.5, sd: 6.6, sdM2: 0.00066, vd: 3.3,
+      imp: 8, pe: 50, le: 0.09,
+    },
+    dimensions: {
+      overallDiameter: 110, cutoutDiameter: 74, mountingDepth: 39,
+      magnetDiameter: 60, magnetDepth: 25, weight: 550,
+    },
+    frequencyResponse: DAYTON_DC28F_8_ONAXIS,
+    offAxis: [
+      { angle: 15, curve: DAYTON_DC28F_8_15DEG },
+      { angle: 30, curve: DAYTON_DC28F_8_30DEG },
+      { angle: 45, curve: DAYTON_DC28F_8_45DEG },
+    ],
+    datasheetUrl: 'https://www.daytonaudio.com/product/29/dc28f-8-1-1-8-silk-dome-tweeter-8-ohm',
+    notes: '1-1/8" silk dome diskant. Treated silk dome, damped rear chamber, ferrofluid cooled voice coil. Fs 834 Hz, Re 5.4 Ω, Qts 0.50, Sd 6.6 cm², 29 mm svingspole, 50 W RMS. Frekvensrespons 1300-20000 Hz. Frekvensrespons fra loudspeakerlab.com reelle målinger (480-punkt on-axis + off-axis 15/30/45 grader).',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+
+  // Dayton Audio DC130BS-8 — 5-1/4" classic shielded woofer, 8 Ω, 86 dB.
+  // Real measured on-axis + off-axis 15°/30°/45° from loudspeakerlab.com.
+  // Fs 50 Hz, Qts 0.47, Vas 9 L, Xmax 2.5 mm, Sd 91.6 cm², 60 W RMS.
+  {
+    id: 'seed-dayton-dc130bs-8',
+    manufacturer: 'Dayton Audio',
+    model: 'DC130BS-8',
+    type: 'woofer',
+    tsParams: {
+      fs: 50, re: 6.2, qms: 2.2, qes: 0.6, qts: 0.47, vas: 9,
+      sensitivity: 86, xmax: 2.5, sd: 91.6, sdM2: 0.00916, vd: 229,
+      imp: 8, pe: 60, mms: 8.8,
+    },
+    dimensions: {
+      overallDiameter: 145, cutoutDiameter: 120, mountingDepth: 77,
+      magnetDiameter: 80, magnetDepth: 30, weight: 1180,
+    },
+    frequencyResponse: DAYTON_DC130BS_8_ONAXIS,
+    offAxis: [
+      { angle: 15, curve: DAYTON_DC130BS_8_15DEG },
+      { angle: 30, curve: DAYTON_DC130BS_8_30DEG },
+      { angle: 45, curve: DAYTON_DC130BS_8_45DEG },
+    ],
+    datasheetUrl: 'https://www.daytonaudio.com/product/21/dc130bs-8-5-1-4-classic-shielded-woofer-8-ohm',
+    notes: '5-1/4" classic shielded woofer. Treated paper cone, rubber surround, aluminum voice coil, shielded motor. Fs 50 Hz, Qts 0.47, Vas 9 L, Sd 91.6 cm², Xmax 2.5 mm, Mms 8.8 g, 60 W RMS. Frekvensrespons til ~2 kHz. Frekvensrespons fra loudspeakerlab.com reelle målinger (480-punkt on-axis + off-axis 15/30/45 grader).',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   },
