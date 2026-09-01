@@ -35,6 +35,9 @@ Multi-way (2/3/4-vejs) system designer med driver assignment per bånd. Crossove
 ### Kabinetberegner
 Sealed, ported og transmission line med auto-anbefaling ud fra Qts/Fs. Baffle dimension editor og intern volumenberegning.
 
+### Projektstyring
+Gem hele designs (enheder, delefilter, baffel, kabinet, rum-params) i browseren via IndexedDB. Eksporter som JSON fil og importer igen senere eller på en anden maskine. Projektlister på Overblik-siden med indlæs, eksporter og slet.
+
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite

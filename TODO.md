@@ -110,8 +110,8 @@
 - [ ] REW measurement import
 
 ### Project management
-- [ ] Save/load complete projects
-- [ ] Project export/import (JSON)
+- [x] Save/load complete projects (IndexedDB via projectStore)
+- [x] Project export/import (JSON file download/upload)
 - [ ] Design comparison (A/B projects)
 
 ## Phase 5: Polish

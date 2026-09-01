@@ -45,7 +45,7 @@
 - [ ] Unit preferences (metric/imperial)
 - [ ] Help/intro tour
 - [ ] Web workers for performance
-- [ ] Project save/load/export
+- [x] Project save/load/export (IndexedDB + JSON)
 - [ ] Print views
 
 ## v1.0 — Production
