@@ -17,8 +17,8 @@
 ### PDF datasheet extraction
 - [x] PDF.js integration (text + image extraction)
 - [x] T/S parameter regex parser
-- [ ] Frequency response graph digitizer (manual + auto)
-- [ ] Impedance curve extraction
+- [x] Frequency response graph digitizer (GraphDigitizer: manual + auto color-mask)
+- [x] Impedance curve extraction (GraphDigitizer impedance mode)
 - [x] Driver save/load to IndexedDB
 
 ### Driver database
@@ -38,8 +38,8 @@
 - [x] Cabinet parameter comparison view (CabinetComparisonCard)
 
 ### Cabinet visualization
-- [ ] Parametric 3D cabinet builder (Three.js)
-- [ ] Driver placement on baffle
+- [x] Parametric 3D cabinet builder (Cabinet3DBuilder with Three.js)
+- [x] Driver placement on baffle (Cabinet3DBuilder drag-to-position)
 - [x] Internal volume calculation
 - [x] Baffle dimension editor
 - [ ] STL export
