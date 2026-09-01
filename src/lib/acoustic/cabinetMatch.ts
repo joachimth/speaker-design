@@ -135,6 +135,20 @@ export const CABINET_PRESETS: { name: string; spec: CabinetSpec }[] = [
       portPosition: 'front',
     },
   },
+  {
+    name: 'MK2 Reference',
+    spec: {
+      name: 'MK2 Reference',
+      height: 1080,
+      width: 300,
+      depth: 370,
+      wallThickness: 22,
+      portDiameter: 0,    // sealed
+      portLength: 0,
+      numPorts: 1,
+      portPosition: 'bottom',
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
