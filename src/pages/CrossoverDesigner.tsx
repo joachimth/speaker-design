@@ -1,11 +1,15 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { useDesignStore } from '@/store/designStore'
-import { Card, Select, NumberInput, Badge, Button } from '@/components/common/UI'
+import { Card, Select, NumberInput, Badge, Button, StatCard } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
-import { suggestCrossover } from '@/lib/acoustic/autoDesign'
-import type { CrossoverType, FrequencyDataPoint, DesignBand } from '@/types'
+import { suggestCrossover, acousticCenterDepth } from '@/lib/acoustic/autoDesign'
+import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
+import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
+import { PhaseAlignmentCard } from '@/components/PhaseAlignmentCard'
+import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
+import type { CrossoverType, FrequencyDataPoint, DesignBand, Driver, Crossover, Cabinet } from '@/types'
 
 const XOVER_TYPES: { value: CrossoverType; label: string }[] = [
   { value: 'first_order', label: '1. ordens (6 dB/okt)' },
@@ -180,6 +184,68 @@ export default function CrossoverDesigner() {
       }
     })
   }, [crossoverCurves, freqs])
+
+  // Auto time-align: set delays based on acoustic center depths
+  function handleAutoTimeAlign() {
+    const activeBands = bands.slice(0, ways)
+    const depths = activeBands.map((band) => {
+      const driver = drivers.find((d) => d.id === band.driverId)
+      return driver ? acousticCenterDepth(driver) : 40
+    })
+    const maxDepth = Math.max(...depths, 1)
+    for (let i = 0; i < ways && i < bands.length; i++) {
+      const delayMs = (maxDepth - depths[i]!) / 343 // mm / (mm/ms) = ms
+      updateBand(i, { delay: Math.round(delayMs * 100) / 100 })
+    }
+  }
+
+  // System phase and group delay computation
+  const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6']
+
+  const systemPhaseResult = useMemo(() => {
+    const activeBands = bands.slice(0, ways)
+    const activeDrivers = activeBands
+      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .filter((d): d is Driver => !!d)
+    if (activeDrivers.length === 0) return null
+
+    const crossover: Crossover = {
+      ways: ways as 2 | 3 | 4,
+      bands: activeBands.map((b) => ({
+        id: `${b.role}-${b.driverId}`,
+        driverId: b.driverId,
+        driverRole: b.role === 'low' ? 'low' as const : b.role === 'high' ? 'high' as const : 'mid' as const,
+        highpassFreq: b.highpassFreq,
+        lowpassFreq: b.lowpassFreq,
+        highpassType: b.highpassType,
+        lowpassType: b.lowpassType,
+        polarity: b.polarity,
+        delay: b.delay,
+        gain: b.gain,
+      })),
+    }
+
+    const cabinet: Cabinet = {
+      type: design.cabinetType,
+      dimensions: {
+        width: design.baffleWidth,
+        height: design.baffleHeight,
+        depth: 0,
+        wallThickness: 0,
+        baffleWidth: design.baffleWidth,
+        baffleHeight: design.baffleHeight,
+        frontRoundoverRadius: design.roundoverRadius,
+      },
+      internalVolume: design.portVb ?? 0,
+    }
+
+    return calcSystemPhase(activeDrivers, crossover, cabinet)
+  }, [bands, ways, drivers, design])
+
+  const gdAssessment = useMemo(() => {
+    if (!systemPhaseResult) return null
+    return assessGroupDelay(systemPhaseResult.systemGroupDelay)
+  }, [systemPhaseResult])
 
   // ---------------------------------------------------------------------------
 // Crossover frequency response plot
@@ -474,6 +540,86 @@ function findClosestIndex(arr: number[], target: number): number {
               curves={crossoverCurves}
               summedResponse={summedResponse}
             />
+          </div>
+        </Card>
+      )}
+
+      {/* Time alignment */}
+      <TimeAlignmentCard
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        drivers={drivers}
+        onDelayChange={(i, delay) => updateBand(i, { delay })}
+        onAutoAlign={handleAutoTimeAlign}
+      />
+
+      {/* Phase alignment */}
+      <PhaseAlignmentCard
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        onPolarityChange={(i, pol) => updateBand(i, { polarity: pol })}
+        onDelayChange={(i, delay) => updateBand(i, { delay })}
+      />
+
+      {/* System phase and group delay */}
+      {systemPhaseResult && gdAssessment && (
+        <Card title="System fase & gruppetid">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Fase-respons og gruppetid for det samlede system. Gruppetid er den negative
+              afledte af fasen og angiver hvor meget forskellige frekvenser forsinkes.
+              Flad gruppetid = god transient-gengivelse.
+            </p>
+            <div
+              className={`rounded-md p-3 border text-sm ${
+                gdAssessment.rating === 'good'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                  : gdAssessment.rating === 'acceptable'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+              }`}
+            >
+              {gdAssessment.description}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Peak gruppetid" value={gdAssessment.peakGd.toFixed(1)} unit="ms" />
+              <StatCard label=" ved" value={gdAssessment.fPeakGd.toFixed(0)} unit="Hz" />
+              <StatCard label="GD @ 100 Hz" value={gdAssessment.gd100Hz.toFixed(1)} unit="ms" />
+              <StatCard label="GD @ 1 kHz" value={gdAssessment.gd1kHz.toFixed(2)} unit="ms" />
+            </div>
+            <ResponsivePlot
+              data={[
+                { x: systemPhaseResult.systemPhase.freq, y: systemPhaseResult.systemPhase.phase, name: 'System fase', color: '#f97316' },
+                ...systemPhaseResult.perBand.map((band, i) => ({
+                  x: band.freq,
+                  y: band.phaseDeg,
+                  name: `Bånd ${i + 1} fase`,
+                  color: COLORS[i] ?? '#6b7280',
+                  dash: true,
+                })),
+              ]}
+              yRange={[-450, 90]}
+              yLabel="°"
+            />
+            <ResponsivePlot
+              data={[
+                { x: systemPhaseResult.systemGroupDelay.freq, y: systemPhaseResult.systemGroupDelay.groupDelay, name: 'System gruppetid', color: '#3b82f6' },
+                ...systemPhaseResult.perBand.map((band, i) => ({
+                  x: band.freq,
+                  y: band.groupDelayMs,
+                  name: `Bånd ${i + 1} GD`,
+                  color: COLORS[i] ?? '#6b7280',
+                  dash: true,
+                })),
+              ]}
+              yRange={[0, Math.max(gdAssessment.peakGd * 1.3, 5)]}
+              yLabel="ms"
+            />
+            <p className="text-xs text-gray-400">
+              Øverste plot: fase-respons (orange = system, stiplet = per bånd).
+              Nederste plot: gruppetid (blå = system, stiplet = per bånd).
+              Peaks i gruppetid ved delefilter-frekvenser indikerer fase-misalignering.
+            </p>
           </div>
         </Card>
       )}
