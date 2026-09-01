@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { GraphDigitizer } from '@/components/GraphDigitizer'
 import { useDriverStore } from '@/store/driverStore'
 import { Card, Button, Badge, Select } from '@/components/common/UI'
 import { extractPdf, type PdfExtractionResult } from '@/lib/pdf/extractor'
@@ -35,6 +36,8 @@ export default function DriverManager() {
   const fileRef = useRef<HTMLInputElement>(null)
   const rewFileRef = useRef<HTMLInputElement>(null)
   const [rewStatus, setRewStatus] = useState<string | null>(null)
+  const [showDigitizer, setShowDigitizer] = useState(false)
+  const [digitizerMode, setDigitizerMode] = useState<'spl' | 'impedance'>('spl')
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -295,6 +298,47 @@ export default function DriverManager() {
           )}
         </div>
       </Card>
+
+      {/* Graph Digitizer */}
+      <Card title="Graf Digitizer (PDF / billede)">
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">
+            Digitizer en frekvensgang (SPL) eller impedans-kurve fra en PDF datasheet eller et billede.
+            Upload filen, kalibrér akserne, og klik langs kurven (manuel) eller auto-detekter via farve.
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button onClick={() => { setDigitizerMode('spl'); setShowDigitizer(true) }} variant="secondary" size="sm">
+              📈 Digitizer SPL kurve
+            </Button>
+            <Button onClick={() => { setDigitizerMode('impedance'); setShowDigitizer(true) }} variant="secondary" size="sm">
+              📉 Digitizer impedans kurve
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {showDigitizer && (
+        <GraphDigitizer
+          mode={digitizerMode}
+          onCancel={() => setShowDigitizer(false)}
+          onDone={(points) => {
+            if (digitizerMode === 'spl') {
+              setNewDriver((prev) => ({
+                ...prev,
+                frequencyResponse: points as any,
+              }))
+              setRewStatus(`Digitizeret ${points.length} SPL punkter fra graf. Tjek og gem enheden.`)
+            } else {
+              setNewDriver((prev) => ({
+                ...prev,
+                impedance: points as any,
+              }))
+              setRewStatus(`Digitizeret ${points.length} impedans punkter fra graf. Tjek og gem enheden.`)
+            }
+            setShowDigitizer(false)
+          }}
+        />
+      )}
 
       {/* Driver detail */}
       {selectedDriver && (

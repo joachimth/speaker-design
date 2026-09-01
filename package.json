@@ -13,11 +13,13 @@
     "lint:fix": "eslint src --fix"
   },
   "dependencies": {
+    "@types/three": "^0.185.4",
     "dexie": "^4.0.8",
     "pdfjs-dist": "^6.1.200",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
+    "three": "^0.185.1",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

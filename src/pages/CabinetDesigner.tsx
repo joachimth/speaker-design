@@ -7,6 +7,7 @@ import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
 import BreakInCard from '@/components/BreakInCard'
 import { CabinetComparisonCard } from '@/components/CabinetComparisonCard'
+import { Cabinet3DBuilder, type DriverPlacement } from '@/components/Cabinet3DBuilder'
 import {
   calcSealed,
   calcPorted,
@@ -39,6 +40,11 @@ export default function CabinetDesigner() {
     baffleHeight: design.baffleHeight,
     frontRoundoverRadius: design.roundoverRadius,
   })
+
+  // Driver placements on baffle for 3D builder
+  const [placements, setPlacements] = useState<DriverPlacement[]>([
+    { driverId: selectedDriverId, label: 'Driver 1', x: 0, y: 100 },
+  ])
 
   // Sync baffle dims from shared store → local cabinetDims
   // (handles load-design and changes from other tabs)
@@ -294,6 +300,19 @@ export default function CabinetDesigner() {
 
       {/* Cabinet type comparison (all three side-by-side) */}
       <CabinetComparisonCard driver={selectedDriver} />
+
+      {/* 3D cabinet visualization with driver placement */}
+      <Cabinet3DBuilder
+        cabinetWidth={cabinetDims.width}
+        cabinetHeight={cabinetDims.height}
+        cabinetDepth={cabinetDims.depth}
+        wallThickness={cabinetDims.wallThickness}
+        baffleWidth={cabinetDims.baffleWidth}
+        baffleHeight={cabinetDims.baffleHeight}
+        drivers={drivers}
+        placements={placements}
+        onPlacementChange={setPlacements}
+      />
 
       {/* Alignment results */}
       {cabinetType === 'sealed' && sealedResult && (
