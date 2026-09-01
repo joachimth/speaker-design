@@ -7,6 +7,7 @@ import SimulationView from './pages/SimulationView'
 import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
 import CabinetMatch from './pages/CabinetMatch'
+import DesignCompare from './pages/DesignCompare'
 import { useDriverStore } from './store/driverStore'
 import { useDesignStore } from './store/designStore'
 import { SEED_DRIVERS } from './data/seedDrivers'
@@ -55,6 +56,7 @@ export default function App() {
     { to: '/crossover', label: 'Delingsfilter' },
     { to: '/simulation', label: 'Simulering' },
     { to: '/system', label: 'System Sim.' },
+    { to: '/compare', label: 'A/B Sammenlign' },
   ]
 
   return (
@@ -176,6 +178,7 @@ export default function App() {
           <Route path="/crossover" element={<CrossoverDesigner />} />
           <Route path="/simulation" element={<SimulationView />} />
           <Route path="/system" element={<SystemSimulation />} />
+          <Route path="/compare" element={<DesignCompare />} />
         </Routes>
       </main>
     </div>

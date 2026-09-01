@@ -7,13 +7,14 @@ import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSl
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
-import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
+import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, acousticCenterDepth, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
 import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON } from '@/lib/acoustic/biquadExport'
 import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
 import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
+import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
 import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project, Cabinet } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -438,6 +439,22 @@ export default function SystemSimulation() {
     setBaffleWidth(result.width)
     setBaffleHeight(result.height)
     setRoundoverRadius(result.roundoverRadius)
+  }
+
+  // Auto time-align: set delay so all acoustic centers are in the same plane
+  function handleAutoTimeAlign() {
+    const activeBands = bands.slice(0, ways)
+    const depths = activeBands.map((band) => {
+      const driver = drivers.find((d) => d.id === band.driverId)
+      return driver ? acousticCenterDepth(driver) : 40
+    })
+    const maxDepth = Math.max(...depths, 1)
+    const newBands = [...bands]
+    for (let i = 0; i < ways && i < newBands.length; i++) {
+      const delayMs = (maxDepth - depths[i]!) / 343 // mm / (mm/ms) = ms (343000 mm/s = 343 mm/ms)
+      newBands[i] = { ...newBands[i]!, delay: Math.round(delayMs * 100) / 100 }
+    }
+    setBands(newBands)
   }
 
   // Auto-tune: optimize per-band gains to flatten the in-room response
@@ -1015,6 +1032,15 @@ export default function SystemSimulation() {
           </div>
         </Card>
       )}
+
+      {/* Time alignment */}
+      <TimeAlignmentCard
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        drivers={drivers}
+        onDelayChange={(i, delay) => updateBand(i, { delay })}
+        onAutoAlign={handleAutoTimeAlign}
+      />
 
       {/* Auto-tune result */}
       {tuneResult && (

@@ -33,6 +33,8 @@ export default function DriverManager() {
     type: 'woofer',
   })
   const fileRef = useRef<HTMLInputElement>(null)
+  const rewFileRef = useRef<HTMLInputElement>(null)
+  const [rewStatus, setRewStatus] = useState<string | null>(null)
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -59,8 +61,42 @@ export default function DriverManager() {
     }
   }
 
-  function handleSaveDriver() {
-    if (!newDriver.manufacturer || !newDriver.model) {
+  // Import REW measurement (.txt) as a new driver or update existing
+  async function handleRewImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const { parseRewFile, downsampleCurve } = await import('@/lib/acoustic/rewImport')
+      const result = parseRewFile(text)
+      if (result.pointCount === 0) {
+        setRewStatus('Kunne ikke parse filen. Tjek at det er en REW .txt eksport.')
+        return
+      }
+
+      if (result.frequencyResponse) {
+        const downsampled = downsampleCurve(result.frequencyResponse, 200)
+        setNewDriver((prev) => ({
+          ...prev,
+          frequencyResponse: downsampled,
+          model: prev.model || result.name || file.name.replace(/\.txt$/i, ''),
+        }))
+        setRewStatus(`Importeret ${result.pointCount} punkter (nedsamplet til ${downsampled.length}). Tjek og gem enheden.`)
+      } else if (result.impedance) {
+        setNewDriver((prev) => ({
+          ...prev,
+          impedance: result.impedance,
+          model: prev.model || result.name || file.name.replace(/\.txt$/i, ''),
+        }))
+        setRewStatus(`Importeret ${result.pointCount} impedans-punkter. Tjek og gem enheden.`)
+      }
+    } catch (err: any) {
+      setRewStatus(`Fejl: ${err.message}`)
+    }
+    if (rewFileRef.current) rewFileRef.current.value = ''
+  }
+
+  function handleSaveDriver() {    if (!newDriver.manufacturer || !newDriver.model) {
       alert('Udfyld producent og model')
       return
     }
@@ -233,6 +269,31 @@ export default function DriverManager() {
             })}
           </div>
         )}
+      </Card>
+
+      {/* REW measurement import */}
+      <Card title="Importer REW måling (.txt)">
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">
+            Upload en REW (Room EQ Wizard) frekvensgang- eller impedans-måling eksporteret som .txt.
+            Kurven tildeles den nye enhed og kan bruges i simulering. Vælg type og udfyld T/S parametre manuelt.
+          </p>
+          <input
+            ref={rewFileRef}
+            type="file"
+            accept=".txt,text/plain"
+            onChange={handleRewImport}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          {rewStatus && (
+            <div className="text-sm text-blue-600 dark:text-blue-400">{rewStatus}</div>
+          )}
+          {newDriver.frequencyResponse && (
+            <div className="text-xs text-green-600 dark:text-green-400">
+              {newDriver.frequencyResponse.length} punkter klar. Udfyld producent, model og type, tryk Gem.
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* Driver detail */}
