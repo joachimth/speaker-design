@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { useDesignStore } from '@/store/designStore'
 import { useSettingsStore, formatLength, formatVolume } from '@/store/settingsStore'
@@ -7,7 +7,8 @@ import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
 import BreakInCard from '@/components/BreakInCard'
 import { CabinetComparisonCard } from '@/components/CabinetComparisonCard'
-import { Cabinet3DBuilder, type DriverPlacement } from '@/components/Cabinet3DBuilder'
+import type { DriverPlacement } from '@/components/Cabinet3DBuilder'
+const Cabinet3DBuilder = lazy(() => import('@/components/Cabinet3DBuilder').then(m => ({ default: m.Cabinet3DBuilder })))
 import {
   calcSealed,
   calcPorted,
@@ -302,6 +303,7 @@ export default function CabinetDesigner() {
       <CabinetComparisonCard driver={selectedDriver} />
 
       {/* 3D cabinet visualization with driver placement */}
+      <Suspense fallback={<Card title="3D Kabinet"><div className="text-center py-8 text-gray-500">Indlæser 3D...</div></Card>}>
       <Cabinet3DBuilder
         cabinetWidth={cabinetDims.width}
         cabinetHeight={cabinetDims.height}
@@ -313,6 +315,7 @@ export default function CabinetDesigner() {
         placements={placements}
         onPlacementChange={setPlacements}
       />
+      </Suspense>
 
       {/* Alignment results */}
       {cabinetType === 'sealed' && sealedResult && (

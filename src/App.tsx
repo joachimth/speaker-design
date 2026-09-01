@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import DriverManager from './pages/DriverManager'
 import CabinetDesigner from './pages/CabinetDesigner'
 import CrossoverDesigner from './pages/CrossoverDesigner'
@@ -8,7 +8,7 @@ import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
 import CabinetMatch from './pages/CabinetMatch'
 import DesignCompare from './pages/DesignCompare'
-import { WaveguideDesigner } from './components/WaveguideDesigner'
+const WaveguideDesigner = lazy(() => import('./components/WaveguideDesigner').then(m => ({ default: m.WaveguideDesigner })))
 import { useDriverStore } from './store/driverStore'
 import { useDesignStore } from '@/store/designStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -196,7 +196,7 @@ export default function App() {
           <Route path="/simulation" element={<SimulationView />} />
           <Route path="/system" element={<SystemSimulation />} />
           <Route path="/compare" element={<DesignCompare />} />
-          <Route path="/waveguide" element={<WaveguideDesigner />} />
+          <Route path="/waveguide" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser waveguide designer...</div>}><WaveguideDesigner /></Suspense>} />
         </Routes>
       </main>
 

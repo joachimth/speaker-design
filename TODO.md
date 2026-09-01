@@ -124,3 +124,29 @@
 - [x] Help/intro tour (HelpTour)
 - [x] Print-friendly views (@media print CSS)
 - [x] Performance optimization (web workers for simulation) (useSimulationWorker hook + simulationWorker.ts)
+
+## Phase 6: Optimization & Code Quality (Sep 1 review)
+
+### Performance
+- [x] Lazy-load Three.js via React.lazy + Suspense (Cabinet3DBuilder, WaveguideDesigner) - initial bundle 320KB -> 182KB gzipped
+- [ ] Wire useSimulationWorker into SystemSimulation (hook exists but unused; requires passing freqs + adapting spinorama/room/polar useMemos)
+- [ ] Route-based code splitting (React.lazy for CabinetMatch, DesignCompare, SimulationView pages)
+- [ ] Memoize driver database queries (avoid re-filtering on every render)
+
+### Bug fixes (Sep 1)
+- [x] Fix STL downloadSTL href bug (a.href was set to filename instead of blob URL)
+- [x] Fix degenerate quad in addHollowBox front wall (v1==v2 duplicate vertex)
+
+### Code quality
+- [ ] Add React ErrorBoundary (no error boundary exists; unhandled 3D/WebGL errors crash the app)
+- [ ] Replace 25 `any` types with proper types (pdf/extractor.ts has 8, driverStore/projectStore catch blocks, simulationWorker casts)
+- [ ] Fix database.ts mixed static+dynamic import warning (Vite warns: dynamic import won't move to separate chunk)
+- [ ] Add aria-labels for accessibility (only 7 in entire app; buttons/icons need screen reader labels)
+
+### Features to consider
+- [ ] Driver frequency response smoothing (Psychoacoustic smoothing like smoothing in REW)
+- [ ] Crossover auto-optimization with target curve (currently auto-design sets gains/delays but no target curve matching)
+- [ ] impedance matching at crossover frequency (verify driver impedance is similar at crossover point)
+- [ ] Export simulation results as image/PNG (frequency response plots)
+- [ ] Multi-subwoofer alignment tool (time-align multiple subs)
+- [ ] Linkwitz transform for sealed enclosure equalization

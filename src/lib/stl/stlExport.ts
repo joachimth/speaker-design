@@ -100,7 +100,7 @@ class MeshBuilder {
     // Front wall (z-) — solid panel (baffle), driver cutouts handled separately
     this.addQuad({ x: ox0, y: oy0, z: oz0 }, { x: ox0, y: oy1, z: oz0 }, { x: ox1, y: oy1, z: oz0 }, { x: ox1, y: oy0, z: oz0 })
     this.addQuad({ x: ox0, y: oy0, z: oz0 }, { x: ix0, y: iy0, z: iz0 }, { x: ix0, y: iy1, z: iz0 }, { x: ox0, y: oy1, z: oz0 })
-    this.addQuad({ x: ix0, y: iy0, z: iz0 }, { x: ix0, y: iy0, z: iz0 }, { x: ix1, y: iy1, z: iz0 }, { x: ix1, y: iy0, z: iz0 })
+    this.addQuad({ x: ix0, y: iy0, z: iz0 }, { x: ix1, y: iy0, z: iz0 }, { x: ix1, y: iy1, z: iz0 }, { x: ix0, y: iy1, z: iz0 })
     this.addQuad({ x: ix1, y: iy0, z: iz0 }, { x: ix1, y: iy1, z: iz0 }, { x: ox1, y: oy1, z: oz0 }, { x: ox1, y: oy0, z: oz0 })
   }
 
@@ -326,7 +326,8 @@ export function downloadSTL(buffer: ArrayBuffer, filename: string): void {
   const blob = new Blob([buffer], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = a.download = filename
+  a.href = url
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
