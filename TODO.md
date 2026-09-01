@@ -23,8 +23,10 @@
 
 ### Driver database
 - [x] Pre-load 4 drivers from mk2 repo (GRS, ScanSpeak 15W, ScanSpeak H2606, SB26)
+- [x] Expanded to 34 drivers with real measured data (loudspeakerlab.com JSON + PDF)
 - [x] Driver manager UI (list, upload, edit, delete)
 - [x] Driver detail view (params, curves)
+- [x] Full off-axis data (10-90 deg) for newer additions
 
 ## Phase 2: Cabinet Design
 
@@ -64,23 +66,36 @@
 
 ### Spinorama
 - [x] On-axis
-- [x] Listening window (±10° H, ±10° V)
+- [x] Listening window (+/-10 deg H, +/-10 deg V)
 - [x] Early reflections
 - [x] Sound power
 - [x] Directivity index
 - [x] Predicted in-room response
 
 ### Crossover optimization
-- [ ] Auto-optimization of crossover frequency + order
-- [ ] Phase alignment
-- [ ] Driver delay calculation (time alignment)
+- [x] Auto-design: crossover freq + gain + delay from driver specs (autoDesign.ts)
+- [x] Auto-tune: gain/delay optimization
+- [ ] Phase alignment fine-tuning UI
+- [ ] Manual driver delay calculation (time alignment UI)
 
 ## Phase 4: Advanced
 
 ### Multi-way systems
-- [ ] 2-way, 3-way, 4-way system designer
-- [ ] Driver assignment per band
+- [x] 2-way, 3-way, 4-way system designer (SystemSimulation.tsx)
+- [x] Driver assignment per band
 - [ ] Push-push / push-pull configuration
+
+### Cabinet Match + MiniDSP
+- [x] Driver matching from cabinet size + driver category (cabinetMatch.ts)
+- [x] MiniDSP 2x4 config generation
+- [x] Cabinet Match -> System Simulering handoff (projectStore.ts)
+
+### Room & cabinet acoustics
+- [x] In-room response simulation (roomAcoustics.ts)
+- [x] Cabinet response simulation (cabinetResponse.ts)
+- [x] Panel resonance analysis (panelResonance.ts)
+- [x] Break-in simulation (breakin.ts)
+- [x] Port tuning calculator
 
 ### Waveguide designer
 - [ ] Oblate spheroid (OS) waveguide parametric design
@@ -89,8 +104,9 @@
 - [ ] STL export for 3D printing
 
 ### DSP export
+- [x] MiniDSP 2x4 config output (via Cabinet Match)
 - [ ] MiniDSP 4x10 HD config export
-- [ ] biquad coefficient export
+- [ ] Biquad coefficient export
 - [ ] REW measurement import
 
 ### Project management

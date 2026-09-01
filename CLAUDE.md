@@ -107,17 +107,38 @@ All metric: mm, L, Hz, Ω, dB, V, mm². Same convention as mk2 repo.
 
 ## Current state
 
-Implemented: driver library (15+ seed drivers in `src/data/seedDrivers.ts`,
-seeded into IndexedDB on first load), PDF T/S extraction, sealed/ported/TL
-cabinet calculators with auto-recommendation, crossover designer with live
-response plot, baffle step, spinorama (normalized), polar diagram, directivity map (2D + 3D isometric), vertical lobing,
-responsive layout and dark mode, automatic crossover/cabinet/baffle design
-suggestions (autoDesign.ts — crossover frequencies + gain + delay from driver
-specs and measured responses, cabinet dimensions from T/S params, optimal
-baffle sizing from driver diameters and crossover points).
+**34 seed drivers** in `src/data/seedDrivers.ts` (seeded into IndexedDB on
+first load). Recent additions use real measured on-axis + off-axis SPL data
+from loudspeakerlab.com Plotly JSON exports (logarithmically subsampled to
+~40 on-axis / ~25 off-axis points via the `subsample_log` Python helper).
+Older drivers use PDF-digitized curves (~35 points). Manufacturers: Scan-Speak,
+SB Acoustics, Dayton, GRS, Wavecor, Purifi, Vifa, Mark Audio.
+
+Implemented (11 acoustic modules in `src/lib/acoustic/`):
+- **Crossover** (crossover.ts) — LR2/LR4/LR8, BW2/BW4, 1. orden, live response
+- **System response** (systemResponse.ts) — combined multi-way response
+- **Directivity** (directivity.ts) — on/off-axis, polar, vertical lobing, DI
+- **Baffle** (baffle.ts) — baffle step + edge diffraction
+- **Thiele-Small** (thieleSmall.ts) — sealed/ported/TL calculators + auto-rec
+- **Auto-design** (autoDesign.ts) — crossover freq/gain/delay + cabinet + baffle
+- **Room acoustics** (roomAcoustics.ts) — in-room response from spinorama
+- **Cabinet response** (cabinetResponse.ts) — cabinet effect on frequency response
+- **Cabinet Match** (cabinetMatch.ts) — driver matching + MiniDSP 2x4 config
+- **Panel resonance** (panelResonance.ts) — cabinet wall resonances
+- **Break-in** (breakin.ts) — driver break-in simulation
+
+Pages: DriverManager, CabinetDesigner, CrossoverDesigner, SimulationView,
+SystemSimulation (multi-way), CabinetMatch, ProjectOverview.
+
+Cabinet Match → System Simulering handoff: `projectStore.ts` carries
+`SystemSimHandoff` (bands with driverId/role/crossover/gain/polarity/delay,
+cabinet dims, port tuning) between the two pages via Zustand state.
+
+Tests: 180 tests across 10 test files (Vitest). Build clean. Typecheck clean.
 
 Not yet built (see `TODO.md`): 3D cabinet visualization (Three.js), STL
-export, graph digitizer UI, waveguide designer, DSP export, project save/load.
+export, graph digitizer UI, waveguide designer, DSP biquad export, project
+save/load, REW measurement import.
 
 ## Domain glossary
 
