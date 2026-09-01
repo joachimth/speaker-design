@@ -35,7 +35,7 @@
 - [x] Ported box calculator (Vb, Fb, F3, port dimensions)
 - [x] Transmission line calculator
 - [x] Cabinet type auto-recommendation (Qts-based)
-- [ ] Cabinet parameter comparison view
+- [x] Cabinet parameter comparison view (CabinetComparisonCard)
 
 ### Cabinet visualization
 - [ ] Parametric 3D cabinet builder (Three.js)
@@ -75,7 +75,7 @@
 ### Crossover optimization
 - [x] Auto-design: crossover freq + gain + delay from driver specs (autoDesign.ts)
 - [x] Auto-tune: gain/delay optimization
-- [ ] Phase alignment fine-tuning UI
+- [x] Phase alignment fine-tuning UI (PhaseAlignmentCard)
 - [x] Manual driver delay calculation (time alignment UI) (TimeAlignmentCard component)
 
 ## Phase 4: Advanced
@@ -108,7 +108,7 @@
 - [x] Biquad coefficient export (LR2/4/8, BW2/4, 1st order at 48/96/44.1 kHz)
 - [x] Biquad text format (paste into MiniDSP advanced biquad input) + Q23 hex
 - [x] Biquad JSON export (structured format with q23hex fields)
-- [ ] MiniDSP 4x10 HD config export
+- [x] MiniDSP 4x10 HD config export (export4x10HD)
 - [x] REW measurement import (rewImport.ts parser + DriverManager UI)
 
 ### Project management
@@ -120,7 +120,7 @@
 
 - [x] Responsive design (mobile + desktop)
 - [x] Dark mode
-- [ ] Unit preferences (metric/imperial)
-- [ ] Help/intro tour
-- [ ] Print-friendly views
+- [x] Unit preferences (metric/imperial) (settingsStore)
+- [x] Help/intro tour (HelpTour)
+- [x] Print-friendly views (@media print CSS)
 - [ ] Performance optimization (web workers for simulation)
