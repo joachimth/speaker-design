@@ -10,11 +10,12 @@ import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, acousticCenterDepth, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
 import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
-import { exportBiquads, exportBiquadsJSON } from '@/lib/acoustic/biquadExport'
+import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/biquadExport'
 import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
 import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
+import { PhaseAlignmentCard } from '@/components/PhaseAlignmentCard'
 import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project, Cabinet } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -296,6 +297,8 @@ export default function SystemSimulation() {
   // Biquad export state
   const [showBiquad, setShowBiquad] = useState(false)
   const [biquadText, setBiquadText] = useState('')
+  const [show4x10, setShow4x10] = useState(false)
+  const [biquad4x10Text, setBiquad4x10Text] = useState('')
   const [sampleRate, setSampleRate] = useState(48000)
 
   // Generate biquad coefficients for MiniDSP
@@ -359,6 +362,74 @@ export default function SystemSimulation() {
     try {
       await navigator.clipboard.writeText(biquadText)
       const btn = document.getElementById('copy-biquad-btn')
+      if (btn) {
+        const orig = btn.textContent
+        btn.textContent = '✓ Kopieret!'
+        setTimeout(() => { btn.textContent = orig }, 2000)
+      }
+    } catch (e) {
+      console.error('Clipboard failed:', e)
+    }
+  }
+
+  // Export for MiniDSP 4x10 HD (10 outputs)
+  function handleExport4x10HD() {
+    const designState: DesignState = {
+      ways,
+      bands: bands.slice(0, ways).map((b) => ({ ...b })),
+      baffleWidth,
+      baffleHeight,
+      roundoverRadius,
+      roomParams: { ...roomParams, dimensions: { ...roomParams.dimensions } },
+      smoothingFraction,
+      cabinetType,
+      portFb,
+      portVb,
+      portDiameter,
+      numPorts,
+    }
+    const result = export4x10HD(designState, sampleRate)
+    setBiquad4x10Text(result.text)
+    setShow4x10(true)
+  }
+
+  function handleDownload4x10Txt() {
+    const name = projectName.trim() || `minidsp-4x10-${Date.now()}`
+    const blob = new Blob([biquad4x10Text], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${name.replace(/\s+/g, '-').toLowerCase()}-4x10hd.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  function handleDownload4x10Json() {
+    const designState: DesignState = {
+      ways,
+      bands: bands.slice(0, ways).map((b) => ({ ...b })),
+      baffleWidth,
+      baffleHeight,
+      roundoverRadius,
+      roomParams: { ...roomParams, dimensions: { ...roomParams.dimensions } },
+      smoothingFraction,
+      cabinetType,
+      portFb,
+      portVb,
+      portDiameter,
+      numPorts,
+    }
+    const result = export4x10HD(designState, sampleRate)
+    const name = projectName.trim() || `minidsp-4x10-${Date.now()}`
+    downloadJSON(JSON.parse(result.json), `${name.replace(/\s+/g, '-').toLowerCase()}-4x10hd.json`)
+  }
+
+  async function handleCopy4x10() {
+    try {
+      await navigator.clipboard.writeText(biquad4x10Text)
+      const btn = document.getElementById('copy-4x10-btn')
       if (btn) {
         const orig = btn.textContent
         btn.textContent = '✓ Kopieret!'
@@ -969,7 +1040,10 @@ export default function SystemSimulation() {
             📥 Eksporter JSON
           </Button>
           <Button onClick={handleExportBiquads} variant="secondary">
-            🔢 Biquad til MiniDSP
+            🔢 Biquad til MiniDSP 2x4
+          </Button>
+          <Button onClick={handleExport4x10HD} variant="secondary">
+            🔢 Biquad til MiniDSP 4x10 HD
           </Button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
@@ -1011,6 +1085,33 @@ export default function SystemSimulation() {
             </pre>
           </div>
         )}
+
+        {/* 4x10 HD export panel */}
+        {show4x10 && (
+          <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-md p-3 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">MiniDSP 4x10 HD (10 outputs)</span>
+              <Button onClick={handleExport4x10HD} variant="ghost" size="sm">
+                Opdater
+              </Button>
+              <Button id="copy-4x10-btn" onClick={handleCopy4x10} variant="secondary" size="sm">
+                📋 Kopier
+              </Button>
+              <Button onClick={handleDownload4x10Txt} variant="secondary" size="sm">
+                .txt
+              </Button>
+              <Button onClick={handleDownload4x10Json} variant="secondary" size="sm">
+                .json
+              </Button>
+              <Button onClick={() => setShow4x10(false)} variant="ghost" size="sm">
+                ✕
+              </Button>
+            </div>
+            <pre className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 rounded-md p-3 overflow-x-auto max-h-80 overflow-y-auto">
+              {biquad4x10Text}
+            </pre>
+          </div>
+        )}
       </Card>
 
       {/* Auto-suggest reasoning */}
@@ -1040,6 +1141,14 @@ export default function SystemSimulation() {
         drivers={drivers}
         onDelayChange={(i, delay) => updateBand(i, { delay })}
         onAutoAlign={handleAutoTimeAlign}
+      />
+
+      {/* Phase alignment */}
+      <PhaseAlignmentCard
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        onPolarityChange={(i, pol) => updateBand(i, { polarity: pol })}
+        onDelayChange={(i, delay) => updateBand(i, { delay })}
       />
 
       {/* Auto-tune result */}

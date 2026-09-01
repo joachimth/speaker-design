@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { useDesignStore } from '@/store/designStore'
+import { useSettingsStore, formatLength, formatVolume } from '@/store/settingsStore'
 import { Card, Select, NumberInput, StatCard, Button } from '@/components/common/UI'
 import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
 import BreakInCard from '@/components/BreakInCard'
+import { CabinetComparisonCard } from '@/components/CabinetComparisonCard'
 import {
   calcSealed,
   calcPorted,
@@ -18,6 +20,7 @@ import type { CabinetType, Driver } from '@/types'
 
 export default function CabinetDesigner() {
   const { drivers, updateDriver } = useDriverStore()
+  const { units } = useSettingsStore()
   const { design, setCabinetType, setBaffle, setPort, updateDesign } = useDesignStore()
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>(drivers[0]?.id || '')
@@ -265,17 +268,17 @@ export default function CabinetDesigner() {
       {/* Cabinet dimensions */}
       <Card title="Kabinetdimensioner">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <NumberInput label="Bredde" unit="mm" value={cabinetDims.width} onChange={(v) => setCabinetDims({ ...cabinetDims, width: v })} />
-          <NumberInput label="Højde" unit="mm" value={cabinetDims.height} onChange={(v) => setCabinetDims({ ...cabinetDims, height: v })} />
-          <NumberInput label="Dybde" unit="mm" value={cabinetDims.depth} onChange={(v) => setCabinetDims({ ...cabinetDims, depth: v })} />
-          <NumberInput label="Vægtykkelse" unit="mm" value={cabinetDims.wallThickness} onChange={(v) => setCabinetDims({ ...cabinetDims, wallThickness: v })} />
-          <NumberInput label="Baffel bredde" unit="mm" value={cabinetDims.baffleWidth} onChange={(v) => updateCabinetDims({ ...cabinetDims, baffleWidth: v })} />
-          <NumberInput label="Baffel højde" unit="mm" value={cabinetDims.baffleHeight} onChange={(v) => updateCabinetDims({ ...cabinetDims, baffleHeight: v })} />
-          <NumberInput label="Afrunding" unit="mm" value={cabinetDims.frontRoundoverRadius} onChange={(v) => updateCabinetDims({ ...cabinetDims, frontRoundoverRadius: v })} />
+          <NumberInput label="Bredde" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.width} onChange={(v) => setCabinetDims({ ...cabinetDims, width: v })} />
+          <NumberInput label="Højde" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.height} onChange={(v) => setCabinetDims({ ...cabinetDims, height: v })} />
+          <NumberInput label="Dybde" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.depth} onChange={(v) => setCabinetDims({ ...cabinetDims, depth: v })} />
+          <NumberInput label="Vægtykkelse" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.wallThickness} onChange={(v) => setCabinetDims({ ...cabinetDims, wallThickness: v })} />
+          <NumberInput label="Baffel bredde" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.baffleWidth} onChange={(v) => updateCabinetDims({ ...cabinetDims, baffleWidth: v })} />
+          <NumberInput label="Baffel højde" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.baffleHeight} onChange={(v) => updateCabinetDims({ ...cabinetDims, baffleHeight: v })} />
+          <NumberInput label="Afrunding" unit={units === 'metric' ? 'mm' : 'in'} value={cabinetDims.frontRoundoverRadius} onChange={(v) => updateCabinetDims({ ...cabinetDims, frontRoundoverRadius: v })} />
           <div className="flex items-end">
             <div className="bg-gray-50 dark:bg-gray-750 rounded-md p-2 w-full">
               <div className="text-xs text-gray-500">Intern volumen</div>
-              <div className="text-lg font-semibold">{internalVolume.toFixed(1)} L</div>
+              <div className="text-lg font-semibold">{formatVolume(internalVolume, units, 1)}</div>
             </div>
           </div>
         </div>
@@ -289,6 +292,9 @@ export default function CabinetDesigner() {
         wallThickness={cabinetDims.wallThickness}
       />
 
+      {/* Cabinet type comparison (all three side-by-side) */}
+      <CabinetComparisonCard driver={selectedDriver} />
+
       {/* Alignment results */}
       {cabinetType === 'sealed' && sealedResult && (
         <Card title="Sealed alignment">
@@ -297,7 +303,7 @@ export default function CabinetDesigner() {
               <NumberInput label="Mål Qtc" value={qtcTarget} step={0.01} min={0.5} max={1.5} onChange={setQtcTarget} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Vb (volumen)" value={sealedResult.vb.toFixed(1)} unit="L" />
+              <StatCard label="Vb (volumen)" value={formatVolume(sealedResult.vb, units, 1).split(' ')[0]} unit={formatVolume(sealedResult.vb, units, 1).split(' ')[1]!} />
               <StatCard label="Fc (resonans)" value={sealedResult.fc.toFixed(1)} unit="Hz" />
               <StatCard label="Qtc" value={sealedResult.qtc.toFixed(3)} />
               <StatCard label="F3 (-3dB)" value={sealedResult.f3.toFixed(1)} unit="Hz" />
@@ -310,15 +316,15 @@ export default function CabinetDesigner() {
         <Card title="Ported alignment">
           <div className="space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Vb" value={portedResult.vb.toFixed(1)} unit="L" />
+              <StatCard label="Vb" value={formatVolume(portedResult.vb, units, 1).split(' ')[0]} unit={formatVolume(portedResult.vb, units, 1).split(' ')[1]!} />
               <StatCard label="Fb (tuning)" value={portedResult.fb.toFixed(1)} unit="Hz" />
               <StatCard label="F3" value={portedResult.f3?.toFixed(1) || '—'} unit="Hz" />
               <StatCard label="Alignment" value={portedResult.alignmentType} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <NumberInput label="Port diameter" unit="mm" value={portDiameter} onChange={(v) => setPort({ diameter: v })} />
+              <NumberInput label="Port diameter" unit={units === 'metric' ? 'mm' : 'in'} value={portDiameter} onChange={(v) => setPort({ diameter: v })} />
               <NumberInput label="Antal porte" value={numPorts} min={1} max={4} onChange={(v) => setPort({ numPorts: v })} />
-              <StatCard label="Port længde" value={portResult.portLength.toFixed(0)} unit="mm" />
+              <StatCard label="Port længde" value={formatLength(portResult.portLength, units, 1).split(' ')[0]} unit={formatLength(portResult.portLength, units, 1).split(' ')[1]!} />
             </div>
           </div>
         </Card>
@@ -327,8 +333,8 @@ export default function CabinetDesigner() {
       {cabinetType === 'transmission_line' && tlResult && (
         <Card title="Transmission line">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Line længde" value={tlResult.lineLength} unit="mm" />
-            <StatCard label="Line areal" value={tlResult.lineArea} unit="mm²" />
+            <StatCard label="Line længde" value={formatLength(tlResult.lineLength, units, 0).split(' ')[0]} unit={formatLength(tlResult.lineLength, units, 0).split(' ')[1]!} />
+            <StatCard label="Line areal" value={tlResult.lineArea} unit={units === 'metric' ? 'mm²' : 'in²'} />
             <StatCard label="Taper ratio" value={`${tlResult.taperRatio}:1`} />
             <StatCard label="Stuffing" value={tlResult.stuffing} unit="g/L" />
           </div>

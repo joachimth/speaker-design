@@ -76,14 +76,14 @@
 - [x] Auto-design: crossover freq + gain + delay from driver specs (autoDesign.ts)
 - [x] Auto-tune: gain/delay optimization
 - [ ] Phase alignment fine-tuning UI
-- [ ] Manual driver delay calculation (time alignment UI)
+- [x] Manual driver delay calculation (time alignment UI) (TimeAlignmentCard component)
 
 ## Phase 4: Advanced
 
 ### Multi-way systems
 - [x] 2-way, 3-way, 4-way system designer (SystemSimulation.tsx)
 - [x] Driver assignment per band
-- [ ] Push-push / push-pull configuration
+- [x] Push-push / push-pull configuration (driverCount field on DesignBand)
 
 ### Cabinet Match + MiniDSP
 - [x] Driver matching from cabinet size + driver category (cabinetMatch.ts)
@@ -109,12 +109,12 @@
 - [x] Biquad text format (paste into MiniDSP advanced biquad input) + Q23 hex
 - [x] Biquad JSON export (structured format with q23hex fields)
 - [ ] MiniDSP 4x10 HD config export
-- [ ] REW measurement import
+- [x] REW measurement import (rewImport.ts parser + DriverManager UI)
 
 ### Project management
 - [x] Save/load complete projects (IndexedDB via projectStore)
 - [x] Project export/import (JSON file download/upload)
-- [ ] Design comparison (A/B projects)
+- [x] Design comparison (A/B projects) (DesignCompare.tsx page)
 
 ## Phase 5: Polish
 

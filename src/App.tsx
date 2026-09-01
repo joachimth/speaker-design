@@ -9,7 +9,9 @@ import ProjectOverview from './pages/ProjectOverview'
 import CabinetMatch from './pages/CabinetMatch'
 import DesignCompare from './pages/DesignCompare'
 import { useDriverStore } from './store/driverStore'
-import { useDesignStore } from './store/designStore'
+import { useDesignStore } from '@/store/designStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { HelpTour, HelpTourButton } from '@/components/HelpTour';
 import { SEED_DRIVERS } from './data/seedDrivers'
 import { db } from './db/database'
 
@@ -17,6 +19,7 @@ export default function App() {
   const { loadDrivers } = useDriverStore()
   const { projectName, isDirty, design } = useDesignStore()
   const { ways, bands } = design
+  const { units, toggleUnits } = useSettingsStore()
   const [seeded, setSeeded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
@@ -101,6 +104,18 @@ export default function App() {
             </nav>
 
             <div className="flex items-center gap-1">
+              {/* Unit system toggle */}
+              <button
+                className="flex items-center px-2 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                onClick={toggleUnits}
+                title={units === 'metric' ? 'Skift til imperial (tommer)' : 'Skift til metrisk (mm)'}
+              >
+                {units === 'metric' ? 'mm' : 'in'}
+              </button>
+
+              {/* Help / tour */}
+              <HelpTourButton />
+
               {/* Dark mode toggle */}
               <button
                 className="flex items-center p-2 rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -181,6 +196,9 @@ export default function App() {
           <Route path="/compare" element={<DesignCompare />} />
         </Routes>
       </main>
+
+      {/* Intro tour overlay (shows on first visit) */}
+      <HelpTour />
     </div>
   )
 }

@@ -38,3 +38,105 @@ body {
 .js-plotly-plot {
   width: 100% !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Print-friendly views
+   --------------------------------------------------------------------------- */
+
+@media print {
+  /* Force light theme for print */
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide interactive / non-essential UI elements */
+  header,
+  nav,
+  button,
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Expand full width, remove shadows and borders for print */
+  .max-w-7xl {
+    max-width: 100% !important;
+  }
+
+  /* Cards: white background, thin borders, no shadows */
+  .rounded-md,
+  .rounded-lg,
+  .rounded-xl {
+    border-radius: 2px !important;
+    box-shadow: none !important;
+  }
+
+  /* Dark mode backgrounds -> white */
+  .dark\:bg-gray-800,
+  .dark\:bg-gray-900,
+  .dark\:bg-gray-700 {
+    background: white !important;
+  }
+
+  /* Text colors -> black for print readability */
+  .dark\:text-gray-100,
+  .dark\:text-gray-200,
+  .dark\:text-gray-300 {
+    color: black !important;
+  }
+
+  /* Prevent page breaks inside cards/tables */
+  .rounded-md,
+  table,
+  svg {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Allow page breaks between cards */
+  .space-y-4 > *,
+  .space-y-3 > * {
+    page-break-after: auto;
+  }
+
+  /* Plotly: ensure full width, reduce height slightly for print */
+  .js-plotly-plot {
+    width: 100% !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Tables: full width, thin borders */
+  table {
+    width: 100% !important;
+    font-size: 10pt !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+    color: black !important;
+  }
+
+  /* Pre blocks (biquad export): smaller font for print */
+  pre {
+    font-size: 8pt !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Links: show URL after link text in print */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 8pt;
+    color: #666;
+  }
+}

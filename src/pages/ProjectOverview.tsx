@@ -172,6 +172,9 @@ export default function ProjectOverview() {
             <Button onClick={() => fileInputRef.current?.click()} variant="secondary" size="sm">
               📤 Importer JSON
             </Button>
+            <Button onClick={() => window.print()} variant="secondary" size="sm">
+              🖨️ Print / PDF
+            </Button>
             <input
               ref={fileInputRef}
               type="file"
