@@ -43,6 +43,9 @@ export interface CabinetSpec {
   portLength: number;    // [mm]
   numPorts: number;
   portPosition: 'bottom' | 'front' | 'rear' | 'side';
+  midChamberVolume?: number; // [L] sealed mid chamber volume (0/undefined = single chamber)
+  wooferCount?: number;      // number of woofers sharing the bass chamber (default 1)
+  wooferMounting?: 'front' | 'sides'; // where woofers are mounted (default 'front')
 }
 
 export interface PeqSuggestion {
@@ -147,6 +150,26 @@ export const CABINET_PRESETS: { name: string; spec: CabinetSpec }[] = [
       portLength: 0,
       numPorts: 1,
       portPosition: 'bottom',
+      midChamberVolume: 5.7,  // ~5.7L sealed mid chamber
+      wooferCount: 2,          // 2x GRS 8SW-4HE-8 push-push
+      wooferMounting: 'sides', // push-push: one woofer per side panel
+    },
+  },
+  {
+    name: 'MK3 Reference',
+    spec: {
+      name: 'MK3 Reference',
+      height: 1180,
+      width: 300,
+      depth: 420,
+      wallThickness: 22,
+      portDiameter: 0,    // sealed
+      portLength: 0,
+      numPorts: 1,
+      portPosition: 'bottom',
+      midChamberVolume: 13,   // ~13L sealed mid chamber
+      wooferCount: 2,          // 2x push-push
+      wooferMounting: 'sides', // push-push: one woofer per side panel
     },
   },
 ];
@@ -242,6 +265,7 @@ export function scoreWooferForCabinet(
   driver: Driver,
   cabinet: CabinetSpec,
   internalVolume: number,
+  driverCount: number = 1,
 ): DriverFitScore {
   const reasons: string[] = [];
   const warnings: string[] = [];
@@ -250,18 +274,24 @@ export function scoreWooferForCabinet(
   // Physical fit
   const cutout = driver.dimensions?.cutoutDiameter ?? pistonDiameter(driver) * 1.1;
   const mountDepth = driver.dimensions?.mountingDepth ?? 0;
-  const baffleWidth = cabinet.width;
-  const cabinetDepth = cabinet.depth;
+  const mounting = cabinet.wooferMounting ?? 'front';
 
-  const cutoutFits = cutout < baffleWidth - 10; // 10mm margin
-  const depthFits = mountDepth === 0 || mountDepth < cabinetDepth - cabinet.wallThickness - 20;
+  // For side-mounted woofers (push-push), the cutout must fit the side panel
+  // (depth × height) and mounting depth must fit within cabinet width
+  const panelWidth = mounting === 'sides' ? cabinet.depth : cabinet.width;
+  const availableDepth = mounting === 'sides'
+    ? cabinet.width - 2 * cabinet.wallThickness  // depth goes across cabinet width
+    : cabinet.depth - cabinet.wallThickness - 20;
+
+  const cutoutFits = cutout < panelWidth - 10; // 10mm margin
+  const depthFits = mountDepth === 0 || mountDepth < availableDepth;
   const physicalFit = cutoutFits && depthFits;
 
   if (!cutoutFits) {
-    warnings.push(`Cutout Ø${cutout.toFixed(0)}mm > baffelbredde ${baffleWidth}mm (margin 10mm).`);
+    warnings.push(`Cutout Ø${cutout.toFixed(0)}mm > panelbredde ${panelWidth}mm (margin 10mm).`);
   }
   if (!depthFits && mountDepth > 0) {
-    warnings.push(`Monteringsdybde ${mountDepth}mm > indre dybde ${(cabinetDepth - cabinet.wallThickness).toFixed(0)}mm.`);
+    warnings.push(`Monteringsdybde ${mountDepth}mm > tilgængelig dybde ${availableDepth.toFixed(0)}mm.`);
   }
 
   // Volume fit
@@ -273,9 +303,13 @@ export function scoreWooferForCabinet(
 
   if (ts.vas && ts.qts && ts.qts > 0) {
     try {
-      const sealed = calcSealed(ts, 0.707);
+      // For N identical drivers sharing one enclosure: Vas_total = N × Vas_single
+      const effectiveTs = driverCount > 1
+        ? { ...ts, vas: ts.vas * driverCount }
+        : ts;
+      const sealed = calcSealed(effectiveTs, 0.707);
       sealedVb = sealed.vb;
-      const ported = calcPorted(ts);
+      const ported = calcPorted(effectiveTs);
       portedVb = ported.vb;
       portedFb = ported.fb;
       portedF3 = ported.f3;
@@ -682,30 +716,42 @@ export function recommendSystemForCabinet(
   const reasoning: string[] = [];
 
   // Calculate internal volume
-  const internalVolume = calcInternalVolume(
+  const totalVolume = calcInternalVolume(
     cabinet.width,
     cabinet.height,
     cabinet.depth,
     cabinet.wallThickness,
   );
+  const midChamber = cabinet.midChamberVolume ?? 0;
+  const wooferCount = cabinet.wooferCount ?? 1;
+  const bassVolume = Math.max(0, totalVolume - midChamber);
+
   reasoning.push(`Kabinet: ${cabinet.name}, ${cabinet.height}×${cabinet.width}×${cabinet.depth}mm, væg ${cabinet.wallThickness}mm.`);
-  reasoning.push(`Intern volumen: ${internalVolume.toFixed(1)} L.`);
+  reasoning.push(`Intern volumen: ${totalVolume.toFixed(1)} L.`);
+  if (midChamber > 0) {
+    reasoning.push(`Lukket mellemkammer: ${midChamber.toFixed(1)} L. Bass volumen: ${bassVolume.toFixed(1)} L.`);
+  }
+  if (wooferCount > 1) {
+    const mountDesc = (cabinet.wooferMounting ?? 'front') === 'sides' ? ' push-push (én per langside)' : '';
+    reasoning.push(`${wooferCount} bas-enheder${mountDesc} (Vas ×${wooferCount}).`);
+  }
   if (cabinet.portDiameter > 0 && cabinet.portLength > 0) {
     reasoning.push(`Port: Ø${cabinet.portDiameter}mm × ${cabinet.portLength}mm, ${cabinet.numPorts} stk (${cabinet.portPosition}).`);
     // Calculate port tuning from dimensions
-    const portTuning = calcPortTuning(cabinet.portDiameter, cabinet.portLength, cabinet.numPorts, internalVolume);
+    const portTuning = calcPortTuning(cabinet.portDiameter, cabinet.portLength, cabinet.numPorts, bassVolume);
     reasoning.push(`Port tuning (estimeret): ${portTuning.toFixed(0)} Hz.`);
   } else {
     reasoning.push(`Lukket kabinet (ingen port).`);
   }
 
-  // Score all woofers/midbass drivers
+  // Score all woofers/midbass drivers against the BASS volume
+  const scoringVolume = midChamber > 0 ? bassVolume : totalVolume;
   const wooferTypes: DriverType[] = ways === 3
     ? ['woofer', 'midrange', 'subwoofer']
     : ['woofer', 'midrange', 'fullrange', 'subwoofer'];
   const wooferCandidates = allDrivers.filter((d) => wooferTypes.includes(d.type));
   const wooferScores = wooferCandidates
-    .map((d) => scoreWooferForCabinet(d, cabinet, internalVolume))
+    .map((d) => scoreWooferForCabinet(d, cabinet, scoringVolume, wooferCount))
     .filter((s) => s.fits)
     .sort((a, b) => b.overallScore - a.overallScore);
 
@@ -718,9 +764,9 @@ export function recommendSystemForCabinet(
     const fallbackXo = suggestCrossover(fallbackDrivers, 2);
     return {
       cabinet,
-      internalVolume,
+      internalVolume: totalVolume,
       ways,
-      wooferScore: scoreWooferForCabinet(fallbackWoofer, cabinet, internalVolume),
+      wooferScore: scoreWooferForCabinet(fallbackWoofer, cabinet, scoringVolume, wooferCount),
       tweeterScore: scoreTweeterForCabinet(fallbackTweeter, cabinet, 2000),
       crossover: fallbackXo,
       miniDspConfig: buildMiniDspConfig(fallbackXo, cabinet, fallbackDrivers),
@@ -765,8 +811,10 @@ export function recommendSystemForCabinet(
     const midCandidates = allDrivers.filter(
       (d) => d.type === 'midrange' || d.type === 'fullrange',
     );
+    // Score midrange against the mid chamber volume if present, else total volume
+    const midScoringVolume = midChamber > 0 ? midChamber : totalVolume;
     const midScores = midCandidates
-      .map((d) => scoreWooferForCabinet(d, cabinet, internalVolume))
+      .map((d) => scoreWooferForCabinet(d, cabinet, midScoringVolume))
       .filter((s) => s.fits && s.driver.id !== bestWoofer.driver.id)
       .sort((a, b) => b.overallScore - a.overallScore);
 
@@ -792,7 +840,7 @@ export function recommendSystemForCabinet(
 
   // Add port tuning note if applicable
   if (cabinet.portDiameter > 0 && bestWoofer.portedFb) {
-    const portTuning = calcPortTuning(cabinet.portDiameter, cabinet.portLength, cabinet.numPorts, internalVolume);
+    const portTuning = calcPortTuning(cabinet.portDiameter, cabinet.portLength, cabinet.numPorts, bassVolume);
     const fbDelta = portTuning - bestWoofer.portedFb;
     if (Math.abs(fbDelta) > 5) {
       reasoning.push(
@@ -804,7 +852,7 @@ export function recommendSystemForCabinet(
 
   return {
     cabinet,
-    internalVolume,
+    internalVolume: totalVolume,
     ways,
     wooferScore: bestWoofer,
     tweeterScore: bestTweeter,

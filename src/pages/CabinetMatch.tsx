@@ -131,6 +131,42 @@ function CabinetInputForm({
           />
         </div>
       </div>
+
+      {/* Mid chamber + woofer count */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Kammer & enheder</div>
+        <div className="grid grid-cols-2 gap-3">
+          <NumberInput
+            label="Mellemkammer volumen"
+            unit="L"
+            value={spec.midChamberVolume ?? 0}
+            onChange={(v) => update('midChamberVolume', v)}
+            min={0}
+            step={0.1}
+          />
+          <NumberInput
+            label="Antal bas-enheder"
+            value={spec.wooferCount ?? 1}
+            onChange={(v) => update('wooferCount', v)}
+            min={1}
+            max={4}
+            step={1}
+          />
+        </div>
+        {(spec.wooferCount ?? 1) > 1 && (
+          <div className="mt-2">
+            <Select
+              label="Bas-montering"
+              value={spec.wooferMounting ?? 'front'}
+              onChange={(v) => update('wooferMounting', v)}
+              options={[
+                { value: 'front', label: 'Front (begge på fronten)' },
+                { value: 'sides', label: 'Sider (push-push, én per langside)' },
+              ]}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -325,7 +361,9 @@ export default function CabinetMatch() {
 
   const portTuning = useMemo(() => {
     if (cabinetSpec.portDiameter > 0 && cabinetSpec.portLength > 0) {
-      return calcPortTuning(cabinetSpec.portDiameter, cabinetSpec.portLength, cabinetSpec.numPorts, internalVolume)
+      const midChamber = cabinetSpec.midChamberVolume ?? 0
+      const bassVol = midChamber > 0 ? internalVolume - midChamber : internalVolume
+      return calcPortTuning(cabinetSpec.portDiameter, cabinetSpec.portLength, cabinetSpec.numPorts, bassVol)
     }
     return null
   }, [cabinetSpec, internalVolume])
@@ -336,13 +374,16 @@ export default function CabinetMatch() {
     setResult(rec)
 
     // Build a quick overview of all woofer scores for display
+    const midChamber = cabinetSpec.midChamberVolume ?? 0
+    const scoringVolume = midChamber > 0 ? internalVolume - midChamber : internalVolume
+    const wooferCount = cabinetSpec.wooferCount ?? 1
     const wooferTypes = ways === 3 ? ['woofer', 'midrange', 'subwoofer'] : ['woofer', 'midrange', 'fullrange', 'subwoofer']
     const scores = drivers
       .filter((d) => wooferTypes.includes(d.type))
       .map((d) => ({
         name: `${d.manufacturer} ${d.model}`,
-        score: scoreWooferForCabinet(d, cabinetSpec, internalVolume).overallScore,
-        fit: scoreWooferForCabinet(d, cabinetSpec, internalVolume).fits,
+        score: scoreWooferForCabinet(d, cabinetSpec, scoringVolume, wooferCount).overallScore,
+        fit: scoreWooferForCabinet(d, cabinetSpec, scoringVolume, wooferCount).fits,
       }))
       .sort((a, b) => b.score - a.score)
     setAllScores(scores)
@@ -367,8 +408,14 @@ export default function CabinetMatch() {
           <CabinetInputForm spec={cabinetSpec} onChange={handleSpecChange} />
 
           {/* Calculated stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
             <StatCard label="Intern volumen" value={internalVolume.toFixed(1)} unit="L" />
+            {(cabinetSpec.midChamberVolume ?? 0) > 0 ? (
+              <>
+                <StatCard label="Mellemkammer" value={(cabinetSpec.midChamberVolume ?? 0).toFixed(1)} unit="L" />
+                <StatCard label="Bass volumen" value={(internalVolume - (cabinetSpec.midChamberVolume ?? 0)).toFixed(1)} unit="L" />
+              </>
+            ) : null}
             {portTuning !== null ? (
               <StatCard label="Port tuning" value={portTuning.toFixed(0)} unit="Hz" />
             ) : (
