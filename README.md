@@ -38,6 +38,9 @@ Sealed, ported og transmission line med auto-anbefaling ud fra Qts/Fs. Baffle di
 ### Projektstyring
 Gem hele designs (enheder, delefilter, baffel, kabinet, rum-params) i browseren via IndexedDB. Eksporter som JSON fil og importer igen senere eller på en anden maskine. Projektlister på Overblik-siden med indlæs, eksporter og slet.
 
+### Biquad Export
+Konverter delefilter-design (LR2/LR4/LR8, BW2/BW4, 1. orden) til biquad filter coefficients direkte fra System Simulering. Vælg sample rate (48/96/44.1 kHz), få tekst format til MiniDSP advanced biquad input, Q23 hex til XML redigering, eller struktureret JSON. Lukker gapet mellem simulering og implementering på din MiniDSP 2x4.
+
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite

@@ -9,6 +9,7 @@ import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
 import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
+import { exportBiquads, exportBiquadsJSON } from '@/lib/acoustic/biquadExport'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project } from '@/types'
 
@@ -278,6 +279,82 @@ export default function SystemSimulation() {
       numPorts,
     }
     downloadJSON(designState, `${name.replace(/\s+/g, '-').toLowerCase()}.json`)
+  }
+
+  // Biquad export state
+  const [showBiquad, setShowBiquad] = useState(false)
+  const [biquadText, setBiquadText] = useState('')
+  const [sampleRate, setSampleRate] = useState(48000)
+
+  // Generate biquad coefficients for MiniDSP
+  function handleExportBiquads() {
+    const designState: DesignState = {
+      ways,
+      bands: bands.slice(0, ways).map((b) => ({ ...b })),
+      baffleWidth,
+      baffleHeight,
+      roundoverRadius,
+      roomParams: { ...roomParams, dimensions: { ...roomParams.dimensions } },
+      smoothingFraction,
+      cabinetType,
+      portFb,
+      portVb,
+      portDiameter,
+      numPorts,
+    }
+    const result = exportBiquads(designState, sampleRate)
+    setBiquadText(result.text)
+    setShowBiquad(true)
+  }
+
+  // Download biquad as .txt file
+  function handleDownloadBiquadTxt() {
+    const name = projectName.trim() || `biquad-${Date.now()}`
+    const blob = new Blob([biquadText], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${name.replace(/\s+/g, '-').toLowerCase()}-biquad.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  // Download biquad as JSON file
+  function handleDownloadBiquadJson() {
+    const designState: DesignState = {
+      ways,
+      bands: bands.slice(0, ways).map((b) => ({ ...b })),
+      baffleWidth,
+      baffleHeight,
+      roundoverRadius,
+      roomParams: { ...roomParams, dimensions: { ...roomParams.dimensions } },
+      smoothingFraction,
+      cabinetType,
+      portFb,
+      portVb,
+      portDiameter,
+      numPorts,
+    }
+    const json = exportBiquadsJSON(designState, sampleRate)
+    const name = projectName.trim() || `biquad-${Date.now()}`
+    downloadJSON(JSON.parse(json), `${name.replace(/\s+/g, '-').toLowerCase()}-biquad.json`)
+  }
+
+  // Copy biquad text to clipboard
+  async function handleCopyBiquad() {
+    try {
+      await navigator.clipboard.writeText(biquadText)
+      const btn = document.getElementById('copy-biquad-btn')
+      if (btn) {
+        const orig = btn.textContent
+        btn.textContent = '✓ Kopieret!'
+        setTimeout(() => { btn.textContent = orig }, 2000)
+      }
+    } catch (e) {
+      console.error('Clipboard failed:', e)
+    }
   }
 
   // Adjust bands when ways changes
@@ -754,10 +831,49 @@ export default function SystemSimulation() {
           <Button onClick={handleExportJSON} variant="secondary">
             📥 Eksporter JSON
           </Button>
+          <Button onClick={handleExportBiquads} variant="secondary">
+            🔢 Biquad til MiniDSP
+          </Button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
           Gemmer aktuelle indstillinger (enheder, delefilter, baffel, kabinet, rum) i browseren. Brug Overblik-siden for at indlæse eller importere projekter.
         </p>
+
+        {/* Biquad export panel */}
+        {showBiquad && (
+          <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-md p-3 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Sample rate:</label>
+              <select
+                value={sampleRate}
+                onChange={(e) => setSampleRate(parseInt(e.target.value))}
+                className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-xs text-gray-900 dark:text-gray-100"
+              >
+                <option value={48000}>48 kHz</option>
+                <option value={96000}>96 kHz</option>
+                <option value={44100}>44.1 kHz</option>
+              </select>
+              <Button onClick={handleExportBiquads} variant="ghost" size="sm">
+                Opdater
+              </Button>
+              <Button id="copy-biquad-btn" onClick={handleCopyBiquad} variant="secondary" size="sm">
+                📋 Kopier
+              </Button>
+              <Button onClick={handleDownloadBiquadTxt} variant="secondary" size="sm">
+                .txt
+              </Button>
+              <Button onClick={handleDownloadBiquadJson} variant="secondary" size="sm">
+                .json
+              </Button>
+              <Button onClick={() => setShowBiquad(false)} variant="ghost" size="sm">
+                ✕
+              </Button>
+            </div>
+            <pre className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 rounded-md p-3 overflow-x-auto max-h-80 overflow-y-auto">
+              {biquadText}
+            </pre>
+          </div>
+        )}
       </Card>
 
       {/* Auto-suggest reasoning */}

@@ -126,6 +126,7 @@ Implemented (11 acoustic modules in `src/lib/acoustic/`):
 - **Cabinet Match** (cabinetMatch.ts) — driver matching + MiniDSP 2x4 config
 - **Panel resonance** (panelResonance.ts) — cabinet wall resonances
 - **Break-in** (breakin.ts) — driver break-in simulation
+- **Biquad export** (biquadExport.ts) — converts crossover to MiniDSP biquad coefficients (text + Q23 hex + JSON, 48/96/44.1 kHz)
 
 Pages: DriverManager, CabinetDesigner, CrossoverDesigner, SimulationView,
 SystemSimulation (multi-way), CabinetMatch, ProjectOverview.
@@ -134,7 +135,7 @@ Cabinet Match → System Simulering handoff: `projectStore.ts` carries
 `SystemSimHandoff` (bands with driverId/role/crossover/gain/polarity/delay,
 cabinet dims, port tuning) between the two pages via Zustand state.
 
-Tests: 180 tests across 10 test files (Vitest). Build clean. Typecheck clean.
+Tests: 203 tests across 11 test files (Vitest). Build clean. Typecheck clean.
 
 Not yet built (see `TODO.md`): 3D cabinet visualization (Three.js), STL
 export, graph digitizer UI, waveguide designer, DSP biquad export, project

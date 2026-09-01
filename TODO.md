@@ -105,8 +105,10 @@
 
 ### DSP export
 - [x] MiniDSP 2x4 config output (via Cabinet Match)
+- [x] Biquad coefficient export (LR2/4/8, BW2/4, 1st order at 48/96/44.1 kHz)
+- [x] Biquad text format (paste into MiniDSP advanced biquad input) + Q23 hex
+- [x] Biquad JSON export (structured format with q23hex fields)
 - [ ] MiniDSP 4x10 HD config export
-- [ ] Biquad coefficient export
 - [ ] REW measurement import
 
 ### Project management
