@@ -1,6 +1,6 @@
 // Project state store (Zustand)
 import { create } from 'zustand';
-import type { Project, CabinetType } from '@/types';
+import type { Project, CabinetType, DesignState } from '@/types';
 
 /** Handoff payload from CabinetMatch → SystemSimulation */
 export interface SystemSimHandoff {
@@ -33,10 +33,14 @@ interface ProjectStore {
   error: string | null;
   /** Handoff from CabinetMatch to SystemSimulation (consumed once on mount) */
   simHandoff: SystemSimHandoff | null;
+  /** Loaded design from a saved project (consumed once on SystemSimulation mount) */
+  loadedDesign: DesignState | null;
   setCurrentProject: (project: Project | null) => void;
   setSimHandoff: (handoff: SystemSimHandoff | null) => void;
+  setLoadedDesign: (design: DesignState | null) => void;
   loadProjects: () => Promise<void>;
   saveCurrentProject: () => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -45,9 +49,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loading: false,
   error: null,
   simHandoff: null,
+  loadedDesign: null,
 
   setCurrentProject: (project) => set({ currentProject: project }),
   setSimHandoff: (handoff) => set({ simHandoff: handoff }),
+  setLoadedDesign: (design) => set({ loadedDesign: design }),
 
   loadProjects: async () => {
     set({ loading: true });
@@ -71,4 +77,46 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ error: e.message });
     }
   },
+
+  deleteProject: async (id: string) => {
+    try {
+      const { deleteProject } = await import('@/db/database');
+      await deleteProject(id);
+      const projects = get().projects.filter((p) => p.id !== id);
+      set({ projects });
+    } catch (e: any) {
+      set({ error: e.message });
+    }
+  },
 }));
+
+// ---------------------------------------------------------------------------
+// Export/import helpers (JSON file download/upload)
+// ---------------------------------------------------------------------------
+
+export function downloadJSON(data: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function importJSONFile(file: File): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        resolve(JSON.parse(reader.result as string));
+      } catch (e) {
+        reject(new Error('Ugyldig JSON fil'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Kunne ikke læse fil'));
+    reader.readAsText(file);
+  });
+}

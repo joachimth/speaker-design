@@ -22,6 +22,7 @@ export function Button({
   size = 'md',
   disabled = false,
   className = '',
+  id,
 }: {
   children: ReactNode
   onClick?: () => void
@@ -29,6 +30,7 @@ export function Button({
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   className?: string
+  id?: string
 }) {
   const variants = {
     primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-300',
@@ -45,6 +47,7 @@ export function Button({
     <button
       onClick={onClick}
       disabled={disabled}
+      id={id}
       className={`rounded-md font-medium transition-colors disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}

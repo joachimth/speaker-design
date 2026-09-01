@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
-import { useProjectStore } from '@/store/projectStore'
+import { useProjectStore, downloadJSON } from '@/store/projectStore'
 import { Card, Select, NumberInput, Badge, StatCard, Button } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
@@ -10,7 +10,7 @@ import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, type RoomOptimiz
 import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
-import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType } from '@/types'
+import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -112,7 +112,7 @@ function interpolateAt(curve: FrequencyDataPoint[], freq: number): number {
 
 export default function SystemSimulation() {
   const { drivers } = useDriverStore()
-  const { simHandoff, setSimHandoff } = useProjectStore()
+  const { simHandoff, setSimHandoff, loadedDesign, setLoadedDesign } = useProjectStore()
   const [ways, setWays] = useState<2 | 3 | 4>(2)
   const [bands, setBands] = useState<Band[]>(DEFAULT_BANDS_2)
   const [baffleWidth, setBaffleWidth] = useState(320)
@@ -174,6 +174,111 @@ export default function SystemSimulation() {
     // Clear handoff so it doesn't re-apply on next visit
     setSimHandoff(null)
   }, [simHandoff, setSimHandoff])
+
+  // Consume loaded design from a saved project (runs once on mount)
+  useEffect(() => {
+    if (!loadedDesign) return
+    const d = loadedDesign
+    setWays(d.ways)
+    setBaffleWidth(d.baffleWidth)
+    setBaffleHeight(d.baffleHeight)
+    setRoundoverRadius(d.roundoverRadius)
+    setCabinetType(d.cabinetType)
+    setPortFb(d.portFb)
+    setPortVb(d.portVb)
+    setPortDiameter(d.portDiameter)
+    setNumPorts(d.numPorts)
+    setRoomParams(d.roomParams as RoomAcousticsParams)
+    setSmoothingFraction(d.smoothingFraction)
+    setBands(d.bands.map((b) => ({ ...b })))
+    setLoadedDesign(null)
+  }, [loadedDesign, setLoadedDesign])
+
+  // Project name for save
+  const [projectName, setProjectName] = useState('')
+
+  // Save current design as a project to IndexedDB
+  async function handleSaveProject() {
+    const name = projectName.trim() || `Projekt ${new Date().toLocaleDateString('da-DK')}`
+    const designState: DesignState = {
+      ways,
+      bands: bands.slice(0, ways).map((b) => ({ ...b })),
+      baffleWidth,
+      baffleHeight,
+      roundoverRadius,
+      roomParams: { ...roomParams, dimensions: { ...roomParams.dimensions } },
+      smoothingFraction,
+      cabinetType,
+      portFb,
+      portVb,
+      portDiameter,
+      numPorts,
+    }
+
+    // Collect driver objects for the project
+    const projectDrivers = bands
+      .slice(0, ways)
+      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .filter((d): d is Driver => !!d)
+
+    const project: Project = {
+      id: `proj-${Date.now()}`,
+      name,
+      drivers: projectDrivers,
+      cabinet: {
+        type: cabinetType,
+        dimensions: {
+          width: baffleWidth,
+          height: baffleHeight,
+          depth: 0,
+          wallThickness: 0,
+          baffleWidth,
+          baffleHeight,
+          frontRoundoverRadius: roundoverRadius,
+        },
+        internalVolume: 0,
+      },
+      crossover: { bands: [], ways },
+      designState,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    try {
+      const { saveProject } = await import('@/db/database')
+      await saveProject(project)
+      setProjectName('')
+      // Brief feedback
+      const btn = document.getElementById('save-project-btn')
+      if (btn) {
+        const orig = btn.textContent
+        btn.textContent = '✓ Gemt!'
+        setTimeout(() => { btn.textContent = orig }, 2000)
+      }
+    } catch (e) {
+      console.error('Failed to save project:', e)
+    }
+  }
+
+  // Export current design as JSON file
+  function handleExportJSON() {
+    const name = projectName.trim() || `projekt-${Date.now()}`
+    const designState: DesignState = {
+      ways,
+      bands: bands.slice(0, ways).map((b) => ({ ...b })),
+      baffleWidth,
+      baffleHeight,
+      roundoverRadius,
+      roomParams: { ...roomParams, dimensions: { ...roomParams.dimensions } },
+      smoothingFraction,
+      cabinetType,
+      portFb,
+      portVb,
+      portDiameter,
+      numPorts,
+    }
+    downloadJSON(designState, `${name.replace(/\s+/g, '-').toLowerCase()}.json`)
+  }
 
   // Adjust bands when ways changes
   function handleWaysChange(value: string) {
@@ -628,6 +733,31 @@ export default function SystemSimulation() {
           <StatCard label="Max system SPL" value={maxSystemDb.toFixed(1)} unit="dB" />
           <StatCard label="Baffel" value={`${baffleWidth}×${baffleHeight}`} unit="mm" />
         </div>
+      </Card>
+
+      {/* Project save / export */}
+      <Card title="Gem projekt">
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+          <div className="flex-1 w-full">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Projektnavn</label>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="f.eks. 3-vejs stuehøjtaler"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <Button id="save-project-btn" onClick={handleSaveProject} variant="primary">
+            💾 Gem
+          </Button>
+          <Button onClick={handleExportJSON} variant="secondary">
+            📥 Eksporter JSON
+          </Button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Gemmer aktuelle indstillinger (enheder, delefilter, baffel, kabinet, rum) i browseren. Brug Overblik-siden for at indlæse eller importere projekter.
+        </p>
       </Card>
 
       {/* Auto-suggest reasoning */}

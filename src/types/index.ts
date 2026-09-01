@@ -153,6 +153,46 @@ export interface Crossover {
 }
 
 // ---------------------------------------------------------------------------
+// Design state (serializable snapshot of SystemSimulation)
+// ---------------------------------------------------------------------------
+
+export interface DesignBand {
+  driverId: string;
+  role: 'low' | 'mid' | 'mid2' | 'high';
+  lowpassFreq: number;
+  lowpassType: CrossoverType;
+  highpassFreq: number;
+  highpassType: CrossoverType;
+  gain: number;
+  polarity: 0 | 180;
+  delay: number;
+}
+
+export interface RoomParams {
+  dimensions: { length: number; width: number; height: number };
+  rt60: number;
+  speakerDistanceFromFront: number;
+  speakerDistanceFromSide: number;
+  speakerHeight: number;
+  listeningDistance: number;
+}
+
+export interface DesignState {
+  ways: 2 | 3 | 4;
+  bands: DesignBand[];
+  baffleWidth: number;
+  baffleHeight: number;
+  roundoverRadius: number;
+  roomParams: RoomParams;
+  smoothingFraction: number;
+  cabinetType: CabinetType;
+  portFb: number | null;
+  portVb: number | null;
+  portDiameter: number;
+  numPorts: number;
+}
+
+// ---------------------------------------------------------------------------
 // Project
 // ---------------------------------------------------------------------------
 
@@ -164,6 +204,7 @@ export interface Project {
   cabinet: Cabinet;
   crossover: Crossover;
   baffleStepCompensation?: number; // [dB]
+  designState?: DesignState; // full SystemSimulation snapshot
   createdAt: number;
   updatedAt: number;
 }

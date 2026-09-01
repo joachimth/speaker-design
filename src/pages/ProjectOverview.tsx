@@ -1,10 +1,55 @@
+import { useEffect, useRef, type ChangeEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDriverStore } from '@/store/driverStore'
-import { Card, Badge, StatCard } from '@/components/common/UI'
+import { useProjectStore, downloadJSON, importJSONFile } from '@/store/projectStore'
+import { Card, Badge, StatCard, Button } from '@/components/common/UI'
 import { recommendCabinetType } from '@/lib/acoustic/thieleSmall'
 import { baffleStepFrequency } from '@/lib/acoustic/baffle'
+import type { DesignState } from '@/types'
 
 export default function ProjectOverview() {
   const { drivers } = useDriverStore()
+  const navigate = useNavigate()
+  const { projects, loadProjects, deleteProject, setLoadedDesign } = useProjectStore()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    loadProjects()
+  }, [loadProjects])
+
+  // Load a saved project into SystemSimulation
+  function handleLoadProject(designState: DesignState) {
+    setLoadedDesign(designState)
+    navigate('/system')
+  }
+
+  // Export a saved project as JSON
+  function handleExportProject(project: typeof projects[number]) {
+    if (project.designState) {
+      downloadJSON(project.designState, `${project.name.replace(/\s+/g, '-').toLowerCase()}.json`)
+    }
+  }
+
+  // Delete a saved project
+  async function handleDeleteProject(id: string) {
+    await deleteProject(id)
+  }
+
+  // Import a JSON file as a design state and load it
+  async function handleImportJSON(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const data = await importJSONFile(file) as DesignState
+      setLoadedDesign(data)
+      navigate('/system')
+    } catch (err) {
+      console.error('Import failed:', err)
+      alert('Kunne ikke importere fil. Tjek at det er en gyldig projekt-JSON.')
+    }
+    // Reset input so the same file can be imported again
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const woofer = drivers.find((d) => d.type === 'woofer' || d.type === 'subwoofer')
   const midrange = drivers.find((d) => d.type === 'midrange')
@@ -114,6 +159,79 @@ export default function ProjectOverview() {
           </div>
         </Card>
       </div>
+
+      {/* Project management */}
+      <Card title="Mine projekter">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button onClick={() => navigate('/system')} variant="primary" size="sm">
+              + Nytt design (System Sim.)
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()} variant="secondary" size="sm">
+              📤 Importer JSON
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleImportJSON}
+              className="hidden"
+            />
+          </div>
+
+          {projects.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Ingen gemte projekter endnu. Design et system under System Simulering og tryk Gem.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {projects.map((project) => (
+                <div
+                  key={project.id}
+                  className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-md p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                      {project.name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {new Date(project.createdAt).toLocaleDateString('da-DK')} · {project.designState?.ways || '?'}-vejs
+                      {project.designState?.bands && ` · ${project.designState.bands.filter((b) => b.driverId).length} enheder`}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 ml-2">
+                    {project.designState && (
+                      <Button
+                        onClick={() => handleLoadProject(project.designState!)}
+                        variant="primary"
+                        size="sm"
+                      >
+                        Indlæs
+                      </Button>
+                    )}
+                    {project.designState && (
+                      <Button
+                        onClick={() => handleExportProject(project)}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        Eksporter
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => handleDeleteProject(project.id)}
+                      variant="danger"
+                      size="sm"
+                    >
+                      Slet
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }
