@@ -159,6 +159,7 @@ export interface Crossover {
 export interface DesignBand {
   driverId: string;
   role: 'low' | 'mid' | 'mid2' | 'high';
+  driverCount?: number;  // number of identical drivers (e.g. 2 for push-pull)
   lowpassFreq: number;
   lowpassType: CrossoverType;
   highpassFreq: number;

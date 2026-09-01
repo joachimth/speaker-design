@@ -54,6 +54,7 @@ const MAP_FREQS = generateFrequencies(100, 20000, 6)
 interface Band {
   driverId: string
   role: 'low' | 'mid' | 'mid2' | 'high'
+  driverCount?: number
   lowpassFreq: number
   lowpassType: CrossoverType
   highpassFreq: number
@@ -184,6 +185,7 @@ export default function SystemSimulation() {
         ...t,
         driverId: hb.driverId,
         role: hb.role as Band['role'],
+        driverCount: hb.driverCount ?? 1,
         lowpassFreq: hb.lowpassFreq,
         lowpassType: hb.lowpassType as CrossoverType,
         highpassFreq: hb.highpassFreq,
@@ -486,15 +488,25 @@ export default function SystemSimulation() {
 
     for (const band of activeBands) {
       const driver = drivers.find((d) => d.id === band.driverId)
+      const driverCount = band.driverCount ?? 1
       const hasRealResponse = !!driver?.frequencyResponse && driver.frequencyResponse.length > 0
+
+      // Multiple identical drivers add +10*log10(N) dB to output
+      // (e.g. +6 dB for 2 push-pull woofers, +9.5 dB for 3)
+      const countGainDb = 10 * Math.log10(driverCount)
 
       // Start from real driver response or flat at sensitivity level
       let curve: FrequencyDataPoint[]
       if (hasRealResponse && driver!.frequencyResponse) {
-        curve = [...driver!.frequencyResponse]
+        curve = [...driver!.frequencyResponse!]
       } else {
         const sens = driver?.tsParams?.sensitivity ?? 0
-        curve = freqs.map((f) => ({ freq: f, magnitude: sens }))
+        curve = freqs.map((f) => ({ freq: f, magnitude: sens + countGainDb }))
+      }
+
+      // Apply count gain to real response curves too
+      if (driverCount > 1 && hasRealResponse) {
+        curve = curve.map((p) => ({ freq: p.freq, magnitude: p.magnitude + countGainDb }))
       }
 
       // Apply baffle step loss by driver type
@@ -504,7 +516,12 @@ export default function SystemSimulation() {
 
       // Apply cabinet loading to woofer/subwoofer band
       if (isLowDriver && driver) {
-        const cabinetResp = calcCabinetResponse(driver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
+        // For multiple identical woofers sharing one enclosure,
+        // effective Vas = Vas × driverCount (more air to move)
+        const effDriver = driverCount > 1 && driver.tsParams?.vas
+          ? { ...driver, tsParams: { ...driver.tsParams, vas: driver.tsParams.vas * driverCount } }
+          : driver
+        const cabinetResp = calcCabinetResponse(effDriver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
         curve = curve.map((p, i) => ({
           freq: p.freq,
           magnitude: p.magnitude + (cabinetResp.response[i]?.magnitude ?? 0),
@@ -677,10 +694,16 @@ export default function SystemSimulation() {
     const lowBand = processedBands.find((pb) => pb.driver && (pb.driver.type === 'woofer' || pb.driver.type === 'subwoofer'))
     if (!lowBand?.driver) return null
     const driver = lowBand.driver
+    const dc = lowBand.band.driverCount ?? 1
+    // For N identical drivers, Vas scales by N, but Re and BL stay per-driver
+    // (each voice coil is driven separately). Mms stays per-driver.
+    const effTs = dc > 1 && driver.tsParams?.vas
+      ? { ...driver.tsParams, vas: driver.tsParams.vas * dc }
+      : driver.tsParams
     const vb = portVb ?? 50 // fallback if not set
     const fb = portFb ?? undefined
     return calcImpedance({
-      ts: driver.tsParams,
+      ts: effTs,
       cabinetType,
       boxVolume: vb,
       fb: cabinetType === 'ported' ? fb : undefined,
@@ -1028,7 +1051,7 @@ export default function SystemSimulation() {
       {bands.slice(0, ways).map((band, i) => {
         const driver = drivers.find((d) => d.id === band.driverId)
         return (
-          <Card key={i} title={`${ROLE_LABELS[band.role] || band.role} - vej ${i + 1}`}>
+          <Card key={i} title={`${ROLE_LABELS[band.role] || band.role} - vej ${i + 1}${(band.driverCount ?? 1) > 1 ? ` (${band.driverCount}×)` : ''}`}>
             <div className="space-y-3">
               <Select
                 label="Enhed"
@@ -1089,7 +1112,8 @@ export default function SystemSimulation() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <NumberInput label="Antal enheder" value={band.driverCount ?? 1} min={1} max={8} onChange={(v) => updateBand(i, { driverCount: Math.max(1, Math.round(v)) })} />
                 <NumberInput label="Gain" unit="dB" value={band.gain} step={0.5} onChange={(v) => updateBand(i, { gain: v })} />
                 <Select
                   label="Polaritet"
@@ -1102,6 +1126,12 @@ export default function SystemSimulation() {
                 />
                 <NumberInput label="Delay" unit="ms" value={band.delay} step={0.01} onChange={(v) => updateBand(i, { delay: v })} />
               </div>
+
+              {(band.driverCount ?? 1) > 1 && (
+                <div className="text-xs text-brand-600 dark:text-brand-400">
+                  {(band.driverCount ?? 1)}× identiske enheder: +{(10 * Math.log10(band.driverCount ?? 1)).toFixed(1)} dB output gain, Vas ×{band.driverCount ?? 1} for kabinetberegning.
+                </div>
+              )}
 
               <div className="flex gap-2 flex-wrap">
                 <Badge color="blue">
@@ -1170,7 +1200,11 @@ export default function SystemSimulation() {
       {(() => {
         const lowBand = processedBands.find((pb) => pb.driver && (pb.driver.type === 'woofer' || pb.driver.type === 'subwoofer'))
         if (!lowBand?.driver) return null
-        const cabResp = calcCabinetResponse(lowBand.driver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
+        const dc = lowBand.band.driverCount ?? 1
+        const effDriver = dc > 1 && lowBand.driver.tsParams?.vas
+          ? { ...lowBand.driver, tsParams: { ...lowBand.driver.tsParams, vas: lowBand.driver.tsParams.vas * dc } }
+          : lowBand.driver
+        const cabResp = calcCabinetResponse(effDriver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
         return (
           <Card title={`Kabinet respons (${cabinetType === 'sealed' ? 'Lukket' : cabinetType === 'ported' ? 'Med port' : cabinetType === 'transmission_line' ? 'Trans. line' : 'Ren baffel'})`}>
             <div className="space-y-2">

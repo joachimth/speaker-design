@@ -61,6 +61,7 @@ export interface MiniDspOutput {
   role: 'woofer' | 'mid' | 'tweeter';
   driverId: string;
   driverName: string;
+  driverCount?: number;   // number of identical drivers (e.g. 2 for push-pull)
   highpassFreq: number;   // [Hz] (0 = none)
   highpassType: CrossoverType;
   lowpassFreq: number;    // [Hz] (0 = none / full range)
@@ -674,6 +675,7 @@ export function buildMiniDspConfig(
       role,
       driverId: driver.id,
       driverName: `${driver.manufacturer} ${driver.model}`,
+      driverCount: role === 'woofer' ? (cabinet.wooferCount ?? 1) : 1,
       highpassFreq: band.highpassFreq,
       highpassType: band.highpassType,
       lowpassFreq: band.lowpassFreq,

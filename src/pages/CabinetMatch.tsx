@@ -544,6 +544,7 @@ export default function CabinetMatch() {
                     const bands = outputs.map((o) => ({
                       driverId: o.driverId,
                       role: o.role === 'woofer' ? 'low' as const : o.role === 'mid' ? 'mid' as const : 'high' as const,
+                      driverCount: o.driverCount ?? 1,
                       lowpassFreq: o.lowpassFreq,
                       lowpassType: o.lowpassType,
                       highpassFreq: o.highpassFreq,

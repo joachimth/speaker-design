@@ -114,8 +114,9 @@ export default function CrossoverDesigner() {
     for (let i = 0; i < ways && i < bands.length; i++) {
       const band = bands[i]
       const driver = drivers.find((d) => d.id === band.driverId)
-      const label = `${ROLE_LABELS[band.role]}${driver ? ` (${driver.manufacturer} ${driver.model})` : ''}`
+      const label = `${ROLE_LABELS[band.role]}${driver ? ` (${driver.manufacturer} ${driver.model})` : ''}${(band.driverCount ?? 1) > 1 ? ` ${band.driverCount}×` : ''}`
       const color = COLORS[i % COLORS.length]
+      const countGainDb = 10 * Math.log10(band.driverCount ?? 1)
 
       if (!driver?.frequencyResponse || driver.frequencyResponse.length === 0) {
         // No real driver response — show just the filter curve applied to a flat 0 dB input
@@ -129,7 +130,7 @@ export default function CrossoverDesigner() {
           const lp = buildCrossoverFilter(band.lowpassType, band.lowpassFreq, false)
           curve = applyCrossover(lp, curve)
         }
-        curve = curve.map((p) => ({ ...p, magnitude: p.magnitude + band.gain }))
+        curve = curve.map((p) => ({ ...p, magnitude: p.magnitude + band.gain + countGainDb }))
 
         curves.push({
           name: `${label} (flad input)`,
@@ -149,7 +150,7 @@ export default function CrossoverDesigner() {
           const lp = buildCrossoverFilter(band.lowpassType, band.lowpassFreq, false)
           curve = applyCrossover(lp, curve)
         }
-        curve = curve.map((p) => ({ ...p, magnitude: p.magnitude + band.gain }))
+        curve = curve.map((p) => ({ ...p, magnitude: p.magnitude + band.gain + countGainDb }))
 
         curves.push({
           name: label,
@@ -410,7 +411,8 @@ function findClosestIndex(arr: number[], target: number): number {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <NumberInput label="Antal enheder" value={band.driverCount ?? 1} min={1} max={8} onChange={(v) => updateBand(i, { driverCount: Math.max(1, Math.round(v)) })} />
               <NumberInput label="Gain" unit="dB" value={band.gain} step={0.5} onChange={(v) => updateBand(i, { gain: v })} />
               <Select
                 label="Polaritet"
@@ -444,6 +446,9 @@ function findClosestIndex(arr: number[], target: number): number {
             return (
               <div key={i} className="flex items-center gap-3 text-sm">
                 <Badge>{ROLE_LABELS[band.role] || band.role}</Badge>
+                {(band.driverCount ?? 1) > 1 && (
+                  <Badge color="orange">{band.driverCount}×</Badge>
+                )}
                 <span className="text-gray-700 dark:text-gray-300">
                   {driver ? `${driver.manufacturer} ${driver.model}` : '— ikke valgt —'}
                 </span>

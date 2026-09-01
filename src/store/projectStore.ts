@@ -7,6 +7,7 @@ export interface SystemSimHandoff {
   bands: {
     driverId: string;
     role: 'low' | 'mid' | 'high';
+    driverCount?: number;
     lowpassFreq: number;
     lowpassType: string;
     highpassFreq: number;
