@@ -1,13 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
 import { useProjectStore, downloadJSON } from '@/store/projectStore'
+import { useDesignStore } from '@/store/designStore'
 import { Card, Select, NumberInput, Badge, StatCard, Button } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
-import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
+import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON } from '@/lib/acoustic/biquadExport'
 import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
@@ -115,26 +116,44 @@ function interpolateAt(curve: FrequencyDataPoint[], freq: number): number {
 
 export default function SystemSimulation() {
   const { drivers } = useDriverStore()
-  const { simHandoff, setSimHandoff, loadedDesign, setLoadedDesign } = useProjectStore()
-  const [ways, setWays] = useState<2 | 3 | 4>(2)
-  const [bands, setBands] = useState<Band[]>(DEFAULT_BANDS_2)
-  const [baffleWidth, setBaffleWidth] = useState(320)
-  const [baffleHeight, setBaffleHeight] = useState(900)
-  const [roundoverRadius, setRoundoverRadius] = useState(40)
+  const { simHandoff, setSimHandoff } = useProjectStore()
+  const { design, updateDesign, setWays: storeSetWays, setBands: storeSetBands, updateBand: storeUpdateBand, setBaffle, setPort, setRoomParams: storeSetRoomParams, setCabinetType: storeSetCabinetType, projectName, setProjectName, markClean } = useDesignStore()
 
-  // Room acoustics state
-  const [roomParams, setRoomParams] = useState<RoomAcousticsParams>(DEFAULT_ROOM_PARAMS)
-  const [smoothingFraction, setSmoothingFraction] = useState(3)
+  // Shared design state from the store
+  const ways = design.ways
+  const bands = design.bands
+  const baffleWidth = design.baffleWidth
+  const baffleHeight = design.baffleHeight
+  const roundoverRadius = design.roundoverRadius
+  const roomParams = design.roomParams as RoomAcousticsParams
+  const smoothingFraction = design.smoothingFraction
+  const cabinetType = design.cabinetType
+  const portFb = design.portFb
+  const portVb = design.portVb
+  const portDiameter = design.portDiameter
+  const numPorts = design.numPorts
+
+  // Local setter wrappers — proxy to the shared store so the rest of the
+  // component can use the same names as before
+  const setWays = (n: 2 | 3 | 4) => { storeSetWays(n); if (n === 2) storeSetBands(DEFAULT_BANDS_2); else if (n === 3) storeSetBands(DEFAULT_BANDS_3); else storeSetBands(DEFAULT_BANDS_4) }
+  const setBands = (value: Band[] | ((prev: Band[]) => Band[])) => {
+    if (typeof value === 'function') storeSetBands(value(design.bands))
+    else storeSetBands(value)
+  }
+  const setBaffleWidth = (v: number) => setBaffle(v, baffleHeight)
+  const setBaffleHeight = (v: number) => setBaffle(baffleWidth, v)
+  const setRoundoverRadius = (v: number) => updateDesign({ roundoverRadius: v })
+  const setRoomParams = (params: RoomAcousticsParams) => storeSetRoomParams(params as Partial<typeof design.roomParams>)
+  const setSmoothingFraction = (v: number) => updateDesign({ smoothingFraction: v })
+  const setCabinetType = (v: CabinetType) => storeSetCabinetType(v)
+  const setPortFb = (v: number | null) => setPort({ fb: v })
+  const setPortVb = (v: number | null) => setPort({ vb: v })
+  const setPortDiameter = (v: number) => setPort({ diameter: v })
+  const setNumPorts = (v: number) => setPort({ numPorts: v })
+  function updateBand(index: number, updates: Partial<Band>) { storeUpdateBand(index, updates) }
+
+  // Local-only UI state
   const [showRoomSim, setShowRoomSim] = useState(true)
-
-  // Cabinet type state
-  const [cabinetType, setCabinetType] = useState<CabinetType>('sealed')
-
-  // Port tuning state (for ported cabinets)
-  const [portFb, setPortFb] = useState<number | null>(null) // null = auto
-  const [portVb, setPortVb] = useState<number | null>(null) // null = auto
-  const [portDiameter, setPortDiameter] = useState(60)
-  const [numPorts, setNumPorts] = useState(1)
 
   // Auto-tune result state
   const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
@@ -145,14 +164,16 @@ export default function SystemSimulation() {
   useEffect(() => {
     if (!simHandoff) return
     const h = simHandoff
-    setWays(h.ways)
-    setBaffleWidth(h.baffleWidth)
-    setBaffleHeight(h.baffleHeight)
-    setCabinetType(h.cabinetType)
-    setPortFb(h.portFb)
-    setPortVb(h.portVb)
-    setPortDiameter(h.portDiameter)
-    setNumPorts(h.numPorts)
+    updateDesign({
+      ways: h.ways,
+      baffleWidth: h.baffleWidth,
+      baffleHeight: h.baffleHeight,
+      cabinetType: h.cabinetType,
+      portFb: h.portFb,
+      portVb: h.portVb,
+      portDiameter: h.portDiameter,
+      numPorts: h.numPorts,
+    })
 
     // Map handoff bands to SystemSimulation Band format
     const template = h.ways === 2 ? DEFAULT_BANDS_2 : h.ways === 3 ? DEFAULT_BANDS_3 : DEFAULT_BANDS_4
@@ -172,33 +193,18 @@ export default function SystemSimulation() {
         delay: hb.delay,
       }
     })
-    setBands(newBands)
+    storeSetBands(newBands)
 
     // Clear handoff so it doesn't re-apply on next visit
     setSimHandoff(null)
-  }, [simHandoff, setSimHandoff])
+  }, [simHandoff, setSimHandoff, updateDesign, storeSetBands])
 
-  // Consume loaded design from a saved project (runs once on mount)
-  useEffect(() => {
-    if (!loadedDesign) return
-    const d = loadedDesign
-    setWays(d.ways)
-    setBaffleWidth(d.baffleWidth)
-    setBaffleHeight(d.baffleHeight)
-    setRoundoverRadius(d.roundoverRadius)
-    setCabinetType(d.cabinetType)
-    setPortFb(d.portFb)
-    setPortVb(d.portVb)
-    setPortDiameter(d.portDiameter)
-    setNumPorts(d.numPorts)
-    setRoomParams(d.roomParams as RoomAcousticsParams)
-    setSmoothingFraction(d.smoothingFraction)
-    setBands(d.bands.map((b) => ({ ...b })))
-    setLoadedDesign(null)
-  }, [loadedDesign, setLoadedDesign])
+  // Consume loaded design from the shared store (runs once, from ProjectOverview)
+  // The store is populated by ProjectOverview before navigating here.
+  // No local effect needed — the store IS the state.
 
-  // Project name for save
-  const [projectName, setProjectName] = useState('')
+  // Project name for save (from shared store)
+  // projectName and setProjectName come from the store above
 
   // Save current design as a project to IndexedDB
   async function handleSaveProject() {
@@ -251,6 +257,7 @@ export default function SystemSimulation() {
       const { saveProject } = await import('@/db/database')
       await saveProject(project)
       setProjectName('')
+      markClean()
       // Brief feedback
       const btn = document.getElementById('save-project-btn')
       if (btn) {
@@ -359,18 +366,12 @@ export default function SystemSimulation() {
     }
   }
 
-  // Adjust bands when ways changes
+  // handleWaysChange: parse string from Select onChange, call setWays wrapper
   function handleWaysChange(value: string) {
-    const n = parseInt(value) as 2 | 3 | 4
-    setWays(n)
-    if (n === 2) setBands(DEFAULT_BANDS_2)
-    else if (n === 3) setBands(DEFAULT_BANDS_3)
-    else setBands(DEFAULT_BANDS_4)
+    setWays(parseInt(value) as 2 | 3 | 4)
   }
 
-  function updateBand(index: number, updates: Partial<Band>) {
-    setBands(bands.map((b, i) => (i === index ? { ...b, ...updates } : b)))
-  }
+  // updateBand is defined above as a store wrapper
 
   // Auto-suggest state
   const [autoReasoning, setAutoReasoning] = useState<string[] | null>(null)

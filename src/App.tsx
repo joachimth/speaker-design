@@ -8,11 +8,14 @@ import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
 import CabinetMatch from './pages/CabinetMatch'
 import { useDriverStore } from './store/driverStore'
+import { useDesignStore } from './store/designStore'
 import { SEED_DRIVERS } from './data/seedDrivers'
 import { db } from './db/database'
 
 export default function App() {
   const { loadDrivers } = useDriverStore()
+  const { projectName, isDirty, design } = useDesignStore()
+  const { ways, bands } = design
   const [seeded, setSeeded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
@@ -60,6 +63,20 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <span className="text-lg sm:text-xl font-bold text-brand-600 whitespace-nowrap">🔊 Speaker Design</span>
+
+            {/* Active design indicator */}
+            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 ml-2">
+              <span className="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[160px]">
+                {projectName || 'Ikke navngivet'}
+              </span>
+              <span className="text-gray-400">·</span>
+              <span>{ways}-vejs</span>
+              <span className="text-gray-400">·</span>
+              <span>{bands.filter((b) => b.driverId).length} enheder</span>
+              {isDirty && (
+                <span className="inline-block w-2 h-2 rounded-full bg-amber-500" title="Ikke gemt" />
+              )}
+            </span>
 
             {/* Desktop nav */}
             <nav className="hidden sm:flex gap-1">

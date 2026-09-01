@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useDriverStore } from '@/store/driverStore'
+import { useDesignStore } from '@/store/designStore'
 import { Card, Select, NumberInput, StatCard, Button } from '@/components/common/UI'
 import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
@@ -17,34 +18,58 @@ import type { CabinetType, Driver } from '@/types'
 
 export default function CabinetDesigner() {
   const { drivers, updateDriver } = useDriverStore()
+  const { design, setCabinetType, setBaffle, setPort, updateDesign } = useDesignStore()
+
   const [selectedDriverId, setSelectedDriverId] = useState<string>(drivers[0]?.id || '')
   const [activeParameterSet, setActiveParameterSet] = useState<string>('Datablad')
-  const [cabinetType, setCabinetType] = useState<CabinetType>('sealed')
   const [qtcTarget, setQtcTarget] = useState(0.707)
-  const [portDiameter, setPortDiameter] = useState(60)
-  const [numPorts, setNumPorts] = useState(1)
-  // Defaults = mk3 reference loudspeaker locked dimensions (commit 27850dc):
-  // W300 x D420 x H1180, 22mm plywood walls, R19 front roundover.
+
+  // Cabinet dimensions: baffle + roundover come from shared store.
+  // Full box dims (width/height/depth/wallThickness) are local since
+  // DesignState only tracks baffle dimensions for simulation.
   const [cabinetDims, setCabinetDims] = useState({
     width: 300,
     height: 1180,
     depth: 420,
     wallThickness: 22,
-    baffleWidth: 300,
-    baffleHeight: 1180,
-    frontRoundoverRadius: 19,
+    baffleWidth: design.baffleWidth,
+    baffleHeight: design.baffleHeight,
+    frontRoundoverRadius: design.roundoverRadius,
   })
+
+  // Sync baffle dims from shared store → local cabinetDims
+  // (handles load-design and changes from other tabs)
+  const { baffleWidth: sharedBW, baffleHeight: sharedBH, roundoverRadius: sharedRR } = design
+  const baffleSynced = cabinetDims.baffleWidth === sharedBW
+    && cabinetDims.baffleHeight === sharedBH
+    && cabinetDims.frontRoundoverRadius === sharedRR
+  if (!baffleSynced) {
+    cabinetDims.baffleWidth = sharedBW
+    cabinetDims.baffleHeight = sharedBH
+    cabinetDims.frontRoundoverRadius = sharedRR
+  }
+
+  const cabinetType = design.cabinetType
+  const portDiameter = design.portDiameter
+  const numPorts = design.numPorts
 
   // Auto-suggest state
   const [cabinetReasoning, setCabinetReasoning] = useState<string[] | null>(null)
   const [baffleReasoning, setBaffleReasoning] = useState<string[] | null>(null)
+
+  // Helper: update cabinet dims and sync baffle to shared store
+  function updateCabinetDims(patch: typeof cabinetDims) {
+    setCabinetDims(patch)
+    setBaffle(patch.baffleWidth, patch.baffleHeight)
+    updateDesign({ roundoverRadius: patch.frontRoundoverRadius })
+  }
 
   // Auto-suggest cabinet type + dimensions from driver T/S params
   function handleAutoCabinet() {
     if (!selectedDriver?.tsParams) return
     const result = suggestCabinet(selectedDriver, cabinetType)
     setCabinetReasoning(result.reasoning)
-    setCabinetDims({
+    const newDims = {
       width: result.dimensions.width,
       height: result.dimensions.height,
       depth: result.dimensions.depth,
@@ -52,10 +77,10 @@ export default function CabinetDesigner() {
       baffleWidth: result.dimensions.baffleWidth,
       baffleHeight: result.dimensions.baffleHeight,
       frontRoundoverRadius: result.dimensions.frontRoundoverRadius,
-    })
+    }
+    updateCabinetDims(newDims)
     if (result.ported && result.portLength) {
-      setPortDiameter(60)
-      setNumPorts(1)
+      setPort({ diameter: 60, numPorts: 1 })
     }
   }
 
@@ -69,7 +94,7 @@ export default function CabinetDesigner() {
       `Anbefalet type: ${rec.recommended} — ${rec.reason}`,
       ...result.reasoning,
     ])
-    setCabinetDims({
+    const newDims = {
       width: result.dimensions.width,
       height: result.dimensions.height,
       depth: result.dimensions.depth,
@@ -77,7 +102,8 @@ export default function CabinetDesigner() {
       baffleWidth: result.dimensions.baffleWidth,
       baffleHeight: result.dimensions.baffleHeight,
       frontRoundoverRadius: result.dimensions.frontRoundoverRadius,
-    })
+    }
+    updateCabinetDims(newDims)
   }
 
   // Auto-suggest baffle dimensions from driver
@@ -85,12 +111,12 @@ export default function CabinetDesigner() {
     if (!selectedDriver) return
     const result = suggestBaffle([selectedDriver as Driver], [])
     setBaffleReasoning(result.reasoning)
-    setCabinetDims((prev) => ({
-      ...prev,
+    updateCabinetDims({
+      ...cabinetDims,
       baffleWidth: result.width,
       baffleHeight: result.height,
       frontRoundoverRadius: result.roundoverRadius,
-    }))
+    })
   }
 
   // Fall back to the first driver: the store loads async, so drivers[0] is
@@ -243,9 +269,9 @@ export default function CabinetDesigner() {
           <NumberInput label="Højde" unit="mm" value={cabinetDims.height} onChange={(v) => setCabinetDims({ ...cabinetDims, height: v })} />
           <NumberInput label="Dybde" unit="mm" value={cabinetDims.depth} onChange={(v) => setCabinetDims({ ...cabinetDims, depth: v })} />
           <NumberInput label="Vægtykkelse" unit="mm" value={cabinetDims.wallThickness} onChange={(v) => setCabinetDims({ ...cabinetDims, wallThickness: v })} />
-          <NumberInput label="Baffel bredde" unit="mm" value={cabinetDims.baffleWidth} onChange={(v) => setCabinetDims({ ...cabinetDims, baffleWidth: v })} />
-          <NumberInput label="Baffel højde" unit="mm" value={cabinetDims.baffleHeight} onChange={(v) => setCabinetDims({ ...cabinetDims, baffleHeight: v })} />
-          <NumberInput label="Afrunding" unit="mm" value={cabinetDims.frontRoundoverRadius} onChange={(v) => setCabinetDims({ ...cabinetDims, frontRoundoverRadius: v })} />
+          <NumberInput label="Baffel bredde" unit="mm" value={cabinetDims.baffleWidth} onChange={(v) => updateCabinetDims({ ...cabinetDims, baffleWidth: v })} />
+          <NumberInput label="Baffel højde" unit="mm" value={cabinetDims.baffleHeight} onChange={(v) => updateCabinetDims({ ...cabinetDims, baffleHeight: v })} />
+          <NumberInput label="Afrunding" unit="mm" value={cabinetDims.frontRoundoverRadius} onChange={(v) => updateCabinetDims({ ...cabinetDims, frontRoundoverRadius: v })} />
           <div className="flex items-end">
             <div className="bg-gray-50 dark:bg-gray-750 rounded-md p-2 w-full">
               <div className="text-xs text-gray-500">Intern volumen</div>
@@ -290,8 +316,8 @@ export default function CabinetDesigner() {
               <StatCard label="Alignment" value={portedResult.alignmentType} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <NumberInput label="Port diameter" unit="mm" value={portDiameter} onChange={setPortDiameter} />
-              <NumberInput label="Antal porte" value={numPorts} min={1} max={4} onChange={setNumPorts} />
+              <NumberInput label="Port diameter" unit="mm" value={portDiameter} onChange={(v) => setPort({ diameter: v })} />
+              <NumberInput label="Antal porte" value={numPorts} min={1} max={4} onChange={(v) => setPort({ numPorts: v })} />
               <StatCard label="Port længde" value={portResult.portLength.toFixed(0)} unit="mm" />
             </div>
           </div>

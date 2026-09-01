@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useDriverStore } from '@/store/driverStore'
+import { useDesignStore } from '@/store/designStore'
 import { Card, Select, NumberInput, Badge, Button } from '@/components/common/UI'
 import { buildCrossoverFilter, applyCrossover, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover } from '@/lib/acoustic/autoDesign'
-import type { CrossoverType, FrequencyDataPoint } from '@/types'
+import type { CrossoverType, FrequencyDataPoint, DesignBand } from '@/types'
 
 const XOVER_TYPES: { value: CrossoverType; label: string }[] = [
   { value: 'first_order', label: '1. ordens (6 dB/okt)' },
@@ -24,41 +25,20 @@ const WAYS_OPTIONS = [
 const ROLE_LABELS: Record<string, string> = {
   low: 'Bas',
   mid: 'Mellem',
+  mid2: 'Mellem 2',
   high: 'Diskant',
 }
 
 export default function CrossoverDesigner() {
   const { drivers } = useDriverStore()
-  const [ways, setWays] = useState<2 | 3 | 4>(3)
-  const [bands, setBands] = useState<{
-    driverId: string
-    role: 'low' | 'mid' | 'high'
-    lowpassFreq: number
-    lowpassType: CrossoverType
-    highpassFreq: number
-    highpassType: CrossoverType
-    gain: number
-    polarity: 0 | 180
-    delay: number
-  }[]>([
-    { driverId: '', role: 'low', lowpassFreq: 150, lowpassType: 'LR4', highpassFreq: 0, highpassType: 'LR4', gain: 0, polarity: 0, delay: 0 },
-    { driverId: '', role: 'mid', lowpassFreq: 1250, lowpassType: 'LR4', highpassFreq: 150, highpassType: 'LR4', gain: 0, polarity: 0, delay: 0 },
-    { driverId: '', role: 'high', lowpassFreq: 0, lowpassType: 'LR4', highpassFreq: 1250, highpassType: 'LR4', gain: 0, polarity: 0, delay: 0 },
-  ])
+  const { design, setWays, setBands, updateBand } = useDesignStore()
+  const ways = design.ways
+  const bands = design.bands
 
   // Adjust bands when ways changes
   function handleWaysChange(value: string) {
     const n = parseInt(value) as 2 | 3 | 4
     setWays(n)
-    if (n === 2 && bands.length > 2) {
-      setBands(bands.slice(0, 2).map((b, i) => ({ ...b, role: i === 0 ? 'low' : 'high' })))
-    } else if (n === 4 && bands.length < 4) {
-      setBands([...bands, { driverId: '', role: 'mid', lowpassFreq: 5000, lowpassType: 'LR4', highpassFreq: 1250, highpassType: 'LR4', gain: 0, polarity: 0, delay: 0 }])
-    }
-  }
-
-  function updateBand(index: number, updates: Partial<typeof bands[0]>) {
-    setBands(bands.map((b, i) => (i === index ? { ...b, ...updates } : b)))
   }
 
   // Auto-suggest: compute crossover from selected drivers
@@ -105,12 +85,12 @@ export default function CrossoverDesigner() {
     if (result.bands.length === 0) return
 
     // Build new bands array from suggestion, preserving structure for unused slots
-    const newBands = [...bands]
+    const newBands: DesignBand[] = [...bands]
     for (let i = 0; i < ways && i < result.bands.length; i++) {
       const sug = result.bands[i]!
       newBands[i] = {
         driverId: sug.driverId,
-        role: sug.role as 'low' | 'mid' | 'high',
+        role: sug.role as DesignBand['role'],
         lowpassFreq: sug.lowpassFreq,
         lowpassType: sug.lowpassType,
         highpassFreq: sug.highpassFreq,

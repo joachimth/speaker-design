@@ -2,6 +2,7 @@ import { useEffect, useRef, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDriverStore } from '@/store/driverStore'
 import { useProjectStore, downloadJSON, importJSONFile } from '@/store/projectStore'
+import { useDesignStore } from '@/store/designStore'
 import { Card, Badge, StatCard, Button } from '@/components/common/UI'
 import { recommendCabinetType } from '@/lib/acoustic/thieleSmall'
 import { baffleStepFrequency } from '@/lib/acoustic/baffle'
@@ -10,16 +11,17 @@ import type { DesignState } from '@/types'
 export default function ProjectOverview() {
   const { drivers } = useDriverStore()
   const navigate = useNavigate()
-  const { projects, loadProjects, deleteProject, setLoadedDesign } = useProjectStore()
+  const { projects, loadProjects, deleteProject } = useProjectStore()
+  const { loadDesign } = useDesignStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadProjects()
   }, [loadProjects])
 
-  // Load a saved project into SystemSimulation
-  function handleLoadProject(designState: DesignState) {
-    setLoadedDesign(designState)
+  // Load a saved project into the shared design store, then navigate to System Sim.
+  function handleLoadProject(designState: DesignState, name?: string, projectId?: string) {
+    loadDesign(designState, name, projectId)
     navigate('/system')
   }
 
@@ -35,13 +37,13 @@ export default function ProjectOverview() {
     await deleteProject(id)
   }
 
-  // Import a JSON file as a design state and load it
+  // Import a JSON file as a design state and load it into the shared store
   async function handleImportJSON(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     try {
       const data = await importJSONFile(file) as DesignState
-      setLoadedDesign(data)
+      loadDesign(data, file.name.replace(/\.json$/i, ''))
       navigate('/system')
     } catch (err) {
       console.error('Import failed:', err)
@@ -202,7 +204,7 @@ export default function ProjectOverview() {
                   <div className="flex gap-1 ml-2">
                     {project.designState && (
                       <Button
-                        onClick={() => handleLoadProject(project.designState!)}
+                        onClick={() => handleLoadProject(project.designState!, project.name, project.id)}
                         variant="primary"
                         size="sm"
                       >
