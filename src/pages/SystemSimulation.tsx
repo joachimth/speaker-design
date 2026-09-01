@@ -10,8 +10,10 @@ import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, type RoomOptimiz
 import { calcInRoomResponse, ROOM_PRESETS, DEFAULT_ROOM_PARAMS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON } from '@/lib/acoustic/biquadExport'
+import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
+import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
-import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project } from '@/types'
+import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project, Cabinet } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -668,8 +670,102 @@ export default function SystemSimulation() {
   }, [processedBands, summedResponse])
 
   // -----------------------------------------------------------------------
+  // Impedance simulation (woofer / low-frequency driver)
+  // -----------------------------------------------------------------------
+  const impedanceResult = useMemo(() => {
+    const lowBand = processedBands.find((pb) => pb.driver && (pb.driver.type === 'woofer' || pb.driver.type === 'subwoofer'))
+    if (!lowBand?.driver) return null
+    const driver = lowBand.driver
+    const vb = portVb ?? 50 // fallback if not set
+    const fb = portFb ?? undefined
+    return calcImpedance({
+      ts: driver.tsParams,
+      cabinetType,
+      boxVolume: vb,
+      fb: cabinetType === 'ported' ? fb : undefined,
+      fStart: 10,
+      fEnd: 20000,
+      pointsPerOctave: 24,
+    })
+  }, [processedBands, cabinetType, portVb, portFb])
+
+  const impMetrics = useMemo(() => {
+    if (!impedanceResult) return null
+    const lowBand = processedBands.find((pb) => pb.driver && (pb.driver.type === 'woofer' || pb.driver.type === 'subwoofer'))
+    if (!lowBand?.driver) return null
+    return impedanceMetrics(impedanceResult, lowBand.driver.tsParams)
+  }, [impedanceResult, processedBands])
+
+  // -----------------------------------------------------------------------
+  // System phase and group delay
+  // -----------------------------------------------------------------------
+  const systemPhaseResult = useMemo(() => {
+    const activeBands = processedBands.slice(0, ways)
+    if (activeBands.length === 0) return null
+
+    const activeDrivers = activeBands.map((pb) => pb.driver).filter((d): d is Driver => !!d)
+    if (activeDrivers.length === 0) return null
+
+    const cabinet: Cabinet = {
+      type: cabinetType,
+      dimensions: {
+        width: baffleWidth,
+        height: baffleHeight,
+        depth: 0,
+        wallThickness: 0,
+        baffleWidth,
+        baffleHeight,
+        frontRoundoverRadius: roundoverRadius,
+      },
+      internalVolume: portVb ?? 0,
+    }
+
+    const crossover = {
+      ways: ways as 2 | 3 | 4,
+      bands: activeBands.map((pb) => ({
+        id: `${pb.band.role}-${pb.band.driverId}`,
+        driverId: pb.band.driverId,
+        driverRole: pb.band.role === 'low' ? 'low' as const : pb.band.role === 'high' ? 'high' as const : 'mid' as const,
+        highpassFreq: pb.band.highpassFreq,
+        lowpassFreq: pb.band.lowpassFreq,
+        highpassType: pb.band.highpassType,
+        lowpassType: pb.band.lowpassType,
+        polarity: pb.band.polarity,
+        delay: pb.band.delay,
+        gain: pb.band.gain,
+      })),
+    }
+
+    return calcSystemPhase(activeDrivers, crossover, cabinet)
+  }, [processedBands, ways, cabinetType, baffleWidth, baffleHeight, roundoverRadius, portVb])
+
+  const gdAssessment = useMemo(() => {
+    if (!systemPhaseResult) return null
+    return assessGroupDelay(systemPhaseResult.systemGroupDelay)
+  }, [systemPhaseResult])
+
+  // -----------------------------------------------------------------------
   // Auto-select drivers by type when ways changes or on first load
   // -----------------------------------------------------------------------
+  useEffect(() => {
+    if (drivers.length === 0) return
+    setBands((prev) => {
+      const active = prev.slice(0, ways)
+      const roleToType: Record<string, string[]> = {
+        low: ['woofer', 'subwoofer'],
+        mid: ['midrange', 'fullrange'],
+        mid2: ['midrange', 'fullrange', 'tweeter'],
+        high: ['tweeter'],
+      }
+      return active.map((band) => {
+        if (band.driverId && drivers.find((d) => d.id === band.driverId)) return band
+        // Auto-pick first driver matching the role type
+        const preferredTypes = roleToType[band.role] || []
+        const match = drivers.find((d) => preferredTypes.includes(d.type))
+        return { ...band, driverId: match?.id || drivers[0]?.id || '' }
+      })
+    })
+  }, [drivers, ways])
   useEffect(() => {
     if (drivers.length === 0) return
     setBands((prev) => {
@@ -1317,6 +1413,104 @@ export default function SystemSimulation() {
               Samme data som isometrisk flade.
             </p>
             <DirectivitySurface polar={systemPolarDense.map} />
+          </div>
+        </Card>
+      )}
+
+      {/* Impedance simulation */}
+      {impedanceResult && impMetrics && (
+        <Card title="Impedans (simuleret)">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Simuleret elektrisk input-impedans for bas-enheden i det valgte kabinet.
+              Viser resonans-peak, impedans-minimum og fase-forløb.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Z max" value={impMetrics.zMax.toFixed(1)} unit="Ω" />
+              <StatCard label=" ved" value={impMetrics.fMax.toFixed(0)} unit="Hz" />
+              <StatCard label="Z min" value={impMetrics.zMin.toFixed(1)} unit="Ω" />
+              <StatCard label=" ved" value={impMetrics.fMin.toFixed(0)} unit="Hz" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <StatCard label="Nominal" value={impMetrics.nominal.toFixed(1)} unit="Ω" />
+              <StatCard label="Fase min" value={impMetrics.phaseMin.toFixed(0)} unit="°" />
+              <StatCard label=" ved" value={impMetrics.fPhaseMin.toFixed(0)} unit="Hz" />
+            </div>
+            <ResponsivePlot
+              data={[
+                { x: impedanceResult.freq, y: impedanceResult.magnitude, name: 'Impedans', color: '#f97316' },
+                { x: impedanceResult.freq, y: impedanceResult.phase, name: 'Fase', color: '#3b82f6', dash: true },
+              ]}
+              yRange={[-90, Math.max(impMetrics.zMax * 1.2, 50)]}
+              yLabel="Ω / °"
+            />
+            <p className="text-xs text-gray-400">
+              Orange kurve = impedans (Ω, venstre akse). Blå stiplet = fase (°).
+              Bemærk: ved ported kabinet vises dobbelt-peak med dip ved port-tuning (fb).
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* System phase and group delay */}
+      {systemPhaseResult && gdAssessment && (
+        <Card title="System fase & gruppetid">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Fase-respons og gruppetid for det samlede system. Gruppetid er den negative
+              afledte af fasen og angiver hvor meget forskellige frekvenser forsinkes.
+              Flad gruppetid = god transient-gengivelse.
+            </p>
+            <div
+              className={`rounded-md p-3 border text-sm ${
+                gdAssessment.rating === 'good'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                  : gdAssessment.rating === 'acceptable'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+              }`}
+            >
+              {gdAssessment.description}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Peak gruppetid" value={gdAssessment.peakGd.toFixed(1)} unit="ms" />
+              <StatCard label=" ved" value={gdAssessment.fPeakGd.toFixed(0)} unit="Hz" />
+              <StatCard label="GD @ 100 Hz" value={gdAssessment.gd100Hz.toFixed(1)} unit="ms" />
+              <StatCard label="GD @ 1 kHz" value={gdAssessment.gd1kHz.toFixed(2)} unit="ms" />
+            </div>
+            <ResponsivePlot
+              data={[
+                { x: systemPhaseResult.systemPhase.freq, y: systemPhaseResult.systemPhase.phase, name: 'System fase', color: '#f97316' },
+                ...systemPhaseResult.perBand.map((band, i) => ({
+                  x: band.freq,
+                  y: band.phaseDeg,
+                  name: `Bånd ${i + 1} fase`,
+                  color: COLORS[i] ?? '#6b7280',
+                  dash: true,
+                })),
+              ]}
+              yRange={[-450, 90]}
+              yLabel="°"
+            />
+            <ResponsivePlot
+              data={[
+                { x: systemPhaseResult.systemGroupDelay.freq, y: systemPhaseResult.systemGroupDelay.groupDelay, name: 'System gruppetid', color: '#3b82f6' },
+                ...systemPhaseResult.perBand.map((band, i) => ({
+                  x: band.freq,
+                  y: band.groupDelayMs,
+                  name: `Bånd ${i + 1} GD`,
+                  color: COLORS[i] ?? '#6b7280',
+                  dash: true,
+                })),
+              ]}
+              yRange={[0, Math.max(gdAssessment.peakGd * 1.3, 5)]}
+              yLabel="ms"
+            />
+            <p className="text-xs text-gray-400">
+              Øverste plot: fase-respons (orange = system, stiplet = per bånd).
+              Nederste plot: gruppetid (blå = system, stiplet = per bånd).
+              Peaks i gruppetid ved delefilter-frekvenser indikerer fase-misalignering.
+            </p>
           </div>
         </Card>
       )}
