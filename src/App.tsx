@@ -8,6 +8,7 @@ import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
 import CabinetMatch from './pages/CabinetMatch'
 import DesignCompare from './pages/DesignCompare'
+import { WaveguideDesigner } from './components/WaveguideDesigner'
 import { useDriverStore } from './store/driverStore'
 import { useDesignStore } from '@/store/designStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -60,6 +61,7 @@ export default function App() {
     { to: '/simulation', label: 'Simulering' },
     { to: '/system', label: 'System Sim.' },
     { to: '/compare', label: 'A/B Sammenlign' },
+    { to: '/waveguide', label: 'Waveguide' },
   ]
 
   return (
@@ -194,6 +196,7 @@ export default function App() {
           <Route path="/simulation" element={<SimulationView />} />
           <Route path="/system" element={<SystemSimulation />} />
           <Route path="/compare" element={<DesignCompare />} />
+          <Route path="/waveguide" element={<WaveguideDesigner />} />
         </Routes>
       </main>
 

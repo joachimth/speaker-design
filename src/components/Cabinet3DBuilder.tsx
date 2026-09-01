@@ -8,6 +8,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import { Card, Button, NumberInput } from '@/components/common/UI'
 import type { Driver } from '@/types'
+import { exportCabinetSTL, downloadSTL } from '@/lib/stl/stlExport'
 
 export interface DriverPlacement {
   driverId: string
@@ -376,6 +377,31 @@ export function Cabinet3DBuilder({
           <Button onClick={resetView} variant="ghost" size="sm">↺ 3/4 view</Button>
           <Button onClick={frontView} variant="ghost" size="sm">📋 Front</Button>
           <Button onClick={topView} variant="ghost" size="sm">⬆ Top</Button>
+          <Button
+            onClick={() => {
+              const cutouts = placements.map((p) => {
+                const driver = drivers.find((d) => d.id === p.driverId)
+                const r = (driver?.dimensions?.cutoutDiameter || 100) / 2
+                return { x: p.x, y: cabinetHeight / 2 - p.y, radius: r }
+              })
+              const stl = exportCabinetSTL({
+                width: cabinetWidth,
+                height: cabinetHeight,
+                depth: cabinetDepth,
+                wallThickness,
+                baffleWidth,
+                baffleHeight,
+                driverCutouts: cutouts,
+                includeShell: true,
+                includeBaffle: true,
+              })
+              downloadSTL(stl, `cabinet-${cabinetWidth}x${cabinetHeight}x${cabinetDepth}.stl`)
+            }}
+            variant="secondary"
+            size="sm"
+          >
+            🖨️ Eksporter STL
+          </Button>
           <span className="text-xs text-gray-500 ml-2">Træk for at rotere · Scroll for zoom · Klik+træk driver for at flytte</span>
         </div>
 

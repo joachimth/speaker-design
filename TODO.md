@@ -42,7 +42,7 @@
 - [x] Driver placement on baffle (Cabinet3DBuilder drag-to-position)
 - [x] Internal volume calculation
 - [x] Baffle dimension editor
-- [ ] STL export
+- [x] STL export (stlExport.ts: binary STL with hollow box + driver cutouts)
 
 ### Baffle step
 - [x] Baffle step diffraction model
@@ -98,10 +98,10 @@
 - [x] Port tuning calculator
 
 ### Waveguide designer
-- [ ] Oblate spheroid (OS) waveguide parametric design
-- [ ] Waveguide profile visualization
-- [ ] Directivity control estimation
-- [ ] STL export for 3D printing
+- [x] Oblate spheroid (OS) waveguide parametric design (WaveguideDesigner.tsx)
+- [x] Waveguide profile visualization (3D lathe preview + 2D profile)
+- [x] Directivity control estimation (DI + coverage vs frequency plot)
+- [x] STL export (stlExport.ts: binary STL with hollow box + driver cutouts) for 3D printing
 
 ### DSP export
 - [x] MiniDSP 2x4 config output (via Cabinet Match)
@@ -123,4 +123,4 @@
 - [x] Unit preferences (metric/imperial) (settingsStore)
 - [x] Help/intro tour (HelpTour)
 - [x] Print-friendly views (@media print CSS)
-- [ ] Performance optimization (web workers for simulation)
+- [x] Performance optimization (web workers for simulation) (useSimulationWorker hook + simulationWorker.ts)

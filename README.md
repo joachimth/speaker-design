@@ -33,23 +33,37 @@ Multi-way (2/3/4-vejs) system designer med driver assignment per bånd. Crossove
 - **Break-in simulation** - driver break-in over tid
 
 ### Kabinetberegner
-Sealed, ported og transmission line med auto-anbefaling ud fra Qts/Fs. Baffle dimension editor og intern volumenberegning.
+Sealed, ported og transmission line med auto-anbefaling ud fra Qts/Fs. Baffle dimension editor og intern volumenberegning. **Kabinet sammenligning** viser sealed (3 Qtc varianter), ported og TL side-ved-side. **3D kabinet builder** (Three.js) med gennemsigtige vægge, driver placement på baffel (klik+træk for at flytte), og **STL export** til 3D print.
+
+### OS Waveguide Designer
+Oblate Spheroid (OS) waveguide fra Dr. Earl Geddes. Parametrisk design af throat/mouth/depth/eccentricitet, 3D preview med LatheGeometry, direktivitets-estimat (DI + coverage vs frekvens), og STL export til 3D print af waveguiden.
+
+### Graf Digitizer
+Interaktiv canvas-baseret digitizer til at ekstrahere frekvenskurver (SPL eller impedans) fra PDF datablade eller billeder. 4-punkts akse-kalibrering (log X, lineær Y), manuel klik-til-punkt mode, eller auto farve-mask detektion med tærskel. Understøtter fler-sidet PDF navigation.
 
 ### Projektstyring
-Gem hele designs (enheder, delefilter, baffel, kabinet, rum-params) i browseren via IndexedDB. Eksporter som JSON fil og importer igen senere eller på en anden maskine. Projektlister på Overblik-siden med indlæs, eksporter og slet.
+Gem hele designs (enheder, delefilter, baffel, kabinet, rum-params) i browseren via IndexedDB. Eksporter som JSON fil og importer igen senere eller på en anden maskine. Projektlister på Overblik-siden med indlæs, eksporter og slet. **A/B sammenligning** af to gemte projekter på samme plot med differenskurve og metrikker. **Print/PDF** knap til udskrift eller arkivering.
 
 ### Biquad Export
-Konverter delefilter-design (LR2/LR4/LR8, BW2/BW4, 1. orden) til biquad filter coefficients direkte fra System Simulering. Vælg sample rate (48/96/44.1 kHz), få tekst format til MiniDSP advanced biquad input, Q23 hex til XML redigering, eller struktureret JSON. Lukker gapet mellem simulering og implementering på din MiniDSP 2x4.
+Konverter delefilter-design (LR2/LR4/LR8, BW2/BW4, 1. orden) til biquad filter coefficients direkte fra System Simulering. Vælg sample rate (48/96/44.1 kHz), få tekst format til MiniDSP advanced biquad input, Q23 hex til XML redigering, eller struktureret JSON. Understøtter både **MiniDSP 2x4** (4 outputs) og **MiniDSP 4x10 HD** (10 outputs, op til 4-vejs + sub).
+
+### Unit preferences & Help
+Skift mellem metriske (mm) og imperiale (tommer) enheder i headeren. Intro-tour (9 trins rundvisning) vises ved første besøg og kan genaktiveres via ?-knappen i headeren.
+
+### Performance
+Web Worker offloader tung simulations-beregning (frekvensgang, delefilter, kabinet-respons) til en baggrunds-tråd så UI forbliver responsiv. `useSimulationWorker` hook med 100ms debounce.
 
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite
-- **UI:** Tailwind CSS (responsiv, dark mode)
-- **PDF:** PDF.js (browser-baseret ekstraktion)
+- **UI:** Tailwind CSS (responsiv, dark mode, print-friendly)
+- **3D:** Three.js (kabinet builder + waveguide designer)
+- **PDF:** PDF.js (browser-baseret ekstraktion + graf digitizer)
 - **Plotting:** Letvægts SVG-grafer (ingen tunge chart-biblioteker)
 - **Storage:** IndexedDB (Dexie) - alt kører client-side, ingen backend
-- **State:** Zustand
-- **Test:** Vitest (180 tests, 10 testfiler - akustik-matematikken er testdækket)
+- **State:** Zustand (with persist for settings)
+- **Workers:** Web Worker for simulation offloading
+- **Test:** Vitest (246 tests, 13 testfiler - akustik-matematikken er testdækket)
 - **Deploy:** GitHub Pages (static) via GitHub Actions, eller Docker (nginx)
 
 ## Akustik-matematik
