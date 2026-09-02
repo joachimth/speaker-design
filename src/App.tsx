@@ -32,11 +32,9 @@ export default function App() {
 
   useEffect(() => {
     async function init() {
-      const count = await db.drivers.count()
-      if (count === 0) {
-        for (const driver of SEED_DRIVERS) {
-          await db.drivers.put(driver)
-        }
+      // Upsert all seed drivers so new additions appear even if DB already has older data
+      for (const driver of SEED_DRIVERS) {
+        await db.drivers.put(driver)
       }
       setSeeded(true)
       await loadDrivers()
