@@ -144,9 +144,14 @@
 - [ ] Add aria-labels for accessibility (only 7 in entire app; buttons/icons need screen reader labels)
 
 ### Features to consider
-- [ ] Driver frequency response smoothing (Psychoacoustic smoothing like smoothing in REW)
-- [ ] Crossover auto-optimization with target curve (currently auto-design sets gains/delays but no target curve matching)
-- [ ] impedance matching at crossover frequency (verify driver impedance is similar at crossover point)
-- [ ] Export simulation results as image/PNG (frequency response plots)
-- [ ] Multi-subwoofer alignment tool (time-align multiple subs)
-- [ ] Linkwitz transform for sealed enclosure equalization
+- [x] Driver frequency response smoothing (Psychoacoustic 1/N-octave smoothing, smoothing.ts)
+- [x] Crossover auto-optimization with target curve (targetCurve.ts: flat, Harman, tilted, custom)
+- [x] Impedance matching at crossover frequency (impedanceMatch.ts + ImpedanceMatchCard)
+- [x] Export simulation results as image/PNG (pngExport.ts, button on target curve plot)
+- [x] Multi-subwoofer alignment tool (multiSub.ts + MultiSubAlignmentCard in CabinetDesigner)
+- [x] Linkwitz transform for sealed enclosure equalization (linkwitzTransform.ts + LinkwitzTransformCard)
+
+### Sep 3 additions
+- [x] Crossover frequency sliders with linked bands + live phase display (CrossoverSlider.tsx)
+- [x] Separate "Auto delefilter" and "Auto fase/delay" buttons in SystemSimulation
+- [x] Target curve optimizer UI with smooth/flat/Harman/tilted selector + plot comparison

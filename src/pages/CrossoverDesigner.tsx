@@ -9,6 +9,8 @@ import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
 import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
 import { PhaseAlignmentCard } from '@/components/PhaseAlignmentCard'
 import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
+import { CrossoverSlider } from '@/components/CrossoverSlider'
+import { ImpedanceMatchCard } from '@/components/ImpedanceMatchCard'
 import type { CrossoverType, FrequencyDataPoint, DesignBand, Driver, Crossover, Cabinet } from '@/types'
 
 const XOVER_TYPES: { value: CrossoverType; label: string }[] = [
@@ -103,6 +105,30 @@ export default function CrossoverDesigner() {
         polarity: sug.polarity,
         delay: sug.delay,
       }
+    }
+    setBands(newBands)
+  }
+
+  // Crossover slider: move both lower band's lowpass and upper band's highpass together
+  function handleCrossoverFreqChange(lowerIdx: number, freq: number) {
+    const newBands = [...bands]
+    if (lowerIdx < newBands.length) {
+      newBands[lowerIdx] = { ...newBands[lowerIdx]!, lowpassFreq: freq }
+    }
+    if (lowerIdx + 1 < newBands.length) {
+      newBands[lowerIdx + 1] = { ...newBands[lowerIdx + 1]!, highpassFreq: freq }
+    }
+    setBands(newBands)
+  }
+
+  // Crossover type change: update both bands' filter types
+  function handleCrossoverTypeChange(lowerIdx: number, type: CrossoverType) {
+    const newBands = [...bands]
+    if (lowerIdx < newBands.length) {
+      newBands[lowerIdx] = { ...newBands[lowerIdx]!, lowpassType: type }
+    }
+    if (lowerIdx + 1 < newBands.length) {
+      newBands[lowerIdx + 1] = { ...newBands[lowerIdx + 1]!, highpassType: type }
     }
     setBands(newBands)
   }
@@ -503,6 +529,21 @@ function findClosestIndex(arr: number[], target: number): number {
           </div>
         </Card>
       ))}
+
+      {/* Crossover frequency sliders with live phase */}
+      <CrossoverSlider
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        onCrossoverFreqChange={handleCrossoverFreqChange}
+        onCrossoverTypeChange={handleCrossoverTypeChange}
+      />
+
+      {/* Impedance matching at crossover points */}
+      <ImpedanceMatchCard
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        drivers={drivers}
+      />
 
       {/* Preview summary */}
       <Card title="Delingsfilter oversigt">

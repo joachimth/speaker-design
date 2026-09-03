@@ -8,6 +8,9 @@ import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, acousticCenterDepth, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
+import { generateTargetCurve, optimizeForTargetCurve, type TargetCurveType } from '@/lib/acoustic/targetCurve'
+import { psychoacousticSmooth } from '@/lib/acoustic/smoothing'
+import { exportPlotToPng } from '@/lib/utils/pngExport'
 import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/biquadExport'
@@ -160,6 +163,9 @@ export default function SystemSimulation() {
 
   // Auto-tune result state
   const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
+  const [targetCurveType, setTargetCurveType] = useState<TargetCurveType>('flat')
+  const [targetTuneResult, setTargetTuneResult] = useState<{ optimizedGains: number[]; improvement: number; error: number } | null>(null)
+  const targetPlotRef = useRef<HTMLDivElement>(null)
 
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
 
@@ -467,19 +473,18 @@ export default function SystemSimulation() {
     setAutoReasoning(result.reasoning)
     if (result.bands.length === 0) return
 
+    // ONLY update crossover frequencies and types — preserve gain/polarity/delay
     const newBands = [...bands]
     for (let i = 0; i < ways && i < result.bands.length; i++) {
       const sug = result.bands[i]!
       newBands[i] = {
+        ...newBands[i]!,
         driverId: sug.driverId,
         role: sug.role as Band['role'],
         lowpassFreq: sug.lowpassFreq,
         lowpassType: sug.lowpassType,
         highpassFreq: sug.highpassFreq,
         highpassType: sug.highpassType,
-        gain: sug.gain,
-        polarity: sug.polarity,
-        delay: sug.delay,
       }
     }
     setBands(newBands)
@@ -487,6 +492,44 @@ export default function SystemSimulation() {
     // Also auto-suggest baffle based on new crossover frequencies
     const xoFreqs = result.bands.map((b) => b.lowpassFreq)
     handleAutoBaffle(selectedDrivers, xoFreqs)
+  }
+
+  // Auto phase/delay only: set polarity and delay from driver acoustic centers
+  // without touching crossover frequencies or types
+  function handleAutoPhaseDelay() {
+    const selectedDrivers = bands
+      .slice(0, ways)
+      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .filter((d): d is Driver => !!d)
+
+    if (selectedDrivers.length < 2) {
+      setAutoReasoning(['Vælg mindst 2 enheder før auto fase/delay.'])
+      return
+    }
+
+    const result = suggestCrossover(selectedDrivers, ways)
+    // Only apply gain, polarity, and delay — preserve crossover freqs/types
+    const newBands = [...bands]
+    const reasoning: string[] = [
+      'Auto fase/delay:',
+    ]
+    for (let i = 0; i < ways && i < result.bands.length; i++) {
+      const sug = result.bands[i]!
+      const old = newBands[i]!
+      newBands[i] = {
+        ...old,
+        gain: sug.gain,
+        polarity: sug.polarity,
+        delay: sug.delay,
+      }
+      const driver = selectedDrivers[i]
+      reasoning.push(
+        `${driver?.manufacturer} ${driver?.model}: gain ${sug.gain.toFixed(1)} dB, ` +
+        `polaritet ${sug.polarity}°, delay ${sug.delay.toFixed(2)} ms`,
+      )
+    }
+    setBands(newBands)
+    setAutoReasoning(reasoning)
   }
 
   // Auto-suggest baffle dimensions from drivers and crossover frequencies
@@ -561,6 +604,46 @@ export default function SystemSimulation() {
     }
     setBands(newBands)
   }
+
+  // Target curve optimization
+  function handleTargetTune() {
+    const activeBands = processedBands.slice(0, ways)
+    if (activeBands.length < 2) {
+      setTargetTuneResult(null)
+      return
+    }
+
+    const bandCurvesZero = activeBands.map((pb) =>
+      pb.curve.map((p) => ({ freq: p.freq, magnitude: p.magnitude - pb.band.gain })),
+    )
+    const initialGains = activeBands.map((pb) => pb.band.gain)
+
+    const result = optimizeForTargetCurve(
+      bandCurvesZero,
+      freqs,
+      { type: targetCurveType },
+      initialGains,
+      6,
+    )
+
+    setTargetTuneResult({
+      optimizedGains: result.optimizedGains,
+      improvement: result.improvement,
+      error: result.error,
+    })
+
+    // Apply optimized gains
+    const newBands = [...bands]
+    for (let i = 0; i < ways && i < result.optimizedGains.length; i++) {
+      newBands[i] = { ...newBands[i]!, gain: result.optimizedGains[i]! }
+    }
+    setBands(newBands)
+  }
+
+  // Compute target curve for display
+  const targetCurveDisplay = useMemo(() => {
+    return generateTargetCurve(freqs, { type: targetCurveType })
+  }, [freqs, targetCurveType])
 
   // -----------------------------------------------------------------------
   const fStep = baffleStepFrequency(baffleWidth)
@@ -666,6 +749,12 @@ export default function SystemSimulation() {
       }
     })
   }, [processedBands, freqs])
+
+  // Smoothed system response for display (psychoacoustic smoothing)
+  const smoothedSummed = useMemo(() => {
+    if (!summedResponse) return null
+    return psychoacousticSmooth(summedResponse, smoothingFraction)
+  }, [summedResponse, smoothingFraction])
 
   // -----------------------------------------------------------------------
   // System spinorama (using summed on-axis response + largest driver for directivity)
@@ -1005,12 +1094,64 @@ export default function SystemSimulation() {
           <Button onClick={handleAutoCrossover} variant="primary">
             Auto delefilter + baffel
           </Button>
+          <Button onClick={handleAutoPhaseDelay} variant="primary">
+            Auto fase/delay
+          </Button>
           <Button onClick={() => handleAutoBaffle()} variant="secondary">
             Kun auto baffel
           </Button>
           <Button onClick={handleAutoTune} variant="secondary">
             Auto-tilpas til in-room
           </Button>
+        </div>
+
+        {/* Target curve optimizer */}
+        <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-2">
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-xs text-gray-500 mb-1">Målkurve</label>
+              <select
+                value={targetCurveType}
+                onChange={(e) => setTargetCurveType(e.target.value as TargetCurveType)}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+              >
+                <option value="flat">Flad (0 dB)</option>
+                <option value="harman">Harman target (+2 dB tilt)</option>
+                <option value="tilted">Tiltet (-0.5 dB/okt)</option>
+              </select>
+            </div>
+            <Button onClick={handleTargetTune} variant="primary" size="sm">
+              Optimer mod målkurve
+            </Button>
+          </div>
+          {targetTuneResult && (
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded bg-green-50 dark:bg-green-900/20 px-2 py-1">
+                Forbedring: {targetTuneResult.improvement.toFixed(2)} dB
+              </div>
+              <div className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-1">
+                Restfejl: {targetTuneResult.error.toFixed(2)} dB RMS
+              </div>
+            </div>
+          )}
+          {summedResponse && (
+            <div ref={targetPlotRef}>
+              <ResponsivePlot
+                data={[
+                  { x: freqs, y: smoothedSummed?.map((p) => p.magnitude) ?? [], name: 'System (smoothed)', color: '#3b82f6' },
+                  { x: freqs, y: targetCurveDisplay, name: 'Målkurve', color: '#10b981', dash: true },
+                ]}
+                yRange={[-20, 10]}
+                yLabel="dB"
+              />
+              <button
+                onClick={() => targetPlotRef.current && exportPlotToPng(targetPlotRef.current, 'target-curve')}
+                className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 mt-1"
+              >
+                📷 Eksport PNG
+              </button>
+            </div>
+          )}
         </div>
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Baffelstep ved" value={fStep.toFixed(0)} unit="Hz" />

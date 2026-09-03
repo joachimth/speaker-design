@@ -7,6 +7,8 @@ import PanelResonanceCard from '@/components/PanelResonanceCard'
 import ParameterSetSelector from '@/components/driver/ParameterSetSelector'
 import BreakInCard from '@/components/BreakInCard'
 import { CabinetComparisonCard } from '@/components/CabinetComparisonCard'
+import { LinkwitzTransformCard } from '@/components/LinkwitzTransformCard'
+import { MultiSubAlignmentCard } from '@/components/MultiSubAlignmentCard'
 import type { DriverPlacement } from '@/components/Cabinet3DBuilder'
 const Cabinet3DBuilder = lazy(() => import('@/components/Cabinet3DBuilder').then(m => ({ default: m.Cabinet3DBuilder })))
 import {
@@ -371,6 +373,17 @@ export default function CabinetDesigner() {
           </div>
         </Card>
       )}
+
+      {/* Linkwitz Transform for sealed cabinets */}
+      {cabinetType === 'sealed' && sealedResult && (
+        <LinkwitzTransformCard
+          driver={selectedDriver}
+          boxVolume={sealedResult.vb}
+        />
+      )}
+
+      {/* Multi-subwoofer alignment tool */}
+      <MultiSubAlignmentCard />
     </div>
   )
 }
