@@ -18,6 +18,8 @@ import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/biquadExport'
 import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
 import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
+import { computePreferenceScore, type PreferenceScoreResult } from '@/lib/acoustic/preferenceScore'
+import { optimizeForPreferenceScore, type OptimizationResult as PrefOptResult } from '@/lib/acoustic/preferenceOptimizer'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
 import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
@@ -168,6 +170,8 @@ export default function SystemSimulation() {
 
   // Auto-tune result state
   const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
+  const [prefOptResult, setPrefOptResult] = useState<PrefOptResult | null>(null)
+  const [prefOptimizing, setPrefOptimizing] = useState(false)
   const [targetCurveType, setTargetCurveType] = useState<TargetCurveType>('flat')
   const [targetTuneResult, setTargetTuneResult] = useState<{ optimizedGains: number[]; improvement: number; error: number } | null>(null)
   const targetPlotRef = useRef<HTMLDivElement>(null)
@@ -774,6 +778,47 @@ export default function SystemSimulation() {
     return systemSpinorama.onAxis.reduce((a, b) => a + b, 0) / systemSpinorama.onAxis.length
   }, [systemSpinorama])
 
+  // Live preference score (Harman/Olive model)
+  const livePrefScore = useMemo((): PreferenceScoreResult | null => {
+    if (!systemSpinorama) return null
+    return computePreferenceScore(systemSpinorama)
+  }, [systemSpinorama])
+
+  // Auto-optimize for highest preference score
+  function handlePrefOptimize() {
+    const activeBands = bands.slice(0, ways)
+    if (activeBands.length < 2) return
+
+    setPrefOptimizing(true)
+    // Run in a microtask so the UI can update the button state
+    setTimeout(() => {
+      try {
+        const result = optimizeForPreferenceScore({
+          bands: activeBands.map((b) => ({ ...b })),
+          drivers,
+          ways,
+          baffleWidth,
+          baffleHeight,
+          cabinetType,
+          portFb: portFb ?? 0,
+          portVb: portVb ?? 0,
+          portDiameter,
+          numPorts,
+        })
+        setPrefOptResult(result)
+
+        // Apply optimized bands to the store
+        const newBands = [...bands]
+        for (let i = 0; i < ways && i < result.optimizedBands.length; i++) {
+          newBands[i] = { ...newBands[i]!, ...result.optimizedBands[i]! }
+        }
+        setBands(newBands)
+      } finally {
+        setPrefOptimizing(false)
+      }
+    }, 50)
+  }
+
   // -----------------------------------------------------------------------
   // In-room response simulation (room modes + boundary gain + smoothing)
   // -----------------------------------------------------------------------
@@ -1298,6 +1343,50 @@ export default function SystemSimulation() {
         onPolarityChange={(i, pol) => updateBand(i, { polarity: pol })}
         onDelayChange={(i, delay) => updateBand(i, { delay })}
       />
+
+      {/* Preference Score (Harman/Olive model) */}
+      {livePrefScore && (
+        <Card title="Præference Score (Harman/Olive model)">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Score" value={livePrefScore.score.toFixed(1)} unit="/10" />
+              <StatCard label="Med subwoofer" value={livePrefScore.scoreWithSub.toFixed(1)} unit="/10" />
+              <StatCard label="NBD On-Axis" value={livePrefScore.nbdOnAxis.toFixed(2)} unit="dB" />
+              <StatCard label="NBD In-Room" value={livePrefScore.nbdPredInRoom.toFixed(2)} unit="dB" />
+              <StatCard label="Bass extension" value={String(livePrefScore.lfxHz)} unit="Hz" />
+              <StatCard label="Bass kvalitet" value={livePrefScore.lfq.toFixed(2)} unit="dB" />
+              <StatCard label="Smoothness PIR" value={livePrefScore.smPredInRoom.toFixed(3)} unit="" />
+              <StatCard label="Smoothness SP" value={livePrefScore.smSoundPower.toFixed(3)} unit="" />
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                onClick={handlePrefOptimize}
+                disabled={prefOptimizing || ways < 2}
+                variant="primary"
+              >
+                {prefOptimizing ? 'Optimerer…' : 'Auto-optimer alle parametre'}
+              </Button>
+              <span className="text-xs text-gray-500">
+                Justerer delefrekvenser, gains, delays og polaritet for højeste score
+              </span>
+            </div>
+            {prefOptResult && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-3">
+                  <StatCard label="Før" value={prefOptResult.beforeScore.score.toFixed(1)} unit="/10" />
+                  <StatCard label="Efter" value={prefOptResult.afterScore.score.toFixed(1)} unit="/10" />
+                  <StatCard label="Forbedring" value={`${prefOptResult.improvement >= 0 ? '+' : ''}${prefOptResult.improvement.toFixed(1)}`} unit="pt" />
+                </div>
+                <div className="space-y-1">
+                  {prefOptResult.reasoning.map((line, i) => (
+                    <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Auto-tune result */}
       {tuneResult && (
