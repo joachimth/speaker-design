@@ -110,10 +110,37 @@ export function optimizeForTargetCurve(
     return { optimizedGains: [], optimizedResponse: [], targetCurve: [], error: 0, improvement: 0 }
   }
 
-  const targetCurve = generateTargetCurve(freqs, target)
+  const rawTarget = generateTargetCurve(freqs, target)
   const gains = [...initialGains]
   const stepSize = 0.5
   const maxIterations = 20
+
+  // Offset the target curve to match the system's average level over 100-10000 Hz.
+  // The raw target is a shape (0 dB reference); the system response includes driver
+  // sensitivity (~80 dB). Without offsetting, the optimizer would try to drag the
+  // entire response down to 0 dB instead of matching the target shape.
+  const refFreqs = freqs.filter((f) => f >= 100 && f <= 10000)
+  const refIndices = refFreqs.map((rf) => freqs.indexOf(rf))
+  let systemAvg = 0
+  for (const ri of refIndices) {
+    let sumLinear = 0
+    for (let b = 0; b < bandResponses.length; b++) {
+      const idx = findClosestIdx(bandResponses[b]!, freqs[ri]!)
+      const db = (bandResponses[b]![idx]?.magnitude ?? -100) + initialGains[b]!
+      sumLinear += Math.pow(10, db / 20)
+    }
+    systemAvg += 20 * Math.log10(Math.max(sumLinear, 1e-10))
+  }
+  systemAvg /= Math.max(refIndices.length, 1)
+
+  // Also compute the raw target average over the same band to center the shape
+  let targetAvg = 0
+  for (const ri of refIndices) {
+    targetAvg += rawTarget[ri] ?? 0
+  }
+  targetAvg /= Math.max(refIndices.length, 1)
+
+  const targetCurve = rawTarget.map((v) => v - targetAvg + systemAvg)
 
   function computeError(testGains: number[]): number {
     let totalError = 0

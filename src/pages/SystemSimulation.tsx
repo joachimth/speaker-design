@@ -641,9 +641,7 @@ export default function SystemSimulation() {
   }
 
   // Compute target curve for display
-  const targetCurveDisplay = useMemo(() => {
-    return generateTargetCurve(freqs, { type: targetCurveType })
-  }, [freqs, targetCurveType])
+  // targetCurveDisplay moved below smoothedSummed (depends on it)
 
   // -----------------------------------------------------------------------
   const fStep = baffleStepFrequency(baffleWidth)
@@ -755,6 +753,20 @@ export default function SystemSimulation() {
     if (!summedResponse) return null
     return psychoacousticSmooth(summedResponse, smoothingFraction)
   }, [summedResponse, smoothingFraction])
+
+  // Target curve for display, offset to match the system's average level
+  const targetCurveDisplay = useMemo(() => {
+    const raw = generateTargetCurve(freqs, { type: targetCurveType })
+    if (!smoothedSummed) return raw
+    const refPoints = smoothedSummed.filter((p) => p.freq >= 100 && p.freq <= 10000)
+    if (refPoints.length === 0) return raw
+    const sysAvg = refPoints.reduce((s, p) => s + p.magnitude, 0) / refPoints.length
+    const refIndices = freqs.map((f, i) => (f >= 100 && f <= 10000 ? i : -1)).filter((i) => i >= 0)
+    const targetAvg = refIndices.length > 0
+      ? refIndices.reduce((s, i) => s + (raw[i] ?? 0), 0) / refIndices.length
+      : 0
+    return raw.map((v) => v - targetAvg + sysAvg)
+  }, [freqs, targetCurveType, smoothedSummed])
 
   // -----------------------------------------------------------------------
   // System spinorama (using summed on-axis response + largest driver for directivity)
