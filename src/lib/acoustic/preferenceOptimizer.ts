@@ -307,6 +307,15 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
     }
   }
 
+  // --- Phases 2-5: iterate until convergence ---
+  // Each phase can affect the optimum of the others, so we loop
+  // the whole block until no phase improves the score anymore.
+  const maxOuterIterations = 5;
+  let outerIter = 0;
+
+  for (; outerIter < maxOuterIterations; outerIter++) {
+    let improvedThisIteration = false;
+
   // --- Phase 2: Polarity optimization (try 0/180 for each band) ---
   // Lower band (woofer) polarity is kept as-is (reference).
   // Try inverting upper bands.
@@ -319,23 +328,24 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
       baffleWidth, baffleHeight,
       cabinetType, portFb, portVb, portDiameter, numPorts,
     );
-    if (trialScore.score > bestScore) {
+    if (trialScore.score > bestScore + 0.005) {
       bestScore = trialScore.score;
       bestBands = trialBands;
-      reasoning.push(`Polaritet bånd ${b + 1} -> ${trialBands[b]!.polarity}° forbedret score til ${trialScore.score.toFixed(1)}.`);
+      improvedThisIteration = true;
+      if (outerIter === 0) reasoning.push(`Polaritet bånd ${b + 1} -> ${trialBands[b]!.polarity}° forbedret score til ${trialScore.score.toFixed(1)}.`);
     }
   }
 
   // --- Phase 3: Crossover frequency optimization (coarse then fine) ---
-  // For each crossover point (between band i and i+1), sweep the frequency
   const xoSteps = [1.0, 0.5, 0.25, 0.1]; // fractions of current value as step size
-  const crossoverPoints: { lowerIdx: number; upperIdx: number; initialFreq: number }[] = [];
 
+  // Recompute crossover points from current best each iteration
+  const crossoverPoints: { lowerIdx: number; upperIdx: number; centerFreq: number }[] = [];
   for (let i = 0; i < ways - 1; i++) {
     const lower = bestBands[i]!;
     const xoFreq = lower.lowpassFreq > 0 ? lower.lowpassFreq : bestBands[i + 1]!.highpassFreq;
     if (xoFreq > 0) {
-      crossoverPoints.push({ lowerIdx: i, upperIdx: i + 1, initialFreq: xoFreq });
+      crossoverPoints.push({ lowerIdx: i, upperIdx: i + 1, centerFreq: xoFreq });
     }
   }
 
@@ -343,13 +353,15 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
     let improvedThisRound = false;
 
     for (const xo of crossoverPoints) {
-      const step = Math.max(10, xo.initialFreq * stepFrac * 0.1);
-      const fMin = xo.initialFreq * (1 - xoRangeFraction);
-      const fMax = xo.initialFreq * (1 + xoRangeFraction);
-
-      let bestXoFreq = bestBands[xo.lowerIdx]!.lowpassFreq > 0
+      // Use current center, not stale initial
+      const currentCenter = bestBands[xo.lowerIdx]!.lowpassFreq > 0
         ? bestBands[xo.lowerIdx]!.lowpassFreq
         : bestBands[xo.upperIdx]!.highpassFreq;
+      const step = Math.max(10, currentCenter * stepFrac * 0.1);
+      const fMin = Math.max(20, xo.centerFreq * (1 - xoRangeFraction));
+      const fMax = Math.min(20000, xo.centerFreq * (1 + xoRangeFraction));
+
+      let bestXoFreq = currentCenter;
       let bestXoScore = bestScore;
 
       for (let f = fMin; f <= fMax + 1e-9; f += step) {
@@ -377,22 +389,25 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
         });
         bestScore = bestXoScore;
         improvedThisRound = true;
+        improvedThisIteration = true;
       }
     }
 
     if (!improvedThisRound && stepFrac === xoSteps[xoSteps.length - 1]) {
-      reasoning.push(`Delefrekvens-optimering konvergeret.`);
+      if (outerIter === 0) reasoning.push(`Delefrekvens-optimering konvergeret.`);
     }
   }
 
-  reasoning.push(`Delefrekvenser: ${crossoverPoints.map((xo) => {
-    const f = bestBands[xo.lowerIdx]!.lowpassFreq > 0 ? bestBands[xo.lowerIdx]!.lowpassFreq : bestBands[xo.upperIdx]!.highpassFreq;
-    return `${f} Hz`;
-  }).join(', ')}.`);
+  if (outerIter === 0) {
+    reasoning.push(`Delefrekvenser: ${crossoverPoints.map((xo) => {
+      const f = bestBands[xo.lowerIdx]!.lowpassFreq > 0 ? bestBands[xo.lowerIdx]!.lowpassFreq : bestBands[xo.upperIdx]!.highpassFreq;
+      return `${f} Hz`;
+    }).join(', ')}.`);
+  }
 
-  // --- Phase 4: Gain optimization (coordinate descent) ---
+  // --- Phase 4: Gain optimization (coordinate descent, attenuation only) ---
   const gainStep = 0.5;
-  const maxGainPasses = 4;
+  const maxGainPasses = 6;
 
   for (let pass = 0; pass < maxGainPasses; pass++) {
     let improvedThisPass = false;
@@ -423,20 +438,23 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
         bestBands[b]!.gain = bestGain;
         bestScore = bestGainScore;
         improvedThisPass = true;
+        improvedThisIteration = true;
       }
     }
 
     if (!improvedThisPass) {
-      reasoning.push(`Gain-optimering konvergeret efter ${pass + 1} passage(r).`);
+      if (outerIter === 0) reasoning.push(`Gain-optimering konvergeret efter ${pass + 1} passage(r).`);
       break;
     }
   }
 
-  reasoning.push(`Optimeret gains: [${bestBands.map((b) => b.gain.toFixed(1)).join(', ')}] dB.`);
+  if (outerIter === 0) {
+    reasoning.push(`Optimeret gains: [${bestBands.map((b) => b.gain.toFixed(1)).join(', ')}] dB.`);
+  }
 
   // --- Phase 5: Fine delay optimization ---
   const delayStep = 0.05; // 50 µs resolution
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     let improvedThisPass = false;
 
     for (let b = 0; b < ways; b++) {
@@ -463,16 +481,29 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
         bestBands[b]!.delay = bestDelay;
         bestScore = bestDelayScore;
         improvedThisPass = true;
+        improvedThisIteration = true;
       }
     }
 
     if (!improvedThisPass) {
-      reasoning.push(`Delay-optimering konvergeret efter ${pass + 1} passage(r).`);
+      if (outerIter === 0) reasoning.push(`Delay-optimering konvergeret efter ${pass + 1} passage(r).`);
       break;
     }
   }
 
-  reasoning.push(`Optimeret delays: [${bestBands.map((b) => b.delay.toFixed(2)).join(', ')}] ms.`);
+  if (outerIter === 0) {
+    reasoning.push(`Optimeret delays: [${bestBands.map((b) => b.delay.toFixed(2)).join(', ')}] ms.`);
+  }
+
+    if (!improvedThisIteration) {
+      reasoning.push(`Optimering konvergeret efter ${outerIter + 1} iteration(er).`);
+      break;
+    }
+  }
+
+  if (outerIter === maxOuterIterations) {
+    reasoning.push(`Optimering stoppede efter max ${maxOuterIterations} iterationer.`);
+  }
 
   // --- Final score ---
   const afterScore = scoreFromBands(

@@ -344,6 +344,7 @@ export default function CabinetMatch() {
   const { optimize: workerOptimize, optimizing: cabOptimizing, cabResult: cabOptResult } = useOptimizerWorker()
   // Selected drivers for cabinet optimization
   const [optDrivers, setOptDrivers] = useState<(string | '')[]>(['', ''])
+  const [optWooferCount, setOptWooferCount] = useState(1)
 
   function handlePresetChange(name: string) {
     setPresetName(name)
@@ -443,7 +444,7 @@ export default function CabinetMatch() {
         baffleWidth: cabinetSpec.width,
         baffleHeight: cabinetSpec.height,
         wallThickness: cabinetSpec.wallThickness,
-        wooferCount: cabinetSpec.wooferCount ?? 1,
+        wooferCount: optWooferCount,
       },
     })
   }
@@ -529,31 +530,45 @@ export default function CabinetMatch() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {optDrivers.map((driverId, i) => (
-              <Select
-                key={i}
-                label={i === 0 ? 'Bas/mellemtone' : i === 1 ? 'Diskant (eller mellemtone)' : 'Diskant'}
-                value={driverId}
-                onChange={(v) => {
-                  const next = [...optDrivers]
-                  next[i] = v
-                  // Auto-expand/shrink selection
-                  if (v && i === optDrivers.length - 1 && optDrivers.length < 3) {
-                    next.push('')
-                  }
-                  // Remove trailing empties
-                  while (next.length > 2 && next[next.length - 1] === '') {
-                    next.pop()
-                  }
-                  setOptDrivers(next)
-                }}
-                options={[
-                  { value: '', label: '— Vælg enhed —' },
-                  ...drivers.map((d) => ({
-                    value: d.id,
-                    label: `${d.manufacturer} ${d.model} (${d.type})`,
-                  })),
-                ]}
-              />
+              <div key={i} className="space-y-1">
+                <Select
+                  label={i === 0 ? 'Bas/mellemtone' : i === 1 ? 'Diskant (eller mellemtone)' : 'Diskant'}
+                  value={driverId}
+                  onChange={(v) => {
+                    const next = [...optDrivers]
+                    next[i] = v
+                    // Auto-expand/shrink selection
+                    if (v && i === optDrivers.length - 1 && optDrivers.length < 3) {
+                      next.push('')
+                    }
+                    // Remove trailing empties
+                    while (next.length > 2 && next[next.length - 1] === '') {
+                      next.pop()
+                    }
+                    setOptDrivers(next)
+                  }}
+                  options={[
+                    { value: '', label: '— Vælg enhed —' },
+                    ...drivers.map((d) => ({
+                      value: d.id,
+                      label: `${d.manufacturer} ${d.model} (${d.type})`,
+                    })),
+                  ]}
+                />
+                {i === 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Antal bas-enheder:</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={optWooferCount}
+                      onChange={(e) => setOptWooferCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
+                      className="w-16 px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <div className="flex items-center gap-3 flex-wrap">

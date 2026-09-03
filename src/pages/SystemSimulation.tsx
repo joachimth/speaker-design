@@ -808,13 +808,13 @@ export default function SystemSimulation() {
   // Apply preference optimization result when worker finishes
   useEffect(() => {
     if (workerPrefResult) {
-      const newBands = [...bands]
-      for (let i = 0; i < ways && i < workerPrefResult.optimizedBands.length; i++) {
+      const newBands = [...design.bands]
+      for (let i = 0; i < newBands.length && i < workerPrefResult.optimizedBands.length; i++) {
         newBands[i] = { ...newBands[i]!, ...workerPrefResult.optimizedBands[i]! }
       }
-      setBands(newBands)
+      storeSetBands(newBands)
     }
-  }, [workerPrefResult])
+  }, [workerPrefResult, storeSetBands, design.bands])
 
   // -----------------------------------------------------------------------
   // In-room response simulation (room modes + boundary gain + smoothing)
