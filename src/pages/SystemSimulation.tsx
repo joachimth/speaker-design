@@ -148,7 +148,11 @@ export default function SystemSimulation() {
 
   // Local setter wrappers — proxy to the shared store so the rest of the
   // component can use the same names as before
-  const setWays = (n: 2 | 3 | 4) => { storeSetWays(n); if (n === 2) storeSetBands(DEFAULT_BANDS_2); else if (n === 3) storeSetBands(DEFAULT_BANDS_3); else storeSetBands(DEFAULT_BANDS_4) }
+  const setWays = (n: 2 | 3 | 4) => {
+    // Don't call storeSetBands with defaults — storeSetWays already
+    // adjusts band count while preserving existing driver selections.
+    storeSetWays(n)
+  }
   const setBands = (value: Band[] | ((prev: Band[]) => Band[])) => {
     if (typeof value === 'function') storeSetBands(value(design.bands))
     else storeSetBands(value)

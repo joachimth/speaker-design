@@ -146,14 +146,32 @@ export const useDesignStore = create<DesignStore>((set) => ({
       const oldBands = state.design.bands;
       let newBands: DesignBand[];
       if (ways <= oldBands.length) {
+        // Shrink: keep existing driver selections, update roles
+        const defaults = getDefaultBands(ways);
         newBands = oldBands.slice(0, ways).map((b, i) => ({
           ...b,
-          role: ways === 2 ? (i === 0 ? 'low' : 'high') : b.role,
+          ...defaults[i]!,
+          driverId: b.driverId, // preserve driver selection
+          gain: b.gain,
+          polarity: b.polarity,
+          delay: b.delay,
         }));
       } else {
-        // Add bands from defaults
+        // Expand: keep existing bands (with drivers), add new ones from defaults
         const defaults = getDefaultBands(ways);
-        newBands = [...oldBands, ...defaults.slice(oldBands.length)];
+        newBands = defaults.map((d, i) => {
+          const existing = oldBands[i];
+          if (existing) {
+            return {
+              ...d,
+              driverId: existing.driverId, // preserve driver selection
+              gain: existing.gain,
+              polarity: existing.polarity,
+              delay: existing.delay,
+            };
+          }
+          return d;
+        });
       }
       return { design: { ...state.design, ways, bands: newBands }, isDirty: true };
     }),
