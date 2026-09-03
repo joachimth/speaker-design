@@ -401,8 +401,10 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
       let bestGain = bestBands[b]!.gain;
       let bestGainScore = bestScore;
 
+      // Only attenuate (lower gain), never boost — per Joachim's rule.
+      // If a driver is too quiet, the others are reduced instead.
       const scanStart = Math.max(initialBands[b]!.gain - gainRangeDb, bestBands[b]!.gain - 6);
-      const scanEnd = Math.min(initialBands[b]!.gain + gainRangeDb, bestBands[b]!.gain + 6);
+      const scanEnd = Math.min(initialBands[b]!.gain, bestBands[b]!.gain + 0);
 
       for (let g = scanStart; g <= scanEnd + 1e-9; g += gainStep) {
         const trialBands = bestBands.map((bb, i) => i === b ? { ...bb, gain: Math.round(g * 10) / 10 } : bb);
