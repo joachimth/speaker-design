@@ -129,9 +129,9 @@
 
 ### Performance
 - [x] Lazy-load Three.js via React.lazy + Suspense (Cabinet3DBuilder, WaveguideDesigner) - initial bundle 320KB -> 182KB gzipped
-- [ ] Wire useSimulationWorker into SystemSimulation (hook exists but unused; requires passing freqs + adapting spinorama/room/polar useMemos)
+- [x] Wire useSimulationWorker into SystemSimulation (per-band curve computation + summed response offloaded to Web Worker, 100ms debounce)
 - [x] Route-based code splitting (React.lazy for CabinetMatch, DesignCompare, SimulationView pages) - bundle 189KB -> 178KB gzipped
-- [ ] Memoize driver database queries (avoid re-filtering on every render)
+- [x] Memoize driver database queries (driverMap via useMemo, all find() calls replaced with Map.get/has)
 
 ### Bug fixes (Sep 1)
 - [x] Fix STL downloadSTL href bug (a.href was set to filename instead of blob URL)

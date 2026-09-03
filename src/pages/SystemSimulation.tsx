@@ -3,7 +3,7 @@ import { useDriverStore } from '@/store/driverStore'
 import { useProjectStore, downloadJSON } from '@/store/projectStore'
 import { useDesignStore } from '@/store/designStore'
 import { Card, Select, NumberInput, Badge, StatCard, Button } from '@/components/common/UI'
-import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
+import { crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
 import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
@@ -12,6 +12,7 @@ import { generateTargetCurve, optimizeForTargetCurve, type TargetCurveType } fro
 import { psychoacousticSmooth } from '@/lib/acoustic/smoothing'
 import { exportPlotToPng } from '@/lib/utils/pngExport'
 import { saveProject } from '@/db/database'
+import { useSimulationWorker } from '@/hooks/useSimulationWorker'
 import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/biquadExport'
@@ -170,6 +171,27 @@ export default function SystemSimulation() {
 
   const freqs = useMemo(() => generateFrequencies(20, 20000, 12), [])
 
+  // Memoized driver lookup map — avoids O(n) find() on every render/useMemo
+  const driverMap = useMemo(() => {
+    const map = new Map<string, Driver>()
+    for (const d of drivers) map.set(d.id, d)
+    return map
+  }, [drivers])
+
+  // Offload heavy per-band curve computation to a Web Worker
+  const { processedBands: workerBands, summedResponse: workerSummed } = useSimulationWorker({
+    bands,
+    drivers,
+    ways,
+    baffleWidth,
+    baffleHeight,
+    cabinetType,
+    portFb: portFb ?? 0,
+    portVb: portVb ?? 0,
+    portDiameter,
+    numPorts,
+  })
+
   // Consume handoff from CabinetMatch (runs once on mount)
   useEffect(() => {
     if (!simHandoff) return
@@ -238,7 +260,7 @@ export default function SystemSimulation() {
     // Collect driver objects for the project
     const projectDrivers = bands
       .slice(0, ways)
-      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .map((b) => driverMap.get(b.driverId))
       .filter((d): d is Driver => !!d)
 
     const project: Project = {
@@ -461,7 +483,7 @@ export default function SystemSimulation() {
   function handleAutoCrossover() {
     const selectedDrivers = bands
       .slice(0, ways)
-      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .map((b) => driverMap.get(b.driverId))
       .filter((d): d is Driver => !!d)
 
     if (selectedDrivers.length < 2) {
@@ -499,7 +521,7 @@ export default function SystemSimulation() {
   function handleAutoPhaseDelay() {
     const selectedDrivers = bands
       .slice(0, ways)
-      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .map((b) => driverMap.get(b.driverId))
       .filter((d): d is Driver => !!d)
 
     if (selectedDrivers.length < 2) {
@@ -539,7 +561,7 @@ export default function SystemSimulation() {
   ) {
     const selectedDrivers = driverList ?? bands
       .slice(0, ways)
-      .map((b) => drivers.find((d) => d.id === b.driverId))
+      .map((b) => driverMap.get(b.driverId))
       .filter((d): d is Driver => !!d)
 
     if (selectedDrivers.length === 0) {
@@ -559,7 +581,7 @@ export default function SystemSimulation() {
   function handleAutoTimeAlign() {
     const activeBands = bands.slice(0, ways)
     const depths = activeBands.map((band) => {
-      const driver = drivers.find((d) => d.id === band.driverId)
+      const driver = driverMap.get(band.driverId)
       return driver ? acousticCenterDepth(driver) : 40
     })
     const maxDepth = Math.max(...depths, 1)
@@ -645,108 +667,25 @@ export default function SystemSimulation() {
 
   // -----------------------------------------------------------------------
   const fStep = baffleStepFrequency(baffleWidth)
-  const fStep3x = fStep * 3
   const baffleStepCurve = useMemo(
     () => calcBaffleStep(baffleWidth, baffleHeight, freqs),
     [baffleWidth, baffleHeight, freqs]
   )
 
+  // processedBands: mapped from Web Worker output, enriched with driver refs
   const processedBands = useMemo(() => {
-    const activeBands = bands.slice(0, ways)
-    const results: { band: Band; driver: Driver | undefined; curve: FrequencyDataPoint[]; hasRealResponse: boolean }[] = []
-
-    for (const band of activeBands) {
-      const driver = drivers.find((d) => d.id === band.driverId)
-      const driverCount = band.driverCount ?? 1
-      const hasRealResponse = !!driver?.frequencyResponse && driver.frequencyResponse.length > 0
-
-      // Multiple identical drivers add +10*log10(N) dB to output
-      // (e.g. +6 dB for 2 push-pull woofers, +9.5 dB for 3)
-      const countGainDb = 10 * Math.log10(driverCount)
-
-      // Start from real driver response or flat at sensitivity level
-      let curve: FrequencyDataPoint[]
-      if (hasRealResponse && driver!.frequencyResponse) {
-        curve = [...driver!.frequencyResponse!]
-      } else {
-        const sens = driver?.tsParams?.sensitivity ?? 0
-        curve = freqs.map((f) => ({ freq: f, magnitude: sens + countGainDb }))
-      }
-
-      // Apply count gain to real response curves too
-      if (driverCount > 1 && hasRealResponse) {
-        curve = curve.map((p) => ({ freq: p.freq, magnitude: p.magnitude + countGainDb }))
-      }
-
-      // Apply baffle step loss by driver type
-      const driverType = driver?.type
-      const isLowDriver = driverType === 'woofer' || driverType === 'subwoofer'
-      const isMidDriver = driverType === 'midrange' || driverType === 'fullrange'
-
-      // Apply cabinet loading to woofer/subwoofer band
-      if (isLowDriver && driver) {
-        // For multiple identical woofers sharing one enclosure,
-        // effective Vas = Vas × driverCount (more air to move)
-        const effDriver = driverCount > 1 && driver.tsParams?.vas
-          ? { ...driver, tsParams: { ...driver.tsParams, vas: driver.tsParams.vas * driverCount } }
-          : driver
-        const cabinetResp = calcCabinetResponse(effDriver, cabinetType, freqs, baffleWidth, 0.707, cabinetType === 'ported' ? { fb: portFb ?? undefined, vb: portVb ?? undefined, portDiameter, numPorts } : undefined)
-        curve = curve.map((p, i) => ({
-          freq: p.freq,
-          magnitude: p.magnitude + (cabinetResp.response[i]?.magnitude ?? 0),
-        }))
-      }
-
-      if (isLowDriver || isMidDriver) {
-        curve = curve.map((p, i) => {
-          let bsFactor = baffleStepCurve.response[i] ?? 0
-          if (isMidDriver && p.freq > fStep3x) {
-            const t = Math.min(1, (p.freq - fStep) / (fStep3x - fStep))
-            bsFactor *= (1 - t)
-          }
-          return { freq: p.freq, magnitude: p.magnitude + bsFactor }
-        })
-      }
-
-      // Apply lowpass
-      if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
-        const lp = buildCrossoverFilter(band.lowpassType, band.lowpassFreq, false)
-        curve = applyCrossover(lp, curve)
-      }
-
-      // Apply highpass
-      if (band.highpassFreq > 0) {
-        const hp = buildCrossoverFilter(band.highpassType, band.highpassFreq, true)
-        curve = applyCrossover(hp, curve)
-      }
-
-      // Apply gain and polarity
-      curve = applyGainAndPolarity(curve, band.gain, band.polarity)
-
-      results.push({ band, driver, curve, hasRealResponse })
-    }
-
-    return results
-  }, [bands, ways, drivers, freqs, baffleStepCurve, fStep, fStep3x, cabinetType, baffleWidth, portFb, portVb, portDiameter, numPorts])
+    return workerBands.map((wb) => ({
+      band: wb.band as Band,
+      driver: driverMap.get(wb.driverId),
+      curve: wb.curve,
+      hasRealResponse: wb.hasRealResponse,
+    }))
+  }, [workerBands, driverMap])
 
   // -----------------------------------------------------------------------
-  // Summed system response (voltage summation)
+  // Summed system response (from Web Worker)
   // -----------------------------------------------------------------------
-  const summedResponse = useMemo(() => {
-    if (processedBands.length === 0) return null
-    return freqs.map((f) => {
-      let sumLinear = 0
-      for (const pb of processedBands) {
-        const db = interpolateAt(pb.curve, f)
-        const sign = pb.band.polarity === 180 ? -1 : 1
-        sumLinear += sign * Math.pow(10, db / 20)
-      }
-      return {
-        freq: f,
-        magnitude: 20 * Math.log10(Math.max(Math.abs(sumLinear), 1e-10)),
-      }
-    })
-  }, [processedBands, freqs])
+  const summedResponse = workerSummed
 
   // Smoothed system response for display (psychoacoustic smoothing)
   const smoothedSummed = useMemo(() => {
@@ -971,7 +910,7 @@ export default function SystemSimulation() {
         high: ['tweeter'],
       }
       return active.map((band) => {
-        if (band.driverId && drivers.find((d) => d.id === band.driverId)) return band
+        if (band.driverId && driverMap.has(band.driverId)) return band
         // Auto-pick first driver matching the role type
         const preferredTypes = roleToType[band.role] || []
         const match = drivers.find((d) => preferredTypes.includes(d.type))
@@ -990,7 +929,7 @@ export default function SystemSimulation() {
         high: ['tweeter'],
       }
       return active.map((band) => {
-        if (band.driverId && drivers.find((d) => d.id === band.driverId)) return band
+        if (band.driverId && driverMap.has(band.driverId)) return band
         // Auto-pick first driver matching the role type
         const preferredTypes = roleToType[band.role] || []
         const match = drivers.find((d) => preferredTypes.includes(d.type))
@@ -1337,7 +1276,7 @@ export default function SystemSimulation() {
 
       {/* Band configurations */}
       {bands.slice(0, ways).map((band, i) => {
-        const driver = drivers.find((d) => d.id === band.driverId)
+        const driver = driverMap.get(band.driverId)
         return (
           <Card key={i} title={`${ROLE_LABELS[band.role] || band.role} - vej ${i + 1}${(band.driverCount ?? 1) > 1 ? ` (${band.driverCount}×)` : ''}`}>
             <div className="space-y-3">
