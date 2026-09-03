@@ -19,8 +19,11 @@ import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/b
 import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
 import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
+import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
 import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
 import { PhaseAlignmentCard } from '@/components/PhaseAlignmentCard'
+import { CrossoverSlider } from '@/components/CrossoverSlider'
+import { NextStep } from '@/components/NextStep'
 import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project, Cabinet } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -473,6 +476,30 @@ export default function SystemSimulation() {
     setWays(parseInt(value) as 2 | 3 | 4)
   }
 
+  // Crossover slider: move both lower band's lowpass and upper band's highpass together
+  function handleCrossoverFreqChange(lowerIdx: number, freq: number) {
+    const newBands = [...bands]
+    if (lowerIdx < newBands.length) {
+      newBands[lowerIdx] = { ...newBands[lowerIdx]!, lowpassFreq: freq }
+    }
+    if (lowerIdx + 1 < newBands.length) {
+      newBands[lowerIdx + 1] = { ...newBands[lowerIdx + 1]!, highpassFreq: freq }
+    }
+    setBands(newBands)
+  }
+
+  // Crossover type change: update both bands' filter types
+  function handleCrossoverTypeChange(lowerIdx: number, type: CrossoverType) {
+    const newBands = [...bands]
+    if (lowerIdx < newBands.length) {
+      newBands[lowerIdx] = { ...newBands[lowerIdx]!, lowpassType: type }
+    }
+    if (lowerIdx + 1 < newBands.length) {
+      newBands[lowerIdx + 1] = { ...newBands[lowerIdx + 1]!, highpassType: type }
+    }
+    setBands(newBands)
+  }
+
   // updateBand is defined above as a store wrapper
 
   // Auto-suggest state
@@ -707,6 +734,22 @@ export default function SystemSimulation() {
     return raw.map((v) => v - targetAvg + sysAvg)
   }, [freqs, targetCurveType, smoothedSummed])
 
+  // Real-time deviation from target curve (RMS error over 100-10000 Hz)
+  const targetDeviation = useMemo(() => {
+    if (!smoothedSummed) return null
+    let totalError = 0
+    let count = 0
+    for (let i = 0; i < freqs.length; i++) {
+      const f = freqs[i]!
+      if (f < 100 || f > 10000) continue
+      const sysDb = smoothedSummed[i]?.magnitude ?? 0
+      const targetDb = targetCurveDisplay[i] ?? 0
+      totalError += (sysDb - targetDb) ** 2
+      count++
+    }
+    return count > 0 ? Math.sqrt(totalError / count) : null
+  }, [smoothedSummed, freqs, targetCurveDisplay])
+
   // -----------------------------------------------------------------------
   // System spinorama (using summed on-axis response + largest driver for directivity)
   // -----------------------------------------------------------------------
@@ -918,25 +961,6 @@ export default function SystemSimulation() {
       })
     })
   }, [drivers, ways])
-  useEffect(() => {
-    if (drivers.length === 0) return
-    setBands((prev) => {
-      const active = prev.slice(0, ways)
-      const roleToType: Record<string, string[]> = {
-        low: ['woofer', 'subwoofer'],
-        mid: ['midrange', 'fullrange'],
-        mid2: ['midrange', 'fullrange', 'tweeter'],
-        high: ['tweeter'],
-      }
-      return active.map((band) => {
-        if (band.driverId && driverMap.has(band.driverId)) return band
-        // Auto-pick first driver matching the role type
-        const preferredTypes = roleToType[band.role] || []
-        const match = drivers.find((d) => preferredTypes.includes(d.type))
-        return { ...band, driverId: match?.id || drivers[0]?.id || '' }
-      })
-    })
-  }, [drivers, ways])
 
   // -----------------------------------------------------------------------
   // Stats
@@ -1082,6 +1106,38 @@ export default function SystemSimulation() {
               </div>
               <div className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-1">
                 Restfejl: {targetTuneResult.error.toFixed(2)} dB RMS
+              </div>
+            </div>
+          )}
+          {/* Real-time deviation meter */}
+          {targetDeviation !== null && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-gray-500">Afvigelse fra målkurve</span>
+                  <span className={`font-mono font-medium ${
+                    targetDeviation < 1.5 ? 'text-green-600 dark:text-green-400'
+                    : targetDeviation < 3 ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {targetDeviation.toFixed(2)} dB RMS
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      targetDeviation < 1.5 ? 'bg-green-500'
+                      : targetDeviation < 3 ? 'bg-amber-500'
+                      : 'bg-red-500'
+                    }`}
+                    style={{ width: `${Math.min(100, (targetDeviation / 6) * 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                  <span>god (&lt;1.5 dB)</span>
+                  <span>acceptabel (&lt;3 dB)</span>
+                  <span>dårlig (&gt;3 dB)</span>
+                </div>
               </div>
             </div>
           )}
@@ -1375,6 +1431,14 @@ export default function SystemSimulation() {
           </Card>
         )
       })}
+
+      {/* Crossover frequency sliders with live phase display */}
+      <CrossoverSlider
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        onCrossoverFreqChange={handleCrossoverFreqChange}
+        onCrossoverTypeChange={handleCrossoverTypeChange}
+      />
 
       {/* System frequency response */}
       {summedResponse && (
@@ -1776,6 +1840,8 @@ export default function SystemSimulation() {
           </div>
         </Card>
       )}
+
+      <NextStep to="/compare" label="A/B Sammenlign" description="Sammenlign gemte projekter side-ved-side" />
     </div>
   )
 }
@@ -1818,139 +1884,4 @@ function NumberField({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Responsive SVG Plot
-// ---------------------------------------------------------------------------
 
-interface PlotSeries {
-  x: number[]
-  y: number[]
-  name: string
-  color: string
-  dash?: boolean
-}
-
-function ResponsivePlot({
-  data,
-  yRange,
-  yLabel = 'dB',
-}: {
-  data: PlotSeries[]
-  yRange?: [number, number]
-  yLabel?: string
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = useState(800)
-
-  useEffect(() => {
-    function updateWidth() {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.clientWidth)
-      }
-    }
-    updateWidth()
-    window.addEventListener('resize', updateWidth)
-    return () => window.removeEventListener('resize', updateWidth)
-  }, [])
-
-  const isMobile = containerWidth < 600
-  const width = containerWidth
-  const height = isMobile ? 300 : 400
-  const legendWidth = isMobile ? 0 : 160
-  const margin = { top: 12, right: isMobile ? 8 : legendWidth + 10, bottom: 35, left: 50 }
-  const plotW = width - margin.left - margin.right
-  const plotH = height - margin.top - margin.bottom
-
-  const allY = data.flatMap((d) => d.y).filter((v) => Number.isFinite(v))
-  const dataMin = allY.length ? Math.min(...allY) : 0
-  const dataMax = allY.length ? Math.max(...allY) : 10
-  const rawMin = yRange ? Math.min(yRange[0], dataMin) : Math.min(dataMin, 0)
-  const rawMax = yRange ? Math.max(yRange[1], dataMax) : Math.max(dataMax, 10)
-  const span = Math.max(rawMax - rawMin, 1)
-  const yStep = [1, 2, 5, 10, 20, 50, 100].find((s) => span / s <= 8) ?? 100
-  const yMin = Math.floor(rawMin / yStep) * yStep
-  const yMax = Math.ceil(rawMax / yStep) * yStep
-
-  const xMin = Math.log10(20)
-  const xMax = Math.log10(20000)
-
-  function xToPixel(freq: number): number {
-    const x = Math.log10(Math.max(freq, 1))
-    return margin.left + ((x - xMin) / (xMax - xMin)) * plotW
-  }
-
-  function yToPixel(value: number): number {
-    return margin.top + ((yMax - value) / (yMax - yMin)) * plotH
-  }
-
-  const decades = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-  const ySteps = Array.from({ length: Math.round((yMax - yMin) / yStep) + 1 }, (_, i) => yMin + i * yStep)
-
-  return (
-    <div ref={containerRef} className="w-full">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ display: 'block' }}>
-        <rect x={margin.left} y={margin.top} width={plotW} height={plotH} className="fill-gray-50 stroke-gray-200 dark:fill-gray-900 dark:stroke-gray-700" />
-
-        {ySteps.map((y) => (
-          <g key={y}>
-            <line x1={margin.left} y1={yToPixel(y)} x2={margin.left + plotW} y2={yToPixel(y)} className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={0.5} />
-            <text x={margin.left - 5} y={yToPixel(y) + 3} textAnchor="end" fontSize={9} className="fill-gray-500 dark:fill-gray-400">{y}</text>
-          </g>
-        ))}
-
-        {decades.map((f) => (
-          <g key={f}>
-            <line x1={xToPixel(f)} y1={margin.top} x2={xToPixel(f)} y2={margin.top + plotH} className="stroke-gray-200 dark:stroke-gray-700" strokeWidth={0.5} />
-            <text x={xToPixel(f)} y={margin.top + plotH + 14} textAnchor="middle" fontSize={9} className="fill-gray-500 dark:fill-gray-400">
-              {f >= 1000 ? `${f / 1000}k` : f}
-            </text>
-          </g>
-        ))}
-
-        <text x={margin.left + plotW / 2} y={height - 4} textAnchor="middle" fontSize={10} className="fill-gray-700 dark:fill-gray-300">Hz</text>
-        <text x={12} y={margin.top + plotH / 2} textAnchor="middle" fontSize={10} className="fill-gray-700 dark:fill-gray-300" transform={`rotate(-90 12 ${margin.top + plotH / 2})`}>{yLabel}</text>
-
-        {data.map((series) => {
-          const points = series.x.map((x, i) => `${xToPixel(x)},${yToPixel(series.y[i]!)}`).join(' ')
-          return (
-            <polyline
-              key={series.name}
-              points={points}
-              fill="none"
-              stroke={series.color}
-              strokeWidth={series.dash ? 2 : 1.5}
-              opacity={series.dash ? 0.8 : 0.75}
-              strokeDasharray={series.dash ? '6 3' : undefined}
-            />
-          )
-        })}
-
-        {/* Legend */}
-        {isMobile ? (
-          <g>
-            {data.map((series, i) => {
-              const colW = width / data.length
-              const lx = i * colW + 4
-              const ly = 4
-              return (
-                <g key={series.name} transform={`translate(${lx}, ${ly})`}>
-                  <line x1={0} y1={0} x2={10} y2={0} stroke={series.color} strokeWidth={2} strokeDasharray={series.dash ? '4 3' : undefined} />
-                  <text x={13} y={3} fontSize={7} className="fill-gray-700 dark:fill-gray-300">{series.name.length > 16 ? series.name.slice(0, 15) + '..' : series.name}</text>
-                </g>
-              )
-            })}
-          </g>
-        ) : (
-          <g>
-            {data.map((series, i) => (
-              <g key={series.name} transform={`translate(${margin.left + plotW + 10}, ${margin.top + i * 18 + 4})`}>
-                <line x1={0} y1={0} x2={15} y2={0} stroke={series.color} strokeWidth={2} strokeDasharray={series.dash ? '6 3' : undefined} />
-                <text x={20} y={3} fontSize={9} className="fill-gray-700 dark:fill-gray-300">{series.name}</text>
-              </g>
-            ))}
-          </g>
-        )}
-      </svg>
-    </div>
-  )
-}

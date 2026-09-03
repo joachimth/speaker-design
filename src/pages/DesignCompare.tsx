@@ -3,7 +3,7 @@
 // Select two saved projects and compare their simulated frequency response
 // side-by-side on the same plot, with a table of key metrics.
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useProjectStore } from '@/store/projectStore'
 import { useDriverStore } from '@/store/driverStore'
 import { Card, Select } from '@/components/common/UI'
@@ -14,10 +14,16 @@ const COLORS_A = ['#f97316', '#fbbf24', '#fde68a']
 const COLORS_B = ['#3b82f6', '#6366f1', '#a5b4fc']
 
 export default function DesignCompare() {
-  const { projects } = useProjectStore()
+  const { projects, loadProjects } = useProjectStore()
   const { drivers } = useDriverStore()
   const [projAId, setProjAId] = useState<string>('')
   const [projBId, setProjBId] = useState<string>('')
+
+  // Load projects on mount — without this, projects are empty unless
+  // the user visited the Overblik page first
+  useEffect(() => {
+    loadProjects()
+  }, [loadProjects])
 
   const projA = useMemo(() => projects.find((p) => p.id === projAId), [projects, projAId])
   const projB = useMemo(() => projects.find((p) => p.id === projBId), [projects, projBId])

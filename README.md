@@ -14,10 +14,10 @@ Alt kører client-side i browseren - ingen backend, ingen data forlader din mask
 34 foruddefinerede drivere med reelle målte frekvenskurver fra loudspeakerlab.com Plotly JSON-exports og producentdatablade. Dækker wooferes, midrange, coaxial og tweeteres fra Scan-Speak, SB Acoustics, Dayton, GRS, Wavecor, Purifi, Vifa og Mark Audio. Fuld on-axis + off-axis data (10-90 grader) for de nyeste tilføjelser.
 
 ### Kabinet Match
-Input af kabinetstørrelse og ønskede driver-kategorier. Systemet anbefaler drivere fra biblioteket der passer til kabinettet, beregner delefilter-frekvenser, og genererer MiniDSP 2x4 konfiguration. Resultatet kan sendes direkte til System Simulering med et klik (handoff: kabinetstørrelse, valgte drivere og automatiske delefilter-indstillinger overføres).
+Input af kabinetstørrelse og ønskede driver-kategorier. Systemet anbefaler drivere fra biblioteket der passer til kabinettet, beregner delefilter-frekvenser, og genererer MiniDSP 2x4/4x10 konfiguration. Resultatet kan sendes direkte til System Simulering med et klik (handoff: kabinetstørrelse, valgte drivere og automatiske delefilter-indstillinger overføres). Understøtter 2-vejs og 3-vejs systemer med automatisk fallback til 2-vejs hvis ingen mellemtone findes.
 
 ### System Simulering
-Multi-way (2/3/4-vejs) system designer med driver assignment per bånd. Crossover-designer (LR2/LR4/LR8, BW2/BW4, 1. orden) med live frekvensrespons-plot. Auto-design genererer delefilter-frekvenser, gain og delay fra driver specs og målte frekvenskurver.
+Multi-way (2/3/4-vejs) system designer med driver assignment per bånd. Crossover-designer (LR2/LR4/LR8, BW2/BW4, 1. orden) med live frekvensrespons-plot. **Delefrekvens slider** med linkede bånd og live fasevisning (grøn/gul/rød faseindikator). Auto-design genererer delefilter-frekvenser, gain og delay fra driver specs og målte frekvenskurver. **Målkurve optimering** med flad/Harman/tiltet target, multi-resolution gain optimering (0.1 dB præcision) og real-time afvigelses-meter.
 
 ### Akustisk Simulering
 - **Baffelstep** - edge diffraction og baffle step compensation
@@ -48,7 +48,7 @@ Gem hele designs (enheder, delefilter, baffel, kabinet, rum-params) i browseren 
 Konverter delefilter-design (LR2/LR4/LR8, BW2/BW4, 1. orden) til biquad filter coefficients direkte fra System Simulering. Vælg sample rate (48/96/44.1 kHz), få tekst format til MiniDSP advanced biquad input, Q23 hex til XML redigering, eller struktureret JSON. Understøtter både **MiniDSP 2x4** (4 outputs) og **MiniDSP 4x10 HD** (10 outputs, op til 4-vejs + sub).
 
 ### Unit preferences & Help
-Skift mellem metriske (mm) og imperiale (tommer) enheder i headeren. Intro-tour (9 trins rundvisning) vises ved første besøg og kan genaktiveres via ?-knappen i headeren.
+Skift mellem metriske (mm) og imperiale (tommer) enheder i headeren. Intro-tour (9 trins rundvisning) vises ved første besøg og kan genaktiveres via ?-knappen i headeren. **Guidet arbejdsgang** med "Næste" knapper på hver fane der leder dig gennem design flowet: Enheder → Kabinet → Kabinet Match → Delingsfilter → System Sim. → A/B Sammenlign.
 
 ### Performance
 Web Worker offloader tung simulations-beregning (frekvensgang, delefilter, kabinet-respons) til en baggrunds-tråd så UI forbliver responsiv. `useSimulationWorker` hook med 100ms debounce.
@@ -68,7 +68,7 @@ Web Worker offloader tung simulations-beregning (frekvensgang, delefilter, kabin
 
 ## Akustik-matematik
 
-Akustik-matematikken er porteret fra `mk2-reference-loudspeaker` Python-repoet. 11 moduler i `src/lib/acoustic/`:
+Akustik-matematikken er porteret fra `mk2-reference-loudspeaker` Python-repoet. 16 moduler i `src/lib/acoustic/`:
 
 | Modul | Beskrivelse |
 |---|---|
@@ -83,6 +83,12 @@ Akustik-matematikken er porteret fra `mk2-reference-loudspeaker` Python-repoet. 
 | `cabinetMatch.ts` | Driver matching + MiniDSP konfiguration |
 | `panelResonance.ts` | Kabinetvægs resonanser |
 | `breakin.ts` | Driver break-in simulering |
+| `targetCurve.ts` | Målkurve optimering (flad, Harman, tiltet, custom) |
+| `smoothing.ts` | Psychoakustisk 1/N-oktav udjævning |
+| `impedance.ts` | Impedans simulering |
+| `impedanceMatch.ts` | Impedans match ved delefrekvens |
+| `multiSub.ts` | Multi-subwoofer alignment |
+| `linkwitzTransform.ts` | Linkwitz transform for sealed EQ |
 
 ## Kørsel
 

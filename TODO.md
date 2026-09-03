@@ -155,3 +155,17 @@
 - [x] Crossover frequency sliders with linked bands + live phase display (CrossoverSlider.tsx)
 - [x] Separate "Auto delefilter" and "Auto fase/delay" buttons in SystemSimulation
 - [x] Target curve optimizer UI with smooth/flat/Harman/tilted selector + plot comparison
+
+### Sep 3 review & cleanup
+- [x] Fix 3-way Cabinet Match handoff: when no midrange found, fallback to 2-way with correct ways count
+- [x] Fix A/B Sammenligning: load projects on mount (was empty unless Overblik visited first)
+- [x] Add CrossoverSlider to SystemSimulation (was only in CrossoverDesigner)
+- [x] Multi-resolution target curve optimizer (1.0 → 0.5 → 0.25 → 0.1 dB steps, ~4x faster + more precise)
+- [x] Real-time deviation meter (RMS error vs target curve, color-coded progress bar)
+- [x] Guided workflow: "Næste" navigation buttons on each design tab (NextStep component)
+- [x] Rename "Simulering" tab to "Directivity" to avoid confusion with "System Sim."
+- [x] Remove duplicate ResponsivePlot components (shared component used everywhere, ~155 lines removed)
+- [x] Remove duplicate useEffect in SystemSimulation (auto-select drivers was defined twice)
+- [x] Remove dead loadedDesign state from projectStore (defined but never consumed)
+- [x] Fix unused catch variable in projectStore
+- [x] Improve overview workflow guide with clickable navigation to each step

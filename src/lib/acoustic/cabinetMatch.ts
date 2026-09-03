@@ -825,7 +825,7 @@ export function recommendSystemForCabinet(
       selectedDrivers = [bestWoofer.driver, midScore.driver, bestTweeter.driver];
       reasoning.push(`Mellemtone: ${midScore.driver.manufacturer} ${midScore.driver.model} (score ${midScore.overallScore}/100).`);
     } else {
-      // Fall back to 2-way
+      // Fall back to 2-way — adjust so handoff stays consistent
       reasoning.push('Ingen mellemtone fundet — fald tilbage til 2-vejs.');
       selectedDrivers = [bestWoofer.driver, bestTweeter.driver];
     }
@@ -833,8 +833,9 @@ export function recommendSystemForCabinet(
     selectedDrivers = [bestWoofer.driver, bestTweeter.driver];
   }
 
-  // Build crossover suggestion
-  const crossover = suggestCrossover(selectedDrivers, ways);
+  // Build crossover suggestion — use effectiveWays to handle 3→2 fallback
+  const effectiveWays = (midScore ? 3 : 2) as 2 | 3;
+  const crossover = suggestCrossover(selectedDrivers, effectiveWays);
   reasoning.push(...crossover.reasoning);
 
   // Build MiniDSP config
@@ -855,7 +856,7 @@ export function recommendSystemForCabinet(
   return {
     cabinet,
     internalVolume: totalVolume,
-    ways,
+    ways: effectiveWays,
     wooferScore: bestWoofer,
     tweeterScore: bestTweeter,
     midScore,

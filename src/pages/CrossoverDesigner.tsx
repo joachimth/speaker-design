@@ -10,6 +10,7 @@ import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
 import { PhaseAlignmentCard } from '@/components/PhaseAlignmentCard'
 import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
 import { CrossoverSlider } from '@/components/CrossoverSlider'
+import { NextStep } from '@/components/NextStep'
 import { ImpedanceMatchCard } from '@/components/ImpedanceMatchCard'
 import type { CrossoverType, FrequencyDataPoint, DesignBand, Driver, Crossover, Cabinet } from '@/types'
 
@@ -664,6 +665,8 @@ function findClosestIndex(arr: number[], target: number): number {
           </div>
         </Card>
       )}
+
+      <NextStep to="/system" label="System Simulering" description="Se samlet systemrespons og optimer mod målkurve" />
     </div>
   )
 }

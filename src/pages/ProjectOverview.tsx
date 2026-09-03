@@ -127,23 +127,49 @@ export default function ProjectOverview() {
 
       {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Card title="Næste skridt">
+        <Card title="Design arbejdsgang">
           <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-brand-500">1.</span>
-              <span>Upload flere datablade under <strong>Enheder</strong></span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-500 font-medium">1.</span>
+                <span>Upload/tjek <strong>Enheder</strong></span>
+              </div>
+              <Button onClick={() => navigate('/drivers')} variant="ghost" size="sm">→</Button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-brand-500">2.</span>
-              <span>Vælg kabinettype under <strong>Kabinet</strong></span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-500 font-medium">2.</span>
+                <span>Design <strong>Kabinet</strong></span>
+              </div>
+              <Button onClick={() => navigate('/cabinet')} variant="ghost" size="sm">→</Button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-brand-500">3.</span>
-              <span>Opsæt delingsfilter under <strong>Delingsfilter</strong></span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-500 font-medium">3.</span>
+                <span>Match drivere (<strong>Kabinet Match</strong>)</span>
+              </div>
+              <Button onClick={() => navigate('/match')} variant="ghost" size="sm">→</Button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-brand-500">4.</span>
-              <span>Se simulering under <strong>Simulering</strong></span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-500 font-medium">4.</span>
+                <span>Indstil <strong>Delingsfilter</strong></span>
+              </div>
+              <Button onClick={() => navigate('/crossover')} variant="ghost" size="sm">→</Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-500 font-medium">5.</span>
+                <span>Simuler i <strong>System Sim.</strong></span>
+              </div>
+              <Button onClick={() => navigate('/system')} variant="ghost" size="sm">→</Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-brand-500 font-medium">6.</span>
+                <span>Sammenlign (<strong>A/B</strong>)</span>
+              </div>
+              <Button onClick={() => navigate('/compare')} variant="ghost" size="sm">→</Button>
             </div>
           </div>
         </Card>

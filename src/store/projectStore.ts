@@ -1,6 +1,6 @@
 // Project state store (Zustand)
 import { create } from 'zustand';
-import type { Project, CabinetType, DesignState } from '@/types';
+import type { Project, CabinetType } from '@/types';
 import { getAllProjects, saveProject, deleteProject } from '@/db/database';
 
 /** Handoff payload from CabinetMatch → SystemSimulation */
@@ -35,11 +35,8 @@ interface ProjectStore {
   error: string | null;
   /** Handoff from CabinetMatch to SystemSimulation (consumed once on mount) */
   simHandoff: SystemSimHandoff | null;
-  /** Loaded design from a saved project (consumed once on SystemSimulation mount) */
-  loadedDesign: DesignState | null;
   setCurrentProject: (project: Project | null) => void;
   setSimHandoff: (handoff: SystemSimHandoff | null) => void;
-  setLoadedDesign: (design: DesignState | null) => void;
   loadProjects: () => Promise<void>;
   saveCurrentProject: () => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -51,11 +48,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loading: false,
   error: null,
   simHandoff: null,
-  loadedDesign: null,
 
   setCurrentProject: (project) => set({ currentProject: project }),
   setSimHandoff: (handoff) => set({ simHandoff: handoff }),
-  setLoadedDesign: (design) => set({ loadedDesign: design }),
 
   loadProjects: async () => {
     set({ loading: true });
@@ -111,7 +106,7 @@ export function importJSONFile(file: File): Promise<unknown> {
     reader.onload = () => {
       try {
         resolve(JSON.parse(reader.result as string));
-      } catch (e) {
+      } catch {
         reject(new Error('Ugyldig JSON fil'));
       }
     };

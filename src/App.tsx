@@ -57,7 +57,7 @@ export default function App() {
     { to: '/cabinet', label: 'Kabinet' },
     { to: '/match', label: 'Kabinet Match' },
     { to: '/crossover', label: 'Delingsfilter' },
-    { to: '/simulation', label: 'Simulering' },
+    { to: '/simulation', label: 'Directivity' },
     { to: '/system', label: 'System Sim.' },
     { to: '/compare', label: 'A/B Sammenlign' },
     { to: '/waveguide', label: 'Waveguide' },

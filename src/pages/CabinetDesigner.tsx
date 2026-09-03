@@ -9,6 +9,7 @@ import BreakInCard from '@/components/BreakInCard'
 import { CabinetComparisonCard } from '@/components/CabinetComparisonCard'
 import { LinkwitzTransformCard } from '@/components/LinkwitzTransformCard'
 import { MultiSubAlignmentCard } from '@/components/MultiSubAlignmentCard'
+import { NextStep } from '@/components/NextStep'
 import type { DriverPlacement } from '@/components/Cabinet3DBuilder'
 const Cabinet3DBuilder = lazy(() => import('@/components/Cabinet3DBuilder').then(m => ({ default: m.Cabinet3DBuilder })))
 import {
@@ -385,6 +386,8 @@ export default function CabinetDesigner() {
 
       {/* Multi-subwoofer alignment tool */}
       <MultiSubAlignmentCard />
+
+      <NextStep to="/match" label="Kabinet Match" description="Match drivere til dette kabinet" />
     </div>
   )
 }
