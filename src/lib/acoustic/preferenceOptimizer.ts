@@ -64,6 +64,30 @@ export interface OptimizationResult {
 // Core: simulate on-axis from bands + drivers, return spinorama + score
 // ---------------------------------------------------------------------------
 
+// Interpolate a curve to a target frequency grid (log-space linear interp)
+function resampleToFreqs(
+  src: FrequencyDataPoint[],
+  freqs: number[],
+): FrequencyDataPoint[] {
+  if (src.length === 0) return freqs.map((f) => ({ freq: f, magnitude: 0 }));
+  return freqs.map((f) => {
+    // Find surrounding points
+    let db: number | undefined;
+    for (let i = 0; i < src.length; i++) {
+      if (src[i]!.freq >= f) {
+        if (i === 0) { db = src[0]!.magnitude; break; }
+        const p0 = src[i - 1]!;
+        const p1 = src[i]!;
+        const t = (Math.log(f) - Math.log(p0.freq)) / (Math.log(p1.freq) - Math.log(p0.freq));
+        db = p0.magnitude + t * (p1.magnitude - p0.magnitude);
+        break;
+      }
+    }
+    if (db === undefined) db = src[src.length - 1]!.magnitude;
+    return { freq: f, magnitude: db };
+  });
+}
+
 export function simulateOnAxis(
   bands: DesignBand[],
   drivers: Driver[],
@@ -92,7 +116,9 @@ export function simulateOnAxis(
 
     let curve: FrequencyDataPoint[];
     if (hasRealResponse && driver.frequencyResponse) {
-      curve = [...driver.frequencyResponse!];
+      // Resample driver's own frequency response to the freqs grid
+      // so cabinet/baffle/crossover/sum all index correctly
+      curve = resampleToFreqs(driver.frequencyResponse, freqs);
     } else {
       const sens = driver.tsParams?.sensitivity ?? 0;
       curve = freqs.map((f) => ({ freq: f, magnitude: sens + countGainDb }));
