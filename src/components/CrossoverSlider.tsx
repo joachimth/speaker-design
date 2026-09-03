@@ -98,6 +98,11 @@ function phaseDifferenceAtXover(
   if (lowerBand.polarity === 180) lowerPhase += 180
   if (upperBand.polarity === 180) upperPhase += 180
 
+  // Add delay phase shift (at crossover frequency)
+  // phase = -360 * f * delay_ms * 0.001 (in degrees)
+  if (lowerBand.delay > 0) lowerPhase -= 360 * xoverFreq * lowerBand.delay * 0.001
+  if (upperBand.delay > 0) upperPhase -= 360 * xoverFreq * upperBand.delay * 0.001
+
   // Normalize
   while (lowerPhase > 180) lowerPhase -= 360
   while (lowerPhase < -180) lowerPhase += 360

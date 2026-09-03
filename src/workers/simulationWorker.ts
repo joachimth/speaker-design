@@ -7,7 +7,7 @@
 // This avoids blocking the UI during re-renders when sliders/inputs change.
 
 import { generateFrequencies } from '../lib/acoustic/thieleSmall'
-import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity } from '../lib/acoustic/crossover'
+import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, type CrossoverFilter } from '../lib/acoustic/crossover'
 import { calcCabinetResponse } from '../lib/acoustic/cabinetResponse'
 import { calcBaffleStep } from '../lib/acoustic/baffle'
 import type { Driver, FrequencyDataPoint, DesignBand, CabinetType, CrossoverType } from '../types'
@@ -48,6 +48,8 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
 
   const activeBands = bands.slice(0, ways)
   const processedBands: SimWorkerOutput['processedBands'] = []
+  // Store crossover filters for each band so we can compute phase in the sum
+  const bandFilters: { lp: CrossoverFilter | null; hp: CrossoverFilter | null }[] = []
 
   for (const band of activeBands) {
     const driver = drivers.find((d) => d.id === band.driverId)
@@ -100,46 +102,65 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
       })
     }
 
+    let lpFilter: CrossoverFilter | null = null
+    let hpFilter: CrossoverFilter | null = null
+
     if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
-      const lp = buildCrossoverFilter(band.lowpassType as CrossoverType, band.lowpassFreq, false)
-      curve = applyCrossover(lp, curve)
+      lpFilter = buildCrossoverFilter(band.lowpassType as CrossoverType, band.lowpassFreq, false)
+      curve = applyCrossover(lpFilter, curve)
     }
 
     if (band.highpassFreq > 0) {
-      const hp = buildCrossoverFilter(band.highpassType as CrossoverType, band.highpassFreq, true)
-      curve = applyCrossover(hp, curve)
+      hpFilter = buildCrossoverFilter(band.highpassType as CrossoverType, band.highpassFreq, true)
+      curve = applyCrossover(hpFilter, curve)
     }
 
     curve = applyGainAndPolarity(curve, band.gain, band.polarity)
 
+    bandFilters.push({ lp: lpFilter, hp: hpFilter })
     processedBands.push({ band, driverId: band.driverId, curve, hasRealResponse })
   }
 
-  // Summed response (voltage summation with polarity + delay)
+  // Summed response (coherent complex voltage summation)
+  // Each band contributes: magnitude * e^(j * totalPhase)
+  // where totalPhase = filterPhase(LP+HP) + polarity(π if 180) + delay(-2πf*delay)
+  const SAMPLE_RATE = 48000
   const summedResponse: FrequencyDataPoint[] = freqs.map((f) => {
-    let sumLinear = 0
-    for (const pb of processedBands) {
-      // Simple interpolation
+    let sumReal = 0
+    let sumImag = 0
+    for (let bi = 0; bi < processedBands.length; bi++) {
+      const pb = processedBands[bi]!
+      const filters = bandFilters[bi]!
+
+      // Interpolate magnitude at frequency f
       const curve = pb.curve
-      let val: number | undefined
+      let db: number | undefined
       for (let i = 0; i < curve.length; i++) {
         if (curve[i]!.freq >= f) {
-          if (i === 0) { val = curve[0]!.magnitude; break }
+          if (i === 0) { db = curve[0]!.magnitude; break }
           const p0 = curve[i - 1]!
           const p1 = curve[i]!
           const t = (Math.log(f) - Math.log(p0.freq)) / (Math.log(p1.freq) - Math.log(p0.freq))
-          val = p0.magnitude + t * (p1.magnitude - p0.magnitude)
+          db = p0.magnitude + t * (p1.magnitude - p0.magnitude)
           break
         }
       }
-      if (val === undefined) val = curve[curve.length - 1]?.magnitude ?? 0
+      if (db === undefined) db = curve[curve.length - 1]?.magnitude ?? 0
 
-      const sign = pb.band.polarity === 180 ? -1 : 1
-      const delayPhase = 2 * Math.PI * f * (pb.band.delay ?? 0) * 0.001
-      // Simplified: treat as magnitude sum (phase effects handled in groupDelay module)
-      sumLinear += sign * Math.pow(10, val / 20) * Math.cos(delayPhase)
+      const mag = Math.pow(10, db / 20)
+
+      // Total phase: filter phase + polarity + delay
+      let phase = 0
+      if (filters.hp) phase += filterPhaseRad(filters.hp, f, SAMPLE_RATE)
+      if (filters.lp) phase += filterPhaseRad(filters.lp, f, SAMPLE_RATE)
+      if (pb.band.polarity === 180) phase += Math.PI
+      if (pb.band.delay > 0) phase += -2 * Math.PI * f * pb.band.delay * 0.001
+
+      sumReal += mag * Math.cos(phase)
+      sumImag += mag * Math.sin(phase)
     }
-    return { freq: f, magnitude: 20 * Math.log10(Math.abs(sumLinear) + 1e-10) }
+    const mag = Math.sqrt(sumReal * sumReal + sumImag * sumImag)
+    return { freq: f, magnitude: 20 * Math.log10(mag + 1e-10) }
   })
 
   const output: SimWorkerOutput = {

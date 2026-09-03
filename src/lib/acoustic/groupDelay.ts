@@ -20,8 +20,9 @@ import type {
 } from '@/types';
 import {
   buildCrossoverFilter,
+  biquadPhaseRad,
+  filterPhaseRad,
   type BiquadCoeffs,
-  type CrossoverFilter,
 } from './crossover';
 import { generateFrequencies } from './thieleSmall';
 
@@ -29,46 +30,7 @@ import { generateFrequencies } from './thieleSmall';
 // Biquad phase evaluation
 // ---------------------------------------------------------------------------
 
-/**
- * Evaluate the phase of a single biquad section at frequency f.
- * Returns phase in radians.
- */
-function biquadPhaseRad(coeffs: BiquadCoeffs, f: number, sampleRate: number): number {
-  const w = (2 * Math.PI * f) / sampleRate;
-  const cosW = Math.cos(w);
-  const sinW = Math.sin(w);
-  const cos2W = Math.cos(2 * w);
-  const sin2W = Math.sin(2 * w);
-
-  // H(z) = (b0 + b1*z^-1 + b2*z^-2) / (1 + a1*z^-1 + a2*z^-2)
-  // z^-1 = e^(-jw) = cos(w) - j*sin(w)
-  const numReal = coeffs.b0 + coeffs.b1 * cosW + coeffs.b2 * cos2W;
-  const numImag = -(coeffs.b1 * sinW + coeffs.b2 * sin2W);
-  const denReal = 1 + coeffs.a1 * cosW + coeffs.a2 * cos2W;
-  const denImag = -(coeffs.a1 * sinW + coeffs.a2 * sin2W);
-
-  // Phase = atan2(numImag, numReal) - atan2(denImag, denReal)
-  const numPhase = Math.atan2(numImag, numReal);
-  const denPhase = Math.atan2(denImag, denReal);
-
-  return numPhase - denPhase;
-}
-
-/**
- * Evaluate the total phase of a cascaded crossover filter at frequency f.
- * Returns phase in radians (unwrapped is handled separately).
- */
-function crossoverPhaseRad(
-  filter: CrossoverFilter,
-  f: number,
-  sampleRate: number = 48000
-): number {
-  let totalPhase = 0;
-  for (const section of filter.sections) {
-    totalPhase += biquadPhaseRad(section, f, sampleRate);
-  }
-  return totalPhase;
-}
+// biquadPhaseRad and filterPhaseRad are now imported from ./crossover
 
 // ---------------------------------------------------------------------------
 // Phase unwrapping
@@ -196,7 +158,7 @@ export function calcFilterPhase(
   const filter = buildCrossoverFilter(type, fc, isHighpass, sampleRate);
 
   // Phase in radians per frequency
-  const phasesRad = frequencies.map((f) => crossoverPhaseRad(filter, f, sampleRate));
+  const phasesRad = frequencies.map((f) => filterPhaseRad(filter, f, sampleRate));
   const unwrapped = unwrapPhase(phasesRad);
 
   // Magnitude in dB (re-evaluate for completeness)
@@ -322,11 +284,10 @@ export function calcSystemPhase(
     });
 
     // Magnitude in linear (from the processed curve, interpolated to our frequency grid)
+    // Polarity is applied as a π phase shift below, NOT as a sign flip here
     const magsLinear = frequencies.map((f) => {
       const db = interpolateDbAt(curve, f);
-      const lin = Math.pow(10, db / 20);
-      // Apply polarity sign
-      return band.polarity === 180 ? -lin : lin;
+      return Math.pow(10, db / 20);
     });
 
     bandPhasesRad.push(phasesRad);

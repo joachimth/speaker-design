@@ -100,6 +100,44 @@ export interface CrossoverFilter {
  * BW2 = 1x BW2 (12 dB/oct, Q=0.707)
  * BW1 = 1st order (6 dB/oct) - approximated as biquad
  */
+// ---------------------------------------------------------------------------
+// Biquad phase evaluation (shared by worker, PhaseAlignmentCard, groupDelay)
+// ---------------------------------------------------------------------------
+
+/**
+ * Evaluate the phase of a single biquad section at frequency f.
+ * Returns phase in radians.
+ *
+ * H(z) = (b0 + b1*z^-1 + b2*z^-2) / (1 + a1*z^-1 + a2*z^-2)
+ * evaluated at z = e^(jw) on the unit circle.
+ */
+export function biquadPhaseRad(coeffs: BiquadCoeffs, f: number, sampleRate: number): number {
+  const w = (2 * Math.PI * f) / sampleRate;
+  const cosW = Math.cos(w);
+  const sinW = Math.sin(w);
+  const cos2W = Math.cos(2 * w);
+  const sin2W = Math.sin(2 * w);
+
+  const numReal = coeffs.b0 + coeffs.b1 * cosW + coeffs.b2 * cos2W;
+  const numImag = -(coeffs.b1 * sinW + coeffs.b2 * sin2W);
+  const denReal = 1 + coeffs.a1 * cosW + coeffs.a2 * cos2W;
+  const denImag = -(coeffs.a1 * sinW + coeffs.a2 * sin2W);
+
+  return Math.atan2(numImag, numReal) - Math.atan2(denImag, denReal);
+}
+
+/**
+ * Evaluate the total phase of a cascaded crossover filter at frequency f.
+ * Returns phase in radians.
+ */
+export function filterPhaseRad(filter: CrossoverFilter, f: number, sampleRate: number = 48000): number {
+  let totalPhase = 0;
+  for (const section of filter.sections) {
+    totalPhase += biquadPhaseRad(section, f, sampleRate);
+  }
+  return totalPhase;
+}
+
 export function buildCrossoverFilter(
   type: CrossoverType,
   fc: number,

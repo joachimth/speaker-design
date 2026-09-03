@@ -6,6 +6,8 @@
 
 import { useMemo } from 'react'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
+import { buildCrossoverFilter, filterPhaseRad } from '@/lib/acoustic/crossover'
+import type { CrossoverType } from '@/types'
 import { Card, Select } from '@/components/common/UI'
 
 interface Band {
@@ -58,41 +60,41 @@ export function PhaseAlignmentCard({ bands, ways, onPolarityChange }: Props) {
     return points
   }, [bands, ways])
 
-  // Compute phase for each band using filter transfer function
+  // Compute phase for each band using exact biquad transfer function evaluation
   const bandPhases = useMemo(() => {
+    const SAMPLE_RATE = 48000
     const results: { freq: number[]; phase: number[] }[] = []
     for (let i = 0; i < ways && i < bands.length; i++) {
       const band = bands[i]!
       const phases: number[] = []
 
+      // Build the crossover filters for this band (for phase computation)
+      let lpFilter = null
+      let hpFilter = null
+      if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
+        lpFilter = buildCrossoverFilter(band.lowpassType as CrossoverType, band.lowpassFreq, false, SAMPLE_RATE)
+      }
+      if (band.highpassFreq > 0) {
+        hpFilter = buildCrossoverFilter(band.highpassType as CrossoverType, band.highpassFreq, true, SAMPLE_RATE)
+      }
+
       for (const f of freqs) {
-        let phase = 0
+        // Exact filter phase from biquad sections (in radians)
+        let phaseRad = 0
+        if (hpFilter) phaseRad += filterPhaseRad(hpFilter, f, SAMPLE_RATE)
+        if (lpFilter) phaseRad += filterPhaseRad(lpFilter, f, SAMPLE_RATE)
 
-        // Highpass phase contribution
-        if (band.highpassFreq > 0) {
-          const order = filterOrder(band.highpassType)
-          const ratio = f / band.highpassFreq
-          // Phase = -order * 45 * (1 - 1/(1 + ratio^2)) approx
-          phase -= order * 45 * (1 - 1 / (1 + Math.pow(ratio, order)))
-        }
+        // Polarity adds π radians (180°)
+        if (band.polarity === 180) phaseRad += Math.PI
 
-        // Lowpass phase contribution
-        if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
-          const order = filterOrder(band.lowpassType)
-          const ratio = band.lowpassFreq / f
-          phase -= order * 45 * (1 - 1 / (1 + Math.pow(ratio, order)))
-        }
+        // Delay adds phase = -2πf*delay (delay in ms → s)
+        if (band.delay > 0) phaseRad += -2 * Math.PI * f * band.delay * 0.001
 
-        // Polarity adds 180°
-        if (band.polarity === 180) phase += 180
+        // Convert to degrees and normalize to [-180, 180]
+        let phaseDeg = (phaseRad * 180) / Math.PI
+        phaseDeg = ((phaseDeg % 360) + 540) % 360 - 180
 
-        // Delay adds phase = -2*pi*f*delay (in degrees)
-        phase -= 360 * f * band.delay * 0.001
-
-        // Normalize to [-180, 180]
-        phase = ((phase % 360) + 540) % 360 - 180
-
-        phases.push(phase)
+        phases.push(phaseDeg)
       }
 
       results.push({ freq: freqs, phase: phases })
@@ -250,14 +252,4 @@ export function PhaseAlignmentCard({ bands, ways, onPolarityChange }: Props) {
       </div>
     </Card>
   )
-}
-
-function filterOrder(type: string): number {
-  switch (type) {
-    case 'first_order': return 1
-    case 'BW2': case 'LR2': return 2
-    case 'BW4': case 'LR4': return 4
-    case 'LR8': return 8
-    default: return 4
-  }
 }
