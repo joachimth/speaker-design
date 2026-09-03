@@ -19,7 +19,7 @@ import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/b
 import { calcImpedance, impedanceMetrics } from '@/lib/acoustic/impedance'
 import { calcSystemPhase, assessGroupDelay } from '@/lib/acoustic/groupDelay'
 import { computePreferenceScore, type PreferenceScoreResult } from '@/lib/acoustic/preferenceScore'
-import { optimizeForPreferenceScore, type OptimizationResult as PrefOptResult } from '@/lib/acoustic/preferenceOptimizer'
+import { useOptimizerWorker } from '@/hooks/useOptimizerWorker'
 import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/charts/DirectivityCharts'
 import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
 import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
@@ -170,8 +170,7 @@ export default function SystemSimulation() {
 
   // Auto-tune result state
   const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
-  const [prefOptResult, setPrefOptResult] = useState<PrefOptResult | null>(null)
-  const [prefOptimizing, setPrefOptimizing] = useState(false)
+  const { optimize: workerOptimize, optimizing: prefOptimizing, prefResult: workerPrefResult } = useOptimizerWorker()
   const [targetCurveType, setTargetCurveType] = useState<TargetCurveType>('flat')
   const [targetTuneResult, setTargetTuneResult] = useState<{ optimizedGains: number[]; improvement: number; error: number } | null>(null)
   const targetPlotRef = useRef<HTMLDivElement>(null)
@@ -784,40 +783,38 @@ export default function SystemSimulation() {
     return computePreferenceScore(systemSpinorama)
   }, [systemSpinorama])
 
-  // Auto-optimize for highest preference score
+  // Auto-optimize for highest preference score — runs in Web Worker
   function handlePrefOptimize() {
     const activeBands = bands.slice(0, ways)
     if (activeBands.length < 2) return
 
-    setPrefOptimizing(true)
-    // Run in a microtask so the UI can update the button state
-    setTimeout(() => {
-      try {
-        const result = optimizeForPreferenceScore({
-          bands: activeBands.map((b) => ({ ...b })),
-          drivers,
-          ways,
-          baffleWidth,
-          baffleHeight,
-          cabinetType,
-          portFb: portFb ?? 0,
-          portVb: portVb ?? 0,
-          portDiameter,
-          numPorts,
-        })
-        setPrefOptResult(result)
-
-        // Apply optimized bands to the store
-        const newBands = [...bands]
-        for (let i = 0; i < ways && i < result.optimizedBands.length; i++) {
-          newBands[i] = { ...newBands[i]!, ...result.optimizedBands[i]! }
-        }
-        setBands(newBands)
-      } finally {
-        setPrefOptimizing(false)
-      }
-    }, 50)
+    workerOptimize({
+      type: 'preference',
+      params: {
+        bands: activeBands.map((b) => ({ ...b })),
+        drivers,
+        ways,
+        baffleWidth,
+        baffleHeight,
+        cabinetType,
+        portFb: portFb ?? 0,
+        portVb: portVb ?? 0,
+        portDiameter,
+        numPorts,
+      },
+    })
   }
+
+  // Apply preference optimization result when worker finishes
+  useEffect(() => {
+    if (workerPrefResult) {
+      const newBands = [...bands]
+      for (let i = 0; i < ways && i < workerPrefResult.optimizedBands.length; i++) {
+        newBands[i] = { ...newBands[i]!, ...workerPrefResult.optimizedBands[i]! }
+      }
+      setBands(newBands)
+    }
+  }, [workerPrefResult])
 
   // -----------------------------------------------------------------------
   // In-room response simulation (room modes + boundary gain + smoothing)
@@ -1364,21 +1361,28 @@ export default function SystemSimulation() {
                 disabled={prefOptimizing || ways < 2}
                 variant="primary"
               >
-                {prefOptimizing ? 'Optimerer…' : 'Auto-optimer alle parametre'}
+                {prefOptimizing ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Optimerer…
+                  </span>
+                ) : (
+                  'Auto-optimer alle parametre'
+                )}
               </Button>
               <span className="text-xs text-gray-500">
                 Justerer delefrekvenser, gains, delays og polaritet for højeste score
               </span>
             </div>
-            {prefOptResult && (
+            {workerPrefResult && (
               <div className="space-y-2">
                 <div className="grid grid-cols-3 gap-3">
-                  <StatCard label="Før" value={prefOptResult.beforeScore.score.toFixed(1)} unit="/10" />
-                  <StatCard label="Efter" value={prefOptResult.afterScore.score.toFixed(1)} unit="/10" />
-                  <StatCard label="Forbedring" value={`${prefOptResult.improvement >= 0 ? '+' : ''}${prefOptResult.improvement.toFixed(1)}`} unit="pt" />
+                  <StatCard label="Før" value={workerPrefResult.beforeScore.score.toFixed(1)} unit="/10" />
+                  <StatCard label="Efter" value={workerPrefResult.afterScore.score.toFixed(1)} unit="/10" />
+                  <StatCard label="Forbedring" value={`${workerPrefResult.improvement >= 0 ? '+' : ''}${workerPrefResult.improvement.toFixed(1)}`} unit="pt" />
                 </div>
                 <div className="space-y-1">
-                  {prefOptResult.reasoning.map((line, i) => (
+                  {workerPrefResult.reasoning.map((line, i) => (
                     <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
                   ))}
                 </div>

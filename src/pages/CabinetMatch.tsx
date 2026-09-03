@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDriverStore } from '@/store/driverStore'
 import { useProjectStore } from '@/store/projectStore'
@@ -13,7 +13,11 @@ import {
   type PeqSuggestion,
   type SystemRecommendation,
 } from '@/lib/acoustic/cabinetMatch'
-import { calcInternalVolume } from '@/lib/acoustic/thieleSmall'
+import { calcInternalVolume, generateFrequencies } from '@/lib/acoustic/thieleSmall'
+import { scoreFromBands } from '@/lib/acoustic/preferenceOptimizer'
+import { useOptimizerWorker } from '@/hooks/useOptimizerWorker'
+import { pistonDiameter } from '@/lib/acoustic/autoDesign'
+import type { Driver } from '@/types'
 
 // ---------------------------------------------------------------------------
 // PEQ type labels
@@ -337,6 +341,9 @@ export default function CabinetMatch() {
   const [ways, setWays] = useState<2 | 3>(2)
   const [result, setResult] = useState<SystemRecommendation | null>(null)
   const [allScores, setAllScores] = useState<{ name: string; score: number; fit: boolean }[] | null>(null)
+  const { optimize: workerOptimize, optimizing: cabOptimizing, cabResult: cabOptResult } = useOptimizerWorker()
+  // Selected drivers for cabinet optimization
+  const [optDrivers, setOptDrivers] = useState<(string | '')[]>(['', ''])
 
   function handlePresetChange(name: string) {
     setPresetName(name)
@@ -388,6 +395,67 @@ export default function CabinetMatch() {
       .sort((a, b) => b.score - a.score)
     setAllScores(scores)
   }
+
+  // Live preference score when we have a match result
+  const matchPrefScore = useMemo(() => {
+    if (!result) return null
+    const isPorted = cabinetSpec.portDiameter > 0 && cabinetSpec.portLength > 0
+    const cabType = isPorted ? 'ported' : 'sealed'
+    const bands = result.miniDspConfig.outputs.map((o) => ({
+      driverId: o.driverId,
+      role: (o.role === 'woofer' ? 'low' : o.role === 'mid' ? 'mid' : 'high') as 'low' | 'mid' | 'high',
+      driverCount: o.driverCount ?? 1,
+      lowpassFreq: o.lowpassFreq,
+      lowpassType: o.lowpassType,
+      highpassFreq: o.highpassFreq,
+      highpassType: o.highpassType,
+      gain: o.gain,
+      polarity: o.polarity,
+      delay: o.delay,
+    }))
+    const freqs = generateFrequencies(20, 20000, 12)
+    const matchedDrivers = bands.map((b) => drivers.find((d) => d.id === b.driverId)).filter((d): d is Driver => !!d)
+    if (matchedDrivers.length < 2) return null
+    // Use largest driver diameter for directivity
+    let maxDia = 100
+    for (const d of matchedDrivers) {
+      const dia = pistonDiameter(d)
+      if (dia > maxDia) maxDia = dia
+    }
+    const onAxis = scoreFromBands(bands, drivers, freqs, cabinetSpec.width, cabinetSpec.height, cabType, portTuning ?? 0, internalVolume, cabinetSpec.portDiameter, cabinetSpec.numPorts)
+    // scoreFromBands returns PreferenceScoreResult, but we need the on-axis curve for spinorama
+    // Actually scoreFromBands already computes spinorama internally, let's just use the score
+    return onAxis
+  }, [result, cabinetSpec, portTuning, internalVolume, drivers])
+
+  // Cabinet optimizer handler — runs in Web Worker, UI stays responsive
+  function handleOptimizeCabinet() {
+    const selectedDrivers = optDrivers
+      .map((id) => drivers.find((d) => d.id === id))
+      .filter((d): d is Driver => !!d)
+    if (selectedDrivers.length < 2) return
+
+    workerOptimize({
+      type: 'cabinet',
+      params: {
+        drivers: selectedDrivers,
+        ways: selectedDrivers.length === 3 ? 3 : 2,
+        baffleWidth: cabinetSpec.width,
+        baffleHeight: cabinetSpec.height,
+        wallThickness: cabinetSpec.wallThickness,
+        wooferCount: cabinetSpec.wooferCount ?? 1,
+      },
+    })
+  }
+
+  // Apply cabinet optimization result when worker finishes
+  useEffect(() => {
+    if (cabOptResult) {
+      setCabinetSpec(cabOptResult.bestSpec)
+      setResult(null)
+      setAllScores(null)
+    }
+  }, [cabOptResult])
 
   return (
     <div className="space-y-4">
@@ -452,6 +520,158 @@ export default function CabinetMatch() {
         </div>
       </Card>
 
+      {/* Cabinet optimizer: select drivers, find best cabinet */}
+      <Card title="Optimer kabinet til valgte enheder">
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            Vælg 2 eller 3 enheder og find det kabinet (lukket/port, volumen, port tuning)
+            der giver den højeste præference score.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {optDrivers.map((driverId, i) => (
+              <Select
+                key={i}
+                label={i === 0 ? 'Bas/mellemtone' : i === 1 ? 'Diskant (eller mellemtone)' : 'Diskant'}
+                value={driverId}
+                onChange={(v) => {
+                  const next = [...optDrivers]
+                  next[i] = v
+                  // Auto-expand/shrink selection
+                  if (v && i === optDrivers.length - 1 && optDrivers.length < 3) {
+                    next.push('')
+                  }
+                  // Remove trailing empties
+                  while (next.length > 2 && next[next.length - 1] === '') {
+                    next.pop()
+                  }
+                  setOptDrivers(next)
+                }}
+                options={[
+                  { value: '', label: '— Vælg enhed —' },
+                  ...drivers.map((d) => ({
+                    value: d.id,
+                    label: `${d.manufacturer} ${d.model} (${d.type})`,
+                  })),
+                ]}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              onClick={handleOptimizeCabinet}
+              disabled={cabOptimizing || optDrivers.filter((d) => d).length < 2}
+              variant="primary"
+            >
+              {cabOptimizing ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Optimerer kabinet…
+                </span>
+              ) : (
+                'Optimer kabinet'
+              )}
+            </Button>
+            <span className="text-xs text-gray-500">
+              Søger lukket og port, volumen og port tuning
+            </span>
+          </div>
+
+          {cabOptResult && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard
+                  label="Bedste kabinet"
+                  value={cabOptResult.bestCabinetType === 'sealed' ? 'Lukket' : 'Port'}
+                  unit=""
+                />
+                <StatCard label="Volumen" value={cabOptResult.bestVolume.toFixed(1)} unit="L" />
+                {cabOptResult.bestPortFb > 0 && (
+                  <StatCard label="Port tuning" value={String(cabOptResult.bestPortFb)} unit="Hz" />
+                )}
+                <StatCard
+                  label="Score"
+                  value={`${cabOptResult.bestScore.score.toFixed(1)}`}
+                  unit="/10"
+                />
+                <StatCard
+                  label="Forbedring"
+                  value={`${cabOptResult.improvement >= 0 ? '+' : ''}${cabOptResult.improvement.toFixed(1)}`}
+                  unit="pt"
+                />
+                <StatCard label="F3" value={String(cabOptResult.trials[0]?.f3?.toFixed(0) ?? '—')} unit="Hz" />
+                <StatCard label="Bass ext." value={String(cabOptResult.bestScore.lfxHz)} unit="Hz" />
+                <StatCard label="NBD ON" value={cabOptResult.bestScore.nbdOnAxis.toFixed(2)} unit="dB" />
+              </div>
+
+              {/* Top trials */}
+              <div className="pt-2">
+                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Top konfigurationer (prøvet):
+                </div>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {cabOptResult.trials.slice(0, 10).map((t, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between text-xs py-1 px-2 rounded"
+                      style={{ backgroundColor: i === 0 ? 'rgba(34,197,94,0.1)' : undefined }}
+                    >
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {t.cabinetType === 'sealed' ? 'Lukket' : 'Port'} {t.volume.toFixed(1)}L
+                        {t.portFb > 0 ? ` @ ${t.portFb}Hz` : ''}
+                      </span>
+                      <span className="font-mono text-gray-600 dark:text-gray-400">
+                        Score {t.score.toFixed(1)} · F3 {t.f3.toFixed(0)}Hz
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {cabOptResult.reasoning.map((line, i) => (
+                  <p key={i} className="text-xs text-gray-600 dark:text-gray-400">{line}</p>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => {
+                    if (cabOptResult.bestBands.length >= 2) {
+                      setSimHandoff({
+                        bands: cabOptResult.bestBands.map((b) => ({
+                          driverId: b.driverId,
+                          role: (b.role === 'mid2' ? 'mid' : b.role) as 'low' | 'mid' | 'high',
+                          driverCount: b.driverCount,
+                          lowpassFreq: b.lowpassFreq,
+                          lowpassType: b.lowpassType,
+                          highpassFreq: b.highpassFreq,
+                          highpassType: b.highpassType,
+                          gain: b.gain,
+                          polarity: b.polarity,
+                          delay: b.delay,
+                        })),
+                        ways: cabOptResult.bestBands.length as 2 | 3,
+                        baffleWidth: cabOptResult.bestSpec.width,
+                        baffleHeight: cabOptResult.bestSpec.height,
+                        cabinetType: cabOptResult.bestCabinetType,
+                        portFb: cabOptResult.bestPortFb || null,
+                        portVb: cabOptResult.bestVolume,
+                        portDiameter: cabOptResult.bestSpec.portDiameter,
+                        numPorts: cabOptResult.bestSpec.numPorts,
+                        projectName: `Optimeret kabinet — ${cabOptResult.bestCabinetType === 'sealed' ? 'lukket' : 'port'}`,
+                      })
+                      navigate('/system')
+                    }
+                  }}
+                >
+                  → Send til System Simulering
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* Results */}
       {result && (
         <>
@@ -465,6 +685,22 @@ export default function CabinetMatch() {
               ))}
             </div>
           </Card>
+
+          {/* Live preference score for this match */}
+          {matchPrefScore && (
+            <Card title="Præference Score for dette match">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard label="Score" value={matchPrefScore.score.toFixed(1)} unit="/10" />
+                <StatCard label="Med subwoofer" value={matchPrefScore.scoreWithSub.toFixed(1)} unit="/10" />
+                <StatCard label="NBD On-Axis" value={matchPrefScore.nbdOnAxis.toFixed(2)} unit="dB" />
+                <StatCard label="NBD In-Room" value={matchPrefScore.nbdPredInRoom.toFixed(2)} unit="dB" />
+                <StatCard label="Bass extension" value={String(matchPrefScore.lfxHz)} unit="Hz" />
+                <StatCard label="Bass kvalitet" value={matchPrefScore.lfq.toFixed(2)} unit="dB" />
+                <StatCard label="Smoothness PIR" value={matchPrefScore.smPredInRoom.toFixed(3)} unit="" />
+                <StatCard label="Smoothness SP" value={matchPrefScore.smSoundPower.toFixed(3)} unit="" />
+              </div>
+            </Card>
+          )}
 
           {/* Driver recommendations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -64,7 +64,7 @@ export interface OptimizationResult {
 // Core: simulate on-axis from bands + drivers, return spinorama + score
 // ---------------------------------------------------------------------------
 
-function simulateOnAxis(
+export function simulateOnAxis(
   bands: DesignBand[],
   drivers: Driver[],
   freqs: number[],
@@ -176,7 +176,7 @@ function simulateOnAxis(
   return summed;
 }
 
-function scoreFromBands(
+export function scoreFromBands(
   bands: DesignBand[],
   drivers: Driver[],
   freqs: number[],
