@@ -77,6 +77,7 @@ export default function ParameterSetSelector({ driver, onSelect }: Props) {
               type="button"
               onClick={() => onSelect(entry.params, entry.name)}
               title={entry.notes}
+              aria-label={`Vælg parametersæt ${entry.name}`}
               className={`
                 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors
                 ${active

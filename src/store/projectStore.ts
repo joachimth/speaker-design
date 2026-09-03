@@ -1,6 +1,7 @@
 // Project state store (Zustand)
 import { create } from 'zustand';
 import type { Project, CabinetType, DesignState } from '@/types';
+import { getAllProjects, saveProject, deleteProject } from '@/db/database';
 
 /** Handoff payload from CabinetMatch → SystemSimulation */
 export interface SystemSimHandoff {
@@ -59,11 +60,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadProjects: async () => {
     set({ loading: true });
     try {
-      const { getAllProjects } = await import('@/db/database');
       const projects = await getAllProjects();
       set({ projects, loading: false });
-    } catch (e: any) {
-      set({ error: e.message, loading: false });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e), loading: false });
     }
   },
 
@@ -72,21 +72,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!project) return;
     project.updatedAt = Date.now();
     try {
-      const { saveProject } = await import('@/db/database');
       await saveProject(project);
-    } catch (e: any) {
-      set({ error: e.message });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e) });
     }
   },
 
   deleteProject: async (id: string) => {
     try {
-      const { deleteProject } = await import('@/db/database');
       await deleteProject(id);
       const projects = get().projects.filter((p) => p.id !== id);
       set({ projects });
-    } catch (e: any) {
-      set({ error: e.message });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e) });
     }
   },
 }));

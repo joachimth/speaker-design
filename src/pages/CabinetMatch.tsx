@@ -429,6 +429,7 @@ export default function CabinetMatch() {
                     <button
                       key={w}
                       onClick={() => { setWays(w as 2 | 3); setResult(null); setAllScores(null) }}
+                      aria-label={`${w}-vejs system`}
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                         ways === w
                           ? 'bg-brand-600 text-white'

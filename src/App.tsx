@@ -3,11 +3,12 @@ import { useEffect, useState, lazy, Suspense } from 'react'
 import DriverManager from './pages/DriverManager'
 import CabinetDesigner from './pages/CabinetDesigner'
 import CrossoverDesigner from './pages/CrossoverDesigner'
-import SimulationView from './pages/SimulationView'
 import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
-import CabinetMatch from './pages/CabinetMatch'
-import DesignCompare from './pages/DesignCompare'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+const SimulationView = lazy(() => import('./pages/SimulationView'))
+const CabinetMatch = lazy(() => import('./pages/CabinetMatch'))
+const DesignCompare = lazy(() => import('./pages/DesignCompare'))
 const WaveguideDesigner = lazy(() => import('./components/WaveguideDesigner').then(m => ({ default: m.WaveguideDesigner })))
 import { useDriverStore } from './store/driverStore'
 import { useDesignStore } from '@/store/designStore';
@@ -108,6 +109,7 @@ export default function App() {
               <button
                 className="flex items-center px-2 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 onClick={toggleUnits}
+                aria-label={units === 'metric' ? 'Skift til imperial (tommer)' : 'Skift til metrisk (mm)'}
                 title={units === 'metric' ? 'Skift til imperial (tommer)' : 'Skift til metrisk (mm)'}
               >
                 {units === 'metric' ? 'mm' : 'in'}
@@ -185,17 +187,19 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<ProjectOverview />} />
           <Route path="/drivers" element={<DriverManager />} />
           <Route path="/cabinet" element={<CabinetDesigner />} />
-          <Route path="/match" element={<CabinetMatch />} />
+          <Route path="/match" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser...</div>}><CabinetMatch /></Suspense>} />
           <Route path="/crossover" element={<CrossoverDesigner />} />
-          <Route path="/simulation" element={<SimulationView />} />
+          <Route path="/simulation" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser...</div>}><SimulationView /></Suspense>} />
           <Route path="/system" element={<SystemSimulation />} />
-          <Route path="/compare" element={<DesignCompare />} />
+          <Route path="/compare" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser...</div>}><DesignCompare /></Suspense>} />
           <Route path="/waveguide" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser waveguide designer...</div>}><WaveguideDesigner /></Suspense>} />
         </Routes>
+        </ErrorBoundary>
       </main>
 
       {/* Intro tour overlay (shows on first visit) */}

@@ -130,7 +130,7 @@
 ### Performance
 - [x] Lazy-load Three.js via React.lazy + Suspense (Cabinet3DBuilder, WaveguideDesigner) - initial bundle 320KB -> 182KB gzipped
 - [ ] Wire useSimulationWorker into SystemSimulation (hook exists but unused; requires passing freqs + adapting spinorama/room/polar useMemos)
-- [ ] Route-based code splitting (React.lazy for CabinetMatch, DesignCompare, SimulationView pages)
+- [x] Route-based code splitting (React.lazy for CabinetMatch, DesignCompare, SimulationView pages) - bundle 189KB -> 178KB gzipped
 - [ ] Memoize driver database queries (avoid re-filtering on every render)
 
 ### Bug fixes (Sep 1)
@@ -138,10 +138,10 @@
 - [x] Fix degenerate quad in addHollowBox front wall (v1==v2 duplicate vertex)
 
 ### Code quality
-- [ ] Add React ErrorBoundary (no error boundary exists; unhandled 3D/WebGL errors crash the app)
-- [ ] Replace 25 `any` types with proper types (pdf/extractor.ts has 8, driverStore/projectStore catch blocks, simulationWorker casts)
-- [ ] Fix database.ts mixed static+dynamic import warning (Vite warns: dynamic import won't move to separate chunk)
-- [ ] Add aria-labels for accessibility (only 7 in entire app; buttons/icons need screen reader labels)
+- [x] Add React ErrorBoundary (ErrorBoundary.tsx wraps all routes)
+- [x] Replace 25 `any` types with proper types (pdf/extractor.ts, driverStore/projectStore catch blocks, simulationWorker casts, database.ts, GraphDigitizer, DriverManager)
+- [x] Fix database.ts mixed static+dynamic import warning (projectStore + SystemSimulation now use static imports)
+- [x] Add aria-labels for accessibility (added to unit toggle, cabinet type selectors, ways selector, subwoofer remove, parameter set selector)
 
 ### Features to consider
 - [x] Driver frequency response smoothing (Psychoacoustic 1/N-octave smoothing, smoothing.ts)

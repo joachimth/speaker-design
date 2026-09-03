@@ -12,10 +12,25 @@
 
 import type { ThieleSmallParams, FrequencyDataPoint, ImpedanceDataPoint } from '@/types';
 
-// PDF.js is loaded dynamically to keep initial bundle small
-let pdfjsLib: any = null;
+/** Minimal PDF.js module type (we only use a few methods) */
+type PdfjsModule = typeof import('pdfjs-dist')
 
-async function loadPdfJs(): Promise<any> {
+/** PDF.js image object (minimal shape we use) */
+interface PdfImage {
+  width: number
+  height: number
+  data: Uint8Array | number[]
+}
+
+/** Minimal page interface for getImageData (structural, compatible with PDFPageProxy) */
+interface PdfPageLike {
+  objs: { get(name: string, cb: (img: PdfImage) => void): void }
+}
+
+// PDF.js is loaded dynamically to keep initial bundle small
+let pdfjsLib: PdfjsModule | null = null;
+
+async function loadPdfJs(): Promise<PdfjsModule> {
   if (pdfjsLib) return pdfjsLib;
   const pdfjs = await import(/* @vite-ignore */ 'pdfjs-dist');
   // Set worker path
@@ -54,7 +69,7 @@ export async function extractPdf(
     const page = await doc.getPage(i);
     const textContent = await page.getTextContent();
     const pageText = textContent.items
-      .map((item: any) => item.str)
+      .map((item: object) => ('str' in item ? (item as { str: string }).str : ''))
       .join(' ');
 
     allText.push(pageText);
@@ -67,12 +82,13 @@ export async function extractPdf(
 
     for (let j = 0; j < fnArray.length; j++) {
       // BEGIN_IMAGE (opcode 85) or PAINT_IMAGE (varies by PDF.js version)
-      if (fnArray[j] === pdfjs.OPS.paintImageXObject || fnArray[j] === pdfjs.OPS.paintInlineImage) {
+      const opsMap = pdfjs.OPS as Record<string, number>
+      if (fnArray[j] === opsMap.paintImageXObject || fnArray[j] === opsMap.paintInlineImage) {
         try {
           const img = argsArray[j];
           if (img && img.width && img.height) {
             // Get the image data
-            const imgData = await getImageData(page, j, ops, pdfjs);
+            const imgData = await getImageData(page as PdfPageLike, j, ops, pdfjs);
             if (imgData) {
               images.push({
                 pageIndex: i,
@@ -106,18 +122,19 @@ export async function extractPdf(
  * Helper to extract image data from PDF page operator list.
  */
 async function getImageData(
-  page: any,
+  page: PdfPageLike,
   opIndex: number,
-  ops: any,
-  pdfjs: any
+  ops: { fnArray: number[]; argsArray: unknown[] },
+  pdfjs: PdfjsModule
 ): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const args = ops.argsArray[opIndex];
     const fn = ops.fnArray[opIndex];
 
-    if (fn === pdfjs.OPS.paintInlineImage) {
+    const opsMap = pdfjs.OPS as Record<string, number>
+    if (fn === opsMap.paintInlineImage) {
       // Inline image - data is in args
-      const img = args;
+      const img = args as PdfImage | undefined;
       if (img && img.width && img.height && img.data) {
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
@@ -146,11 +163,11 @@ async function getImageData(
           height: img.height,
         };
       }
-    } else if (fn === pdfjs.OPS.paintImageXObject) {
+    } else if (fn === opsMap.paintImageXObject) {
       // XObject image - need to get from page.objs
-      const imgName = args[0];
+      const imgName = (args as unknown[])[0] as string;
       return new Promise((resolve) => {
-        page.objs.get(imgName, (img: any) => {
+        page.objs.get(imgName, (img: PdfImage) => {
           if (img && img.width && img.height && img.data) {
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
@@ -244,7 +261,7 @@ export function parseTsParams(text: string): Partial<ThieleSmallParams> {
     if (match && match[1]) {
       const value = parseFloat(match[1]);
       if (!isNaN(value) && value > 0) {
-        (params as any)[key] = value;
+        (params as Record<string, number>)[key] = value;
       }
     }
   }

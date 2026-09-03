@@ -231,6 +231,7 @@ export default function CabinetDesigner() {
             <button
               key={type}
               onClick={() => setCabinetType(type)}
+              aria-label={`Kabinet type: ${type === 'sealed' ? 'Lukket' : type === 'ported' ? 'Med port' : type === 'transmission_line' ? 'Transmissionslinje' : 'Ren baffel'}`}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 cabinetType === type
                   ? 'bg-brand-600 text-white'

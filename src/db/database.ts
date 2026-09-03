@@ -7,7 +7,7 @@ import type { Driver, Project } from '@/types';
 export interface Settings {
   id: string;
   key: string;
-  value: any;
+  value: unknown;
 }
 
 export class SpeakerDesignDB extends Dexie {
@@ -71,11 +71,11 @@ export async function deleteProject(id: string): Promise<void> {
 // Settings
 // ---------------------------------------------------------------------------
 
-export async function getSetting(key: string): Promise<any> {
+export async function getSetting(key: string): Promise<unknown> {
   const setting = await db.settings.where('key').equals(key).first();
   return setting?.value;
 }
 
-export async function setSetting(key: string, value: any): Promise<void> {
+export async function setSetting(key: string, value: unknown): Promise<void> {
   await db.settings.put({ id: key, key, value });
 }

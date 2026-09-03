@@ -23,8 +23,8 @@ export const useDriverStore = create<DriverStore>((set, get) => ({
     try {
       const drivers = await getAllDrivers();
       set({ drivers, loading: false });
-    } catch (e: any) {
-      set({ error: e.message, loading: false });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e), loading: false });
     }
   },
 
@@ -32,8 +32,8 @@ export const useDriverStore = create<DriverStore>((set, get) => ({
     try {
       await saveDriver(driver);
       await get().loadDrivers();
-    } catch (e: any) {
-      set({ error: e.message });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e) });
     }
   },
 
@@ -42,8 +42,8 @@ export const useDriverStore = create<DriverStore>((set, get) => ({
     try {
       await saveDriver(driver);
       await get().loadDrivers();
-    } catch (e: any) {
-      set({ error: e.message });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e) });
     }
   },
 
@@ -51,8 +51,8 @@ export const useDriverStore = create<DriverStore>((set, get) => ({
     try {
       await deleteDriver(id);
       await get().loadDrivers();
-    } catch (e: any) {
-      set({ error: e.message });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e) });
     }
   },
 }));

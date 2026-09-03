@@ -52,13 +52,13 @@ export default function DriverManager() {
       const ts = result.tsParams
       setNewDriver((prev) => ({
         ...prev,
-        tsParams: ts as any,
+        tsParams: ts as unknown as ThieleSmallParams,
         manufacturer: prev.manufacturer || '',
         model: prev.model || '',
         datasheetPdf: buffer,
       }))
-    } catch (err: any) {
-      alert(`Fejl ved PDF-ekstraktion: ${err.message}`)
+    } catch (err: unknown) {
+      alert(`Fejl ved PDF-ekstraktion: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setExtracting(false)
     }
@@ -93,8 +93,8 @@ export default function DriverManager() {
         }))
         setRewStatus(`Importeret ${result.pointCount} impedans-punkter. Tjek og gem enheden.`)
       }
-    } catch (err: any) {
-      setRewStatus(`Fejl: ${err.message}`)
+    } catch (err: unknown) {
+      setRewStatus(`Fejl: ${err instanceof Error ? err.message : String(err)}`)
     }
     if (rewFileRef.current) rewFileRef.current.value = ''
   }
@@ -108,7 +108,7 @@ export default function DriverManager() {
       manufacturer: newDriver.manufacturer || '',
       model: newDriver.model || '',
       type: (newDriver.type as DriverType) || 'woofer',
-      tsParams: (newDriver.tsParams as any) || {} as any,
+      tsParams: (newDriver.tsParams ?? {}) as ThieleSmallParams,
       dimensions: newDriver.dimensions,
       frequencyResponse: newDriver.frequencyResponse,
       impedance: newDriver.impedance,
@@ -325,13 +325,13 @@ export default function DriverManager() {
             if (digitizerMode === 'spl') {
               setNewDriver((prev) => ({
                 ...prev,
-                frequencyResponse: points as any,
+                frequencyResponse: points,
               }))
               setRewStatus(`Digitizeret ${points.length} SPL punkter fra graf. Tjek og gem enheden.`)
             } else {
               setNewDriver((prev) => ({
                 ...prev,
-                impedance: points as any,
+                impedance: points,
               }))
               setRewStatus(`Digitizeret ${points.length} impedans punkter fra graf. Tjek og gem enheden.`)
             }

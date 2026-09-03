@@ -11,6 +11,7 @@ import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, acousticCenterDe
 import { generateTargetCurve, optimizeForTargetCurve, type TargetCurveType } from '@/lib/acoustic/targetCurve'
 import { psychoacousticSmooth } from '@/lib/acoustic/smoothing'
 import { exportPlotToPng } from '@/lib/utils/pngExport'
+import { saveProject } from '@/db/database'
 import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
 import { calcCabinetResponse } from '@/lib/acoustic/cabinetResponse'
 import { exportBiquads, exportBiquadsJSON, export4x10HD } from '@/lib/acoustic/biquadExport'
@@ -264,7 +265,6 @@ export default function SystemSimulation() {
     }
 
     try {
-      const { saveProject } = await import('@/db/database')
       await saveProject(project)
       setProjectName('')
       markClean()

@@ -10,7 +10,7 @@ import { generateFrequencies } from '../lib/acoustic/thieleSmall'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity } from '../lib/acoustic/crossover'
 import { calcCabinetResponse } from '../lib/acoustic/cabinetResponse'
 import { calcBaffleStep } from '../lib/acoustic/baffle'
-import type { Driver, FrequencyDataPoint, DesignBand } from '../types'
+import type { Driver, FrequencyDataPoint, DesignBand, CabinetType, CrossoverType } from '../types'
 
 export interface SimWorkerInput {
   bands: DesignBand[]
@@ -77,7 +77,7 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
         : driver
       const cabinetResp = calcCabinetResponse(
         effDriver,
-        cabinetType as any,
+        cabinetType as CabinetType,
         freqs,
         baffleWidth,
         0.707,
@@ -101,12 +101,12 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
     }
 
     if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
-      const lp = buildCrossoverFilter(band.lowpassType as any, band.lowpassFreq, false)
+      const lp = buildCrossoverFilter(band.lowpassType as CrossoverType, band.lowpassFreq, false)
       curve = applyCrossover(lp, curve)
     }
 
     if (band.highpassFreq > 0) {
-      const hp = buildCrossoverFilter(band.highpassType as any, band.highpassFreq, true)
+      const hp = buildCrossoverFilter(band.highpassType as CrossoverType, band.highpassFreq, true)
       curve = applyCrossover(hp, curve)
     }
 
@@ -148,5 +148,5 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
     freqs,
   }
 
-  ;(self as any).postMessage(output)
+  ;(self as unknown as Worker).postMessage(output)
 }

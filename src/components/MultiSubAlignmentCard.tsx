@@ -58,6 +58,7 @@ export function MultiSubAlignmentCard() {
                   <button
                     onClick={() => removeSub(i)}
                     className="ml-2 text-red-500 hover:text-red-700 text-sm"
+                    aria-label={`Fjern subwoofer ${i + 1}`}
                   >
                     ✕
                   </button>

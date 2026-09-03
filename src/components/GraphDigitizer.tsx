@@ -47,7 +47,7 @@ export function GraphDigitizer({ mode, onDone, onCancel }: Props) {
   const imageCanvasRef = useRef<HTMLCanvasElement>(null) // off-screen original image
   const fileRef = useRef<HTMLInputElement>(null)
   const pdfPageRef = useRef<number>(0)
-  const pdfDocRef = useRef<any>(null)
+  const pdfDocRef = useRef<Awaited<ReturnType<typeof import('pdfjs-dist')['getDocument']>['promise']> | null>(null)
 
   const [hasImage, setHasImage] = useState(false)
   const [calStep, setCalStep] = useState<CalibrationStep>('idle')
@@ -129,8 +129,8 @@ export function GraphDigitizer({ mode, onDone, onCancel }: Props) {
         }
         img.src = url
       }
-    } catch (err: any) {
-      setStatus(`Fejl: ${err.message}`)
+    } catch (err: unknown) {
+      setStatus(`Fejl: ${err instanceof Error ? err.message : String(err)}`)
     }
 
     if (fileRef.current) fileRef.current.value = ''
@@ -146,7 +146,7 @@ export function GraphDigitizer({ mode, onDone, onCancel }: Props) {
     canvas.width = viewport.width
     canvas.height = viewport.height
     const ctx = canvas.getContext('2d')!
-    await page.render({ canvasContext: ctx, viewport }).promise
+    await page.render({ canvasContext: ctx, viewport } as Parameters<typeof page.render>[0]).promise
     loadImageToCanvas(canvas, viewport.width, viewport.height)
   }
 
