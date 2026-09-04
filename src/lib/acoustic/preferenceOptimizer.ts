@@ -494,8 +494,9 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
       const upperDriver = drivers.find((d) => d.id === bestBands[xo.upperIdx]!.driverId);
       const { fMin: xoLoMin, fMax: xoLoMax } = getXoLimits(lowerDriver, upperDriver);
 
-      const fMin = Math.max(20, xo.centerFreq * (1 - xoRangeFraction), xoLoMin);
-      const fMax = Math.min(20000, xo.centerFreq * (1 + xoRangeFraction), xoLoMax);
+      // Use currentCenter (updated each stepFrac) not stale xo.centerFreq
+      const fMin = Math.max(20, currentCenter * (1 - xoRangeFraction), xoLoMin);
+      const fMax = Math.min(20000, currentCenter * (1 + xoRangeFraction), xoLoMax);
 
       let bestXoFreq = currentCenter;
       let bestXoScore = bestScore;

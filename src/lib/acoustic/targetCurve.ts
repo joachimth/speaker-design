@@ -185,19 +185,10 @@ export function optimizeForTargetCurve(
         let bestGain = gains[b]!
         let bestError = currentError
 
-        // Try increasing
-        for (let g = gains[b]! + stepSize; g <= initialGains[b]! + maxGainChange; g += stepSize) {
-          const testGains = [...gains]
-          testGains[b] = g
-          const err = computeError(testGains)
-          if (err < bestError) {
-            bestError = err
-            bestGain = g
-          }
-        }
-
-        // Try decreasing
-        for (let g = gains[b]! - stepSize; g >= initialGains[b]! - maxGainChange; g -= stepSize) {
+        // Only attenuate (lower gain), never boost — per Joachim's rule.
+        // Band 0 is already skipped (locked at 0).
+        // Try decreasing only
+        for (let g = gains[b]! - stepSize; g >= gains[b]! - maxGainChange; g -= stepSize) {
           const testGains = [...gains]
           testGains[b] = g
           const err = computeError(testGains)

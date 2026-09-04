@@ -689,7 +689,7 @@ export default function SystemSimulation() {
       freqs,
       { type: targetCurveType },
       initialGains,
-      6,
+      15, // increased from 6 to allow larger attenuation corrections
     )
 
     setTargetTuneResult({
