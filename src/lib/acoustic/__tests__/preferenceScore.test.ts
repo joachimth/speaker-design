@@ -6,7 +6,6 @@ import {
   calcLFQ,
   prefRating,
   computePreferenceScore,
-  sumBandsMagnitude,
 } from '../preferenceScore';
 import { calcSpinorama } from '../directivity';
 import type { FrequencyDataPoint } from '@/types';
@@ -194,33 +193,6 @@ describe('preferenceScore', () => {
       const spinorama = calcSpinorama(onAxis, 100, 200, 300);
       const result = computePreferenceScore(spinorama);
       expect(result.scoreWithSub).toBeGreaterThanOrEqual(result.score);
-    });
-  });
-
-  describe('sumBandsMagnitude', () => {
-    it('sums two flat curves correctly (+6 dB for two equal sources)', () => {
-      const curve1 = flatCurve(freqs, 80);
-      const curve2 = flatCurve(freqs, 80);
-      const summed = sumBandsMagnitude([curve1, curve2], [0, 0], [0, 0]);
-      // Two equal sources = +6 dB
-      expect(summed[0]!.magnitude).toBeCloseTo(86, 1);
-    });
-
-    it('handles polarity inversion (cancellation)', () => {
-      const curve1 = flatCurve(freqs, 80);
-      const curve2 = flatCurve(freqs, 80);
-      const summed = sumBandsMagnitude([curve1, curve2], [0, 0], [0, 180]);
-      // Opposite polarity = cancellation → very low
-      expect(summed[0]!.magnitude).toBeLessThan(-20);
-    });
-
-    it('applies gains correctly', () => {
-      const curve1 = flatCurve(freqs, 80);
-      const curve2 = flatCurve(freqs, 80);
-      const summed = sumBandsMagnitude([curve1, curve2], [3, -3], [0, 0]);
-      // 83 + 77 → linear sum → 83.99 + 7.08 = 91.07 → ~83.2 + 6 = ~83 dB
-      // Actually: 10^(83/20) + 10^(77/20) = 14125 + 7079 = 21204 → 20*log10 = 86.5
-      expect(summed[0]!.magnitude).toBeCloseTo(86.5, 0);
     });
   });
 });

@@ -4,7 +4,7 @@
 // Implements biquad-based crossover filters: LR2, LR4, LR8, BW1, BW2, BW4
 // Each filter is implemented as a cascade of 2nd-order biquad sections.
 
-import type { CrossoverType, FrequencyDataPoint } from '@/types';
+import type { CrossoverType, FrequencyDataPoint, EQFilter } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Biquad filter
@@ -252,7 +252,7 @@ export function buildCrossoverFilter(
  * Evaluate the transfer function of a biquad at frequency f.
  * Returns magnitude in dB.
  */
-function biquadMagnitudeDb(coeffs: BiquadCoeffs, f: number, sampleRate: number): number {
+export function biquadMagnitudeDb(coeffs: BiquadCoeffs, f: number, sampleRate: number): number {
   // z = e^(j*w) where w = 2*pi*f/fs
   const w = (2 * Math.PI * f) / sampleRate;
   const cosW = Math.cos(w);
@@ -479,4 +479,29 @@ export function applyEqBiquad(
  */
 export function eqBiquadPhaseRad(coeffs: BiquadCoeffs, f: number, sampleRate: number = 48000): number {
   return biquadPhaseRad(coeffs, f, sampleRate);
+}
+
+/**
+ * Compute the combined magnitude response (in dB) of all enabled EQ filters
+ * on a band at a given set of frequencies. Useful for plotting EQ curves.
+ * Returns an array of { freq, magnitude } where magnitude is the net EQ
+ * gain in dB at each frequency (0 dB = no effect).
+ */
+export function computeEqResponse(
+  eqFilters: EQFilter[] | undefined,
+  freqs: number[],
+  sampleRate: number = 48000,
+): FrequencyDataPoint[] {
+  if (!eqFilters || eqFilters.length === 0) {
+    return freqs.map((f) => ({ freq: f, magnitude: 0 }));
+  }
+  return freqs.map((f) => {
+    let totalDb = 0;
+    for (const eq of eqFilters) {
+      if (!eq.enabled || eq.gain === 0) continue;
+      const biquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, sampleRate);
+      totalDb += biquadMagnitudeDb(biquad, f, sampleRate);
+    }
+    return { freq: f, magnitude: totalDb };
+  });
 }

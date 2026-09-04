@@ -11,6 +11,7 @@ import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, acousticCenterDe
 import { generateTargetCurve, optimizeForTargetCurve, type TargetCurveType } from '@/lib/acoustic/targetCurve'
 import { psychoacousticSmooth } from '@/lib/acoustic/smoothing'
 import { exportPlotToPng } from '@/lib/utils/pngExport'
+import { downloadREWExport } from '@/lib/acoustic/rewExport'
 import { saveProject } from '@/db/database'
 import { useSimulationWorker } from '@/hooks/useSimulationWorker'
 import { calcInRoomResponse, ROOM_PRESETS, type RoomAcousticsParams } from '@/lib/acoustic/roomAcoustics'
@@ -173,6 +174,8 @@ export default function SystemSimulation() {
 
   // Local-only UI state
   const [showRoomSim, setShowRoomSim] = useState(true)
+  // Pre-optimization snapshot for undo/reset
+  const [preOptimizeBands, setPreOptimizeBands] = useState<Band[] | null>(null)
 
   // Auto-tune result state
   const [tuneResult, setTuneResult] = useState<RoomOptimizationResult | null>(null)
@@ -231,6 +234,7 @@ export default function SystemSimulation() {
         gain: hb.gain,
         polarity: hb.polarity,
         delay: hb.delay,
+        eqFilters: hb.eqFilters,
       }
     })
 
@@ -692,6 +696,8 @@ export default function SystemSimulation() {
       { type: targetCurveType },
       initialGains,
       15, // increased from 6 to allow larger attenuation corrections
+      baffleWidth,
+      baffleHeight,
     )
 
     setTargetTuneResult({
@@ -741,7 +747,7 @@ export default function SystemSimulation() {
 
   // Target curve for display, offset to match the system's average level
   const targetCurveDisplay = useMemo(() => {
-    const raw = generateTargetCurve(freqs, { type: targetCurveType })
+    const raw = generateTargetCurve(freqs, { type: targetCurveType }, baffleWidth, baffleHeight)
     if (!smoothedSummed) return raw
     const refPoints = smoothedSummed.filter((p) => p.freq >= 100 && p.freq <= 10000)
     if (refPoints.length === 0) return raw
@@ -782,7 +788,10 @@ export default function SystemSimulation() {
       curve: pb.curve.map((p) => p.magnitude),
       diameter: pistonDiameterOf(pb.driver),
     }))
-    return calcSpinoramaMultiDriver(bandCurves, freqs, baffleWidth, baffleHeight)
+    return calcSpinoramaMultiDriver(
+      bandCurves, freqs, baffleWidth, baffleHeight,
+      summedResponse.map((p) => p.magnitude),
+    )
   }, [summedResponse, processedBands, baffleWidth, baffleHeight])
 
   const spinRef = useMemo(() => {
@@ -801,6 +810,9 @@ export default function SystemSimulation() {
     const activeBands = bands.slice(0, ways)
     if (activeBands.length < 2) return
 
+    // Save snapshot for undo
+    setPreOptimizeBands(bands.map((b) => ({ ...b })))
+
     workerOptimize({
       type: 'preference',
       params: {
@@ -816,6 +828,13 @@ export default function SystemSimulation() {
         numPorts,
       },
     })
+  }
+
+  // Undo optimization: restore pre-optimization bands
+  function handleUndoOptimize() {
+    if (!preOptimizeBands) return
+    storeSetBands(preOptimizeBands.map((b) => ({ ...b })))
+    setPreOptimizeBands(null)
   }
 
   // Apply preference optimization result when worker finishes
@@ -1131,20 +1150,25 @@ export default function SystemSimulation() {
           </div>
         )}
 
-        <div className="mt-3 flex gap-2 flex-wrap">
-          <Button onClick={handleAutoCrossover} variant="primary">
-            Auto delefilter + baffel
-          </Button>
-          <Button onClick={handleAutoPhaseDelay} variant="primary">
-            Auto fase/delay
-          </Button>
-          <Button onClick={() => handleAutoBaffle()} variant="secondary">
-            Kun auto baffel
-          </Button>
-          <Button onClick={handleAutoTune} variant="secondary">
-            Auto-tilpas til in-room
-          </Button>
-        </div>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+            Avanceret: individuelle auto-funktioner
+          </summary>
+          <div className="mt-2 flex gap-2 flex-wrap">
+            <Button onClick={handleAutoCrossover} variant="secondary" size="sm">
+              Auto delefilter + baffel
+            </Button>
+            <Button onClick={handleAutoPhaseDelay} variant="secondary" size="sm">
+              Auto fase/delay
+            </Button>
+            <Button onClick={() => handleAutoBaffle()} variant="secondary" size="sm">
+              Kun auto baffel
+            </Button>
+            <Button onClick={handleAutoTune} variant="secondary" size="sm">
+              Auto-tilpas til in-room
+            </Button>
+          </div>
+        </details>
 
         {/* Target curve optimizer */}
         <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-2">
@@ -1258,6 +1282,17 @@ export default function SystemSimulation() {
           </Button>
           <Button onClick={handleExport4x10HD} variant="secondary">
             🔢 Biquad til MiniDSP 4x10 HD
+          </Button>
+          <Button
+            onClick={() => {
+              if (summedResponse) {
+                downloadREWExport(summedResponse, projectName || 'system-response')
+              }
+            }}
+            variant="secondary"
+            disabled={!summedResponse}
+          >
+            📊 Eksporter til REW
           </Button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
@@ -1401,6 +1436,11 @@ export default function SystemSimulation() {
                   'Auto-optimer alle parametre'
                 )}
               </Button>
+              {preOptimizeBands && !prefOptimizing && (
+                <Button onClick={handleUndoOptimize} variant="secondary" size="sm">
+                  Fortryd optimering
+                </Button>
+              )}
               <span className="text-xs text-gray-500">
                 Justerer delefrekvenser, gains, delays og polaritet for højeste score
               </span>

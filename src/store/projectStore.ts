@@ -1,6 +1,6 @@
 // Project state store (Zustand)
 import { create } from 'zustand';
-import type { Project, CabinetType } from '@/types';
+import type { Project, CabinetType, EQFilter } from '@/types';
 import { getAllProjects, saveProject, deleteProject } from '@/db/database';
 
 /** Handoff payload from CabinetMatch → SystemSimulation */
@@ -16,6 +16,7 @@ export interface SystemSimHandoff {
     gain: number;
     polarity: 0 | 180;
     delay: number;
+    eqFilters?: EQFilter[];
   }[];
   ways: 2 | 3;
   baffleWidth: number;

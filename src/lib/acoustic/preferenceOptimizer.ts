@@ -13,18 +13,12 @@
 import type {
   Driver,
   DesignBand,
-  FrequencyDataPoint,
-  CabinetType,
 } from '@/types';
-import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, buildEqBiquad, applyEqBiquad, eqBiquadPhaseRad, type BiquadCoeffs } from './crossover';
-import { calcCabinetResponse } from './cabinetResponse';
-import { calcBaffleStep, calcBaffleStepCompensation } from './baffle';
+import { buildCrossoverFilter, filterPhaseRad, buildEqBiquad, eqBiquadPhaseRad } from './crossover';
 import { calcSpinoramaMultiDriver } from './directivity';
 import { computePreferenceScore, type PreferenceScoreResult } from './preferenceScore';
 import { generateFrequencies } from './thieleSmall';
-import { pistonDiameter, acousticCenterDepth, usableRange } from './autoDesign';
-
-const SAMPLE_RATE = 48000;
+import { acousticCenterDepth, usableRange } from './autoDesign';
 
 export interface OptimizationParams {
   bands: DesignBand[];
@@ -60,201 +54,10 @@ export interface OptimizationResult {
   reasoning: string[];
 }
 
-// ---------------------------------------------------------------------------
-// Core: simulate on-axis from bands + drivers, return spinorama + score
-// ---------------------------------------------------------------------------
-
-// Interpolate a curve to a target frequency grid (log-space linear interp)
-export function resampleToFreqs(
-  src: FrequencyDataPoint[],
-  freqs: number[],
-): FrequencyDataPoint[] {
-  if (src.length === 0) return freqs.map((f) => ({ freq: f, magnitude: 0 }));
-  return freqs.map((f) => {
-    // Find surrounding points
-    let db: number | undefined;
-    for (let i = 0; i < src.length; i++) {
-      if (src[i]!.freq >= f) {
-        if (i === 0) { db = src[0]!.magnitude; break; }
-        const p0 = src[i - 1]!;
-        const p1 = src[i]!;
-        const t = (Math.log(f) - Math.log(p0.freq)) / (Math.log(p1.freq) - Math.log(p0.freq));
-        db = p0.magnitude + t * (p1.magnitude - p0.magnitude);
-        break;
-      }
-    }
-    if (db === undefined) db = src[src.length - 1]!.magnitude;
-    return { freq: f, magnitude: db };
-  });
-}
-
-export function simulateOnAxis(
-  bands: DesignBand[],
-  drivers: Driver[],
-  freqs: number[],
-  baffleWidth: number,
-  baffleHeight: number,
-  cabinetType: string,
-  portFb: number,
-  portVb: number,
-  portDiameter: number,
-  numPorts: number,
-): FrequencyDataPoint[] {
-  return simulateOnAxisWithBands(bands, drivers, freqs, baffleWidth, baffleHeight, cabinetType, portFb, portVb, portDiameter, numPorts).summed;
-}
-
-/** Per-band curve data for multi-driver spinorama */
-export interface BandCurveData {
-  curve: number[];
-  diameter: number;
-}
-
-/** Simulate on-axis and return per-band curves for multi-driver directivity */
-export function simulateOnAxisWithBands(
-  bands: DesignBand[],
-  drivers: Driver[],
-  freqs: number[],
-  baffleWidth: number,
-  baffleHeight: number,
-  cabinetType: string,
-  portFb: number,
-  portVb: number,
-  portDiameter: number,
-  numPorts: number,
-): { summed: FrequencyDataPoint[]; bandCurves: BandCurveData[] } {
-  const baffleStepResult = calcBaffleStep(baffleWidth, baffleHeight, freqs);
-  // fStep must match calcBaffleStep's internal calculation (uses baffleWidth,
-  // NOT Math.max(width, height)). Mismatch caused midrange fade-out at wrong freq.
-  const fStep = 343000 / (2 * baffleWidth);
-  const fStep3x = fStep * 3;
-  // Baffle step compensation: +6 dB low-shelf at fStep, applied to woofer
-  // and midrange channels. Any real active speaker includes this EQ in the
-  // crossover/DSP. Without it, the response has a -6 dB dip in the 200-600 Hz
-  // region that the gain optimizer cannot fix (band 0 gain locked at 0).
-  const baffleComp = calcBaffleStepCompensation(fStep, 6, freqs);
-
-  const bandCurves: { curve: FrequencyDataPoint[]; band: DesignBand; filters: { lp: ReturnType<typeof buildCrossoverFilter> | null; hp: ReturnType<typeof buildCrossoverFilter> | null; eqs: BiquadCoeffs[] } }[] = [];
-
-  for (const band of bands) {
-    const driver = drivers.find((d) => d.id === band.driverId);
-    if (!driver) continue;
-
-    const driverCount = band.driverCount ?? 1;
-    const hasRealResponse = !!driver.frequencyResponse && driver.frequencyResponse.length > 0;
-    const countGainDb = 10 * Math.log10(driverCount);
-
-    let curve: FrequencyDataPoint[];
-    if (hasRealResponse && driver.frequencyResponse) {
-      // Resample driver's own frequency response to the freqs grid
-      // so cabinet/baffle/crossover/sum all index correctly
-      curve = resampleToFreqs(driver.frequencyResponse, freqs);
-    } else {
-      const sens = driver.tsParams?.sensitivity ?? 0;
-      curve = freqs.map((f) => ({ freq: f, magnitude: sens + countGainDb }));
-    }
-
-    if (driverCount > 1 && hasRealResponse) {
-      curve = curve.map((p) => ({ freq: p.freq, magnitude: p.magnitude + countGainDb }));
-    }
-
-    const driverType = driver.type;
-    const isLowDriver = driverType === 'woofer' || driverType === 'subwoofer';
-    const isMidDriver = driverType === 'midrange' || driverType === 'fullrange';
-
-    if (isLowDriver && driver) {
-      const effDriver = driverCount > 1 && driver.tsParams?.vas
-        ? { ...driver, tsParams: { ...driver.tsParams, vas: driver.tsParams.vas * driverCount } }
-        : driver;
-      const cabinetResp = calcCabinetResponse(
-        effDriver,
-        cabinetType as CabinetType,
-        freqs,
-        baffleWidth,
-        0.707,
-        cabinetType === 'ported' ? { fb: portFb || undefined, vb: portVb || undefined, portDiameter, numPorts } : undefined,
-      );
-      curve = curve.map((p, i) => ({
-        freq: p.freq,
-        magnitude: p.magnitude + (cabinetResp.response[i]?.magnitude ?? 0),
-      }));
-    }
-
-    if (isLowDriver || isMidDriver) {
-      curve = curve.map((p, i) => {
-        let bsFactor = baffleStepResult.response[i] ?? 0;
-        let compFactor = baffleComp[i] ?? 0;
-        if (isMidDriver && p.freq > fStep3x) {
-          const t = Math.min(1, (p.freq - fStep) / (fStep3x - fStep));
-          bsFactor *= (1 - t);
-          compFactor *= (1 - t);
-        }
-        // Net effect: baffle step loss + compensation = ~0 dB (flat)
-        return { freq: p.freq, magnitude: p.magnitude + bsFactor + compFactor };
-      });
-    }
-
-    let lpFilter: ReturnType<typeof buildCrossoverFilter> | null = null;
-    let hpFilter: ReturnType<typeof buildCrossoverFilter> | null = null;
-
-    if (band.lowpassFreq > 0 && band.lowpassFreq < 20000) {
-      lpFilter = buildCrossoverFilter(band.lowpassType, band.lowpassFreq, false, SAMPLE_RATE);
-      curve = applyCrossover(lpFilter, curve, SAMPLE_RATE);
-    }
-    if (band.highpassFreq > 0) {
-      hpFilter = buildCrossoverFilter(band.highpassType, band.highpassFreq, true, SAMPLE_RATE);
-      curve = applyCrossover(hpFilter, curve, SAMPLE_RATE);
-    }
-
-    // Apply per-band EQ filters (low-shelf, high-shelf, PEQ)
-    // Only for bands with active crossover filters in this design
-    const hasActiveXover = (band.lowpassFreq > 0 && band.lowpassFreq < 20000) || (band.highpassFreq > 0);
-    const eqBiquads: BiquadCoeffs[] = [];
-    if (hasActiveXover && band.eqFilters) {
-      for (const eq of band.eqFilters) {
-        if (!eq.enabled || eq.gain === 0) continue;
-        const biquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, SAMPLE_RATE);
-        eqBiquads.push(biquad);
-        curve = applyEqBiquad(biquad, curve, SAMPLE_RATE);
-      }
-    }
-
-    curve = applyGainAndPolarity(curve, band.gain, band.polarity);
-
-    bandCurves.push({ curve, band, filters: { lp: lpFilter, hp: hpFilter, eqs: eqBiquads } });
-  }
-
-  // Complex voltage sum with filter phase + polarity + delay + EQ phase
-  const summed = freqs.map((f, fi) => {
-    let sumReal = 0;
-    let sumImag = 0;
-    for (const bc of bandCurves) {
-      const db = bc.curve[fi]!.magnitude;
-      const mag = Math.pow(10, db / 20);
-
-      let phase = 0;
-      if (bc.filters.hp) phase += filterPhaseRad(bc.filters.hp, f, SAMPLE_RATE);
-      if (bc.filters.lp) phase += filterPhaseRad(bc.filters.lp, f, SAMPLE_RATE);
-      for (const eqBiquad of bc.filters.eqs) {
-        phase += eqBiquadPhaseRad(eqBiquad, f, SAMPLE_RATE);
-      }
-      if (bc.band.polarity === 180) phase += Math.PI;
-      if (bc.band.delay > 0) phase += -2 * Math.PI * f * bc.band.delay * 0.001;
-
-      sumReal += mag * Math.cos(phase);
-      sumImag += mag * Math.sin(phase);
-    }
-    const mag = Math.sqrt(sumReal * sumReal + sumImag * sumImag);
-    return { freq: f, magnitude: 20 * Math.log10(mag + 1e-10) };
-  });
-
-  // Build per-band curve data for multi-driver spinorama
-  const bandCurveData: BandCurveData[] = bandCurves.map((bc) => ({
-    curve: bc.curve.map((p) => p.magnitude),
-    diameter: pistonDiameter(drivers.find((d) => d.id === bc.band.driverId) ?? drivers[0]!),
-  }));
-
-  return { summed, bandCurves: bandCurveData };
-}
+// Re-export shared simulation functions from the single source of truth.
+// The optimizer and simulation worker must compute identical curves.
+export { resampleToFreqs, simulateOnAxis, simulateOnAxisWithBands, complexSum, type BandCurveData, type ProcessedBand, type BandFilters } from './simulateBands';
+import { simulateOnAxisWithBands as _simulateOnAxisWithBands } from './simulateBands';
 
 export function scoreFromBands(
   bands: DesignBand[],
@@ -268,7 +71,7 @@ export function scoreFromBands(
   portDiameter: number,
   numPorts: number,
 ): PreferenceScoreResult {
-  const { bandCurves } = simulateOnAxisWithBands(
+  const { summed, bandCurves } = _simulateOnAxisWithBands(
     bands, drivers, freqs,
     baffleWidth, baffleHeight,
     cabinetType, portFb, portVb, portDiameter, numPorts,
@@ -276,7 +79,12 @@ export function scoreFromBands(
 
   // Per-band directivity: each driver through its own piston diameter
   // + baffle diffraction effect. Matches UI's calcSpinoramaMultiDriver.
-  const spinorama = calcSpinoramaMultiDriver(bandCurves, freqs, baffleWidth, baffleHeight);
+  // Pass the complex-summed on-axis so the preference score uses the
+  // same phase-coherent curve that's plotted to the user.
+  const spinorama = calcSpinoramaMultiDriver(
+    bandCurves, freqs, baffleWidth, baffleHeight,
+    summed.map((p) => p.magnitude),
+  );
   return computePreferenceScore(spinorama);
 }
 
@@ -358,20 +166,28 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   const reasoning: string[] = [];
   const freqs = generateFrequencies(20, 20000, 12);
 
+  // Deep copy initialBands so we never mutate the caller's array.
+  // Without this, initialBands[0].gain = 0 below would corrupt the
+  // original, making re-optimization produce wrong results.
+  const bands = initialBands.map((b) => ({
+    ...b,
+    eqFilters: b.eqFilters ? b.eqFilters.map((eq) => ({ ...eq })) : undefined,
+  }));
+
   // Force band 0 (woofer) gain to 0 — it's the reference.
   // All other bands are adjusted relative to it (attenuation only).
-  initialBands[0]!.gain = 0;
+  bands[0]!.gain = 0;
 
   // Score the initial setup
   const beforeScore = scoreFromBands(
-    initialBands, drivers, freqs,
+    bands, drivers, freqs,
     baffleWidth, baffleHeight,
     cabinetType, portFb, portVb, portDiameter, numPorts,
   );
 
   reasoning.push(`Start score: ${beforeScore.score}/10 (NBD_ON=${beforeScore.nbdOnAxis}, NBD_PIR=${beforeScore.nbdPredInRoom}, LFX=${beforeScore.lfxHz}Hz, SM_PIR=${beforeScore.smPredInRoom}).`);
 
-  let bestBands = initialBands.map((b) => ({ ...b }));
+  let bestBands = bands.map((b) => ({ ...b }));
   // Ensure band 0 gain stays 0 in bestBands
   bestBands[0]!.gain = 0;
   let bestScore = beforeScore.score;
@@ -406,6 +222,16 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
         for (const f1 of validGrids[0]!) {
           for (const f2 of validGrids[1]!) {
             if (f2 > f1 * 1.5) xoConfigs.push({ freqs: [f1, f2], indices: [0, 1] });
+          }
+        }
+      } else if (numXoPoints === 3) {
+        // 4-way system: 3 crossover points
+        for (const f1 of validGrids[0]!) {
+          for (const f2 of validGrids[1]!) {
+            if (f2 <= f1 * 1.5) continue;
+            for (const f3 of validGrids[2]!) {
+              if (f3 > f2 * 1.5) xoConfigs.push({ freqs: [f1, f2, f3], indices: [0, 1, 2] });
+            }
           }
         }
       }
@@ -452,7 +278,7 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   // shallower drivers so their acoustic centers align is correct
   // regardless of whether the preference score rewards it. The fine
   // delay optimization (Phase 5) can then tune from this baseline.
-  const autoDelays = computeAutoDelays(initialBands, drivers);
+  const autoDelays = computeAutoDelays(bands, drivers);
   reasoning.push(`Auto-delay sat fra akustisk centrum: [${autoDelays.map((d) => d.toFixed(2)).join(', ')}] ms.`);
   bestBands = bestBands.map((b, i) => ({ ...b, delay: autoDelays[i] ?? 0 }));
   // Re-score from the new baseline
@@ -600,8 +426,10 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
       // Only attenuate (lower gain), never boost — per Joachim's rule.
       // If a driver is too quiet, the others are reduced instead.
       // Band 0 stays at 0, so all adjustments are relative to woofer.
+      // scanEnd = 0 allows finding a less-negative gain (e.g. -3 when
+      // current is -5), which is still attenuation, just less of it.
       const scanStart = Math.max(-gainRangeDb, bestBands[b]!.gain - 10);
-      const scanEnd = Math.min(0, bestBands[b]!.gain + 0);
+      const scanEnd = 0;
 
       for (let g = scanStart; g <= scanEnd + 1e-9; g += gainStep) {
         const trialBands = bestBands.map((bb, i) => i === b ? { ...bb, gain: Math.round(g * 10) / 10 } : bb);
@@ -785,7 +613,7 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
 
   return {
     optimizedBands: bestBands,
-    originalBands: initialBands.map((b) => ({ ...b })),
+    originalBands: initialBands.map((b) => ({ ...b, eqFilters: b.eqFilters ? b.eqFilters.map((eq) => ({ ...eq })) : undefined })),
     beforeScore,
     afterScore,
     improvement,

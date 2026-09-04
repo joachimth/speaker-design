@@ -1,4 +1,4 @@
-import { Routes, Route, NavLink } from 'react-router-dom'
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { useEffect, useState, lazy, Suspense } from 'react'
 import DriverManager from './pages/DriverManager'
 import CabinetDesigner from './pages/CabinetDesigner'
@@ -6,7 +6,6 @@ import CrossoverDesigner from './pages/CrossoverDesigner'
 import SystemSimulation from './pages/SystemSimulation'
 import ProjectOverview from './pages/ProjectOverview'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-const SimulationView = lazy(() => import('./pages/SimulationView'))
 const CabinetMatch = lazy(() => import('./pages/CabinetMatch'))
 const DesignCompare = lazy(() => import('./pages/DesignCompare'))
 const WaveguideDesigner = lazy(() => import('./components/WaveguideDesigner').then(m => ({ default: m.WaveguideDesigner })))
@@ -52,14 +51,13 @@ export default function App() {
   }
 
   const navItems = [
-    { to: '/', label: 'Overblik' },
-    { to: '/drivers', label: 'Enheder' },
-    { to: '/cabinet', label: 'Kabinet' },
-    { to: '/match', label: 'Kabinet Match' },
-    { to: '/crossover', label: 'Delingsfilter' },
-    { to: '/simulation', label: 'Directivity' },
-    { to: '/system', label: 'System Sim.' },
-    { to: '/compare', label: 'A/B Sammenlign' },
+    { to: '/', label: '1. Overblik' },
+    { to: '/drivers', label: '2. Enheder' },
+    { to: '/cabinet', label: '3. Kabinet' },
+    { to: '/match', label: '4. Kabinet Match' },
+    { to: '/crossover', label: '5. Delingsfilter' },
+    { to: '/system', label: '6. System Sim.' },
+    { to: '/compare', label: '7. A/B Sammenlign' },
     { to: '/waveguide', label: 'Waveguide' },
   ]
 
@@ -194,7 +192,7 @@ export default function App() {
           <Route path="/cabinet" element={<CabinetDesigner />} />
           <Route path="/match" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser...</div>}><CabinetMatch /></Suspense>} />
           <Route path="/crossover" element={<CrossoverDesigner />} />
-          <Route path="/simulation" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser...</div>}><SimulationView /></Suspense>} />
+          <Route path="/simulation" element={<Navigate to="/system" replace />} />
           <Route path="/system" element={<SystemSimulation />} />
           <Route path="/compare" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser...</div>}><DesignCompare /></Suspense>} />
           <Route path="/waveguide" element={<Suspense fallback={<div className="p-8 text-center text-gray-500">Indlæser waveguide designer...</div>}><WaveguideDesigner /></Suspense>} />

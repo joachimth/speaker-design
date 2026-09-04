@@ -7,7 +7,11 @@
 // Biquad coefficients are generated using the RBJ Audio EQ Cookbook formulas
 // (see crossover.ts: lowShelfBiquad, highShelfBiquad, peakingBiquad).
 
+import { useMemo } from 'react'
 import { Card, Select, NumberInput, Button } from '@/components/common/UI'
+import { computeEqResponse } from '@/lib/acoustic/crossover'
+import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
+import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import type { EQFilter, EQFilterKind } from '@/types'
 
 interface Band {
@@ -41,6 +45,8 @@ function genId(): string {
 }
 
 export function EQFiltersCard({ bands, ways, onEqChange }: Props) {
+  const eqFreqs = useMemo(() => generateFrequencies(20, 20000, 6), [])
+
   function addFilter(bandIndex: number, kind: EQFilterKind) {
     const band = bands[bandIndex]
     if (!band) return
@@ -87,6 +93,8 @@ export function EQFiltersCard({ bands, ways, onEqChange }: Props) {
             (band.lowpassFreq > 0 && band.lowpassFreq < 20000) ||
             (band.highpassFreq > 0)
           const filters = band.eqFilters ?? []
+          const eqCurve = computeEqResponse(filters, eqFreqs)
+          const hasActiveEq = filters.some((f) => f.enabled && f.gain !== 0)
 
           return (
             <div
@@ -213,6 +221,24 @@ export function EQFiltersCard({ bands, ways, onEqChange }: Props) {
                   </Button>
                 </div>
               ))}
+
+              {/* EQ response visualization */}
+              {hasActiveXover && hasActiveEq && (
+                <div className="mt-2">
+                  <ResponsivePlot
+                    data={[
+                      {
+                        x: eqCurve.map((p) => p.freq),
+                        y: eqCurve.map((p) => p.magnitude),
+                        name: 'EQ respons',
+                        color: '#3b82f6',
+                      },
+                    ]}
+                    yRange={[-18, 18]}
+                    yLabel="dB"
+                  />
+                </div>
+              )}
             </div>
           )
         })}

@@ -236,9 +236,13 @@ function effectiveBaffleDiameter(
   freq: number,
   driverDiameter: number,
   baffleWidth: number,
-  baffleHeight: number,
+  _baffleHeight: number,
 ): number {
-  const baffleDia = Math.max(baffleWidth, baffleHeight);
+  // Use the shorter baffle dimension (width) as the effective baffle
+  // diameter for directivity, consistent with the baffle step model
+  // which uses fStep = c / (2 * width). Using Math.max(width, height)
+  // would overestimate baffle size and widen directivity incorrectly.
+  const baffleDia = baffleWidth;
   const fBaffle = C / (2 * baffleDia); // transition frequency
   // Smooth transition: at f << fBaffle, use baffle; at f >> fBaffle, use driver
   const weight = 1 / (1 + (freq / fBaffle) ** 2);
@@ -267,6 +271,7 @@ export function calcSpinoramaMultiDriver(
   freqs: number[],
   baffleWidth: number,
   baffleHeight: number,
+  onAxisComplex?: number[],
 ): SystemResponseResult {
   // CEA-2034 standard angles
   const lwAngles = [
@@ -310,14 +315,17 @@ export function calcSpinoramaMultiDriver(
     return 20 * Math.log10(Math.max(sumLinear, 1e-10));
   }
 
-  // On-axis = sum of band curves (power sum, consistent with off-axis method)
-  const onAxisDb = freqs.map((_f, fi) => {
-    let sumLinear = 0;
-    for (const bc of bandCurves) {
-      sumLinear += Math.pow(10, (bc.curve[fi] ?? -100) / 20);
-    }
-    return 20 * Math.log10(Math.max(sumLinear, 1e-10));
-  });
+  // On-axis: use the complex voltage sum when provided (correct phase
+  // relationships at crossover), otherwise fall back to power sum.
+  const onAxisDb = onAxisComplex && onAxisComplex.length === freqs.length
+    ? onAxisComplex
+    : freqs.map((_f, fi) => {
+        let sumLinear = 0;
+        for (const bc of bandCurves) {
+          sumLinear += Math.pow(10, (bc.curve[fi] ?? -100) / 20);
+        }
+        return 20 * Math.log10(Math.max(sumLinear, 1e-10));
+      });
 
   // Listening Window
   const listeningWindow = freqs.map((_f, fi) => {

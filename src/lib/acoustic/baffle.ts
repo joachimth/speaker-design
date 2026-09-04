@@ -39,18 +39,48 @@ const C = 343000;
  * The baffle step affects ONLY drivers below ~2× f_step. Above that, the
  * effect is negligible (<1dB). In practice, this primarily affects woofers
  * and lower-midrange drivers — tweeters operate well above f_step.
+ *
+ * When driverXOffset and driverYPos are provided, the effective baffle
+ * dimension is computed as the minimum distance from the driver to any
+ * baffle edge (doubled, since the model uses c/(2*d)). An off-center driver
+ * has a shorter effective baffle dimension, raising f_step and reducing the
+ * baffle step loss at a given frequency. This matches the physical reality
+ * that a driver near a baffle edge transitions to 2π radiation at higher
+ * frequencies.
+ *
+ * @param driverXOffset  Horizontal offset from baffle center [mm] (0 = center)
+ * @param driverYPos     Vertical position from baffle top [mm] (optional)
  */
 export function calcBaffleStep(
   baffleWidth: number,
-  _baffleHeight: number, // kept for API stability; the model only depends on width
-  frequencies: number[]
+  _baffleHeight: number,
+  frequencies: number[],
+  driverXOffset?: number,
+  driverYPos?: number,
 ): BaffleStepResult {
-  // Baffle step frequency: f_step = c / (2 * width)
-  // where width is the baffle's shorter dimension (the limiting edge).
-  // This is the standard model: at this frequency, the wavelength equals
-  // twice the baffle width, marking the transition from 4π to 2π radiation.
-  // (Olson 1969, D'Appolito)
-  const fStep = C / (2 * baffleWidth);
+  // Compute the effective baffle dimension.
+  // For a centered driver: effective = baffleWidth (standard model).
+  // For an off-center driver: effective = 2 × min distance to any edge.
+  let effectiveWidth = baffleWidth;
+
+  if (driverXOffset !== undefined && driverXOffset !== 0) {
+    const distLeft = baffleWidth / 2 + driverXOffset;
+    const distRight = baffleWidth / 2 - driverXOffset;
+    const minHoriz = Math.min(distLeft, distRight);
+    // Use the smaller of: baffle width, or 2× nearest horizontal edge distance
+    effectiveWidth = Math.min(baffleWidth, 2 * minHoriz);
+  }
+
+  if (driverYPos !== undefined && _baffleHeight > 0) {
+    const distTop = driverYPos;
+    const distBottom = _baffleHeight - driverYPos;
+    const minVert = Math.min(distTop, distBottom);
+    // Take the overall minimum across both dimensions
+    effectiveWidth = Math.min(effectiveWidth, 2 * minVert);
+  }
+
+  // Baffle step frequency: f_step = c / (2 * effective_width)
+  const fStep = C / (2 * effectiveWidth);
 
   // First-order low-shelf: -6 / (1 + (f/f_step)^2)
   // This is a proper 6dB/octave shelf with correct asymptotic behavior.

@@ -6,6 +6,7 @@
 // difference between the system response and the target curve.
 
 import type { FrequencyDataPoint } from '@/types'
+import { calcBaffleStep, calcBaffleStepCompensation } from './baffle';
 
 export type TargetCurveType = 'flat' | 'harman' | 'tilted' | 'custom'
 
@@ -23,15 +24,31 @@ export interface TargetCurveParams {
 export function generateTargetCurve(
   freqs: number[],
   params: TargetCurveParams,
+  baffleWidth?: number,
+  baffleHeight?: number,
 ): number[] {
+  // Baffle step compensation shape: a real active speaker's target curve
+  // should include baffle step EQ (low-frequency shelf to compensate the
+  // 4π→2π transition). Without this, the target is flat at LF where the
+  // actual system has a dip, and the optimizer fights the baffle step.
+  let baffleCompShape: number[] = freqs.map(() => 0);
+  if (baffleWidth && baffleWidth > 0) {
+    const fStep = 343000 / (2 * baffleWidth);
+    const bsResult = calcBaffleStep(baffleWidth, baffleHeight ?? baffleWidth, freqs);
+    const compDb = Math.abs(bsResult.response[0] ?? 6);
+    baffleCompShape = calcBaffleStepCompensation(fStep, compDb, freqs);
+  }
+
+  let baseCurve: number[];
   switch (params.type) {
     case 'flat':
-      return freqs.map(() => 0)
+      baseCurve = freqs.map(() => 0)
+      break
 
     case 'harman':
       // Harman target curve: ~+2 dB tilt from 100 Hz to 10 kHz,
       // gentle roll-off below 100 Hz, flat above
-      return freqs.map((f) => {
+      baseCurve = freqs.map((f) => {
         if (f < 100) {
           // Low-frequency shelf: gradual boost
           return 2 * Math.min(1, f / 100)
@@ -44,21 +61,24 @@ export function generateTargetCurve(
           return 2
         }
       })
+      break
 
     case 'tilted': {
       const tilt = params.tilt ?? -0.5
-      return freqs.map((f) => {
+      baseCurve = freqs.map((f) => {
         const octaves = Math.log2(f / 1000)
         return tilt * octaves
       })
+      break
     }
 
     case 'custom': {
       if (!params.customPoints || params.customPoints.length < 2) {
-        return freqs.map(() => 0)
+        baseCurve = freqs.map(() => 0)
+        break
       }
       const sorted = [...params.customPoints].sort((a, b) => a.freq - b.freq)
-      return freqs.map((f) => {
+      baseCurve = freqs.map((f) => {
         // Find surrounding points and interpolate (log scale)
         if (f <= sorted[0]!.freq) return sorted[0]!.magnitude
         if (f >= sorted[sorted.length - 1]!.freq) return sorted[sorted.length - 1]!.magnitude
@@ -74,11 +94,16 @@ export function generateTargetCurve(
         }
         return 0
       })
+      break
     }
 
     default:
-      return freqs.map(() => 0)
+      baseCurve = freqs.map(() => 0)
   }
+
+  // Add baffle step compensation shape to the target curve so the
+  // optimizer doesn't fight the baffle step dip at LF.
+  return baseCurve.map((v, i) => v + baffleCompShape[i]!)
 }
 
 /**
@@ -99,6 +124,8 @@ export function optimizeForTargetCurve(
   target: TargetCurveParams,
   initialGains: number[],
   maxGainChange: number = 6,
+  baffleWidth?: number,
+  baffleHeight?: number,
 ): {
   optimizedGains: number[]
   optimizedResponse: FrequencyDataPoint[]
@@ -110,7 +137,7 @@ export function optimizeForTargetCurve(
     return { optimizedGains: [], optimizedResponse: [], targetCurve: [], error: 0, improvement: 0 }
   }
 
-  const rawTarget = generateTargetCurve(freqs, target)
+  const rawTarget = generateTargetCurve(freqs, target, baffleWidth, baffleHeight)
   const gains = [...initialGains]
   // Band 0 (woofer) locked at gain 0 — it's the reference.
   if (gains.length > 0) gains[0] = 0

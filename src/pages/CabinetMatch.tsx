@@ -804,6 +804,14 @@ export default function CabinetMatch() {
                       gain: o.gain,
                       polarity: o.polarity,
                       delay: o.delay,
+                      eqFilters: o.peq.map((p) => ({
+                        id: `match_peq_${o.label}_${p.freq}_${p.type}`,
+                        kind: (p.type === 'peak' || p.type === 'notch' ? 'peaking' : p.type) as 'low_shelf' | 'high_shelf' | 'peaking',
+                        freq: p.freq,
+                        gain: p.gain,
+                        q: p.q,
+                        enabled: true,
+                      })),
                     }))
                     setSimHandoff({
                       bands,

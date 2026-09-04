@@ -15,7 +15,7 @@
 //
 // Higher score = better. Typical range 0-10.
 
-import type { SystemResponseResult, FrequencyDataPoint } from '@/types';
+import type { SystemResponseResult } from '@/types';
 
 // ---------------------------------------------------------------------------
 // 1/N octave band centers
@@ -308,34 +308,4 @@ export function computePreferenceScore(spinorama: SystemResponseResult): Prefere
     smPredInRoom: Math.round(smPredInRoom * 1000) / 1000,
     smSoundPower: Math.round(smSoundPower * 1000) / 1000,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Helper: compute on-axis curve from processed band curves (complex sum)
-// ---------------------------------------------------------------------------
-
-/**
- * Sum processed band curves into a single on-axis response.
- * This is a simple magnitude sum (no phase) for directivity scoring,
- * since the spinorama uses the on-axis magnitude curve.
- *
- * For phase-coherent summation, use the simulation worker's output instead.
- */
-export function sumBandsMagnitude(
-  bandCurves: FrequencyDataPoint[][],
-  gains: number[],
-  polarities: (0 | 180)[],
-): FrequencyDataPoint[] {
-  if (bandCurves.length === 0) return [];
-  const freq = bandCurves[0]!.map((p) => p.freq);
-
-  return freq.map((f, fi) => {
-    let sumLinear = 0;
-    for (let b = 0; b < bandCurves.length; b++) {
-      const db = bandCurves[b]![fi]!.magnitude + (gains[b] ?? 0);
-      const sign = polarities[b] === 180 ? -1 : 1;
-      sumLinear += sign * Math.pow(10, db / 20);
-    }
-    return { freq: f, magnitude: 20 * Math.log10(Math.abs(sumLinear) + 1e-10) };
-  });
 }
