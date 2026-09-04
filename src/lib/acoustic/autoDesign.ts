@@ -940,10 +940,14 @@ export function optimizeGainsForRoom(
     let improvedThisPass = false;
 
     for (let band = 0; band < nBands; band++) {
+      // Band 0 (woofer) locked at gain 0 — it's the reference.
+      // All other bands adjust relative to it (attenuation only).
+      if (band === 0) continue;
+
       let bestBandGain = bestGains[band]!;
       let bestBandCost = Infinity;
 
-      // Scan gain within ±6 dB of current, but clamped to ±GAIN_CLAMP of initial
+      // Scan gain within ±10 dB of current, but clamped to ±GAIN_CLAMP of initial
       const scanStart = Math.max(
         initialGains[band]! - GAIN_CLAMP,
         bestGains[band]! - 6,

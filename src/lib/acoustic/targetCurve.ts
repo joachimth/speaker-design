@@ -112,6 +112,8 @@ export function optimizeForTargetCurve(
 
   const rawTarget = generateTargetCurve(freqs, target)
   const gains = [...initialGains]
+  // Band 0 (woofer) locked at gain 0 — it's the reference.
+  if (gains.length > 0) gains[0] = 0
 
   // Offset the target curve to match the system's average level over 100-10000 Hz.
   // The raw target is a shape (0 dB reference); the system response includes driver
@@ -175,6 +177,10 @@ export function optimizeForTargetCurve(
     for (let iter = 0; iter < maxIter; iter++) {
       let improved = false
       for (let b = 0; b < gains.length; b++) {
+        // Band 0 (woofer) locked at gain 0 — it's the reference.
+        // All other bands adjust relative to it.
+        if (b === 0) continue
+
         const currentError = computeError(gains)
         let bestGain = gains[b]!
         let bestError = currentError

@@ -277,6 +277,10 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   const reasoning: string[] = [];
   const freqs = generateFrequencies(20, 20000, 12);
 
+  // Force band 0 (woofer) gain to 0 — it's the reference.
+  // All other bands are adjusted relative to it (attenuation only).
+  initialBands[0]!.gain = 0;
+
   // Score the initial setup
   const beforeScore = scoreFromBands(
     initialBands, drivers, freqs,
@@ -287,7 +291,60 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   reasoning.push(`Start score: ${beforeScore.score}/10 (NBD_ON=${beforeScore.nbdOnAxis}, NBD_PIR=${beforeScore.nbdPredInRoom}, LFX=${beforeScore.lfxHz}Hz, SM_PIR=${beforeScore.smPredInRoom}).`);
 
   let bestBands = initialBands.map((b) => ({ ...b }));
+  // Ensure band 0 gain stays 0 in bestBands
+  bestBands[0]!.gain = 0;
   let bestScore = beforeScore.score;
+
+  // --- Phase 0: Coarse grid search over crossover frequencies ---
+  // Coordinate descent can get stuck in local optima. A coarse grid
+  // search over XO frequencies finds the best starting basin before
+  // the fine coordinate descent refines it.
+  {
+    const xoConfigs: { freqs: number[]; indices: number[] }[] = [];
+    // Generate all combinations of XO frequencies from a coarse grid
+    const numXoPoints = ways - 1;
+    if (numXoPoints > 0) {
+      const grid = [200, 300, 500, 700, 1000, 1500, 2000, 3000, 5000, 8000];
+
+      if (numXoPoints === 1) {
+        for (const f of grid) xoConfigs.push({ freqs: [f], indices: [0] });
+      } else if (numXoPoints === 2) {
+        for (const f1 of grid) {
+          for (const f2 of grid) {
+            if (f2 > f1 * 1.5) xoConfigs.push({ freqs: [f1, f2], indices: [0, 1] });
+          }
+        }
+      }
+    }
+
+    let bestGridScore = bestScore;
+    let bestGridBands = bestBands;
+
+    for (const config of xoConfigs) {
+      const trialBands = bestBands.map((b, i) => {
+        for (let xi = 0; xi < config.indices.length; xi++) {
+          if (i === config.indices[xi]) return { ...b, lowpassFreq: config.freqs[xi]! };
+          if (i === config.indices[xi]! + 1) return { ...b, highpassFreq: config.freqs[xi]! };
+        }
+        return b;
+      });
+      const trialScore = scoreFromBands(
+        trialBands, drivers, freqs,
+        baffleWidth, baffleHeight,
+        cabinetType, portFb, portVb, portDiameter, numPorts,
+      );
+      if (trialScore.score > bestGridScore) {
+        bestGridScore = trialScore.score;
+        bestGridBands = trialBands;
+      }
+    }
+
+    if (bestGridScore > bestScore + 0.05) {
+      bestBands = bestGridBands;
+      bestScore = bestGridScore;
+      reasoning.push(`Grid-søgning fundet bedre startpunkt: score ${bestGridScore.toFixed(1)}.`);
+    }
+  }
 
   // --- Phase 1: Auto-delay (acoustic center alignment) ---
   const autoDelays = computeAutoDelays(initialBands, drivers);
@@ -413,13 +470,18 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
     let improvedThisPass = false;
 
     for (let b = 0; b < ways; b++) {
+      // Band 0 (woofer) is locked at gain 0 — it's the reference.
+      // All other bands are adjusted relative to it (attenuation only).
+      if (b === 0) continue;
+
       let bestGain = bestBands[b]!.gain;
       let bestGainScore = bestScore;
 
       // Only attenuate (lower gain), never boost — per Joachim's rule.
       // If a driver is too quiet, the others are reduced instead.
-      const scanStart = Math.max(initialBands[b]!.gain - gainRangeDb, bestBands[b]!.gain - 10);
-      const scanEnd = Math.min(initialBands[b]!.gain, bestBands[b]!.gain + 0);
+      // Band 0 stays at 0, so all adjustments are relative to woofer.
+      const scanStart = Math.max(-gainRangeDb, bestBands[b]!.gain - 10);
+      const scanEnd = Math.min(0, bestBands[b]!.gain + 0);
 
       for (let g = scanStart; g <= scanEnd + 1e-9; g += gainStep) {
         const trialBands = bestBands.map((bb, i) => i === b ? { ...bb, gain: Math.round(g * 10) / 10 } : bb);
@@ -517,6 +579,22 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   const improvement = afterScore.score - beforeScore.score;
 
   reasoning.push(`Slut score: ${afterScore.score}/10 (forbedring ${improvement >= 0 ? '+' : ''}${improvement.toFixed(1)} point).`);
+
+  // --- Cabinet and driver improvement suggestions ---
+  // The optimizer does NOT change cabinet design or driver selection.
+  // But it can suggest improvements based on what it observed.
+  if (afterScore.lfxHz > 80) {
+    reasoning.push(`💡 Lavfrekvent udvidelse (LFX=${afterScore.lfxHz.toFixed(0)}Hz) kunne forbedres med et større kabinet eller ported design. Prøv Cabinet Match → Optimer kabinet.`);
+  }
+  if (afterScore.nbdOnAxis > 1.5) {
+    reasoning.push(`💡 On-axis ujævnhed (NBD=${afterScore.nbdOnAxis.toFixed(2)}) kan tyde på at en driver har breakup eller ujævn frekvensgang. Overvej en anden driver i det pågældende bånd.`);
+  }
+  if (afterScore.nbdPredInRoom > 1.5) {
+    reasoning.push(`💡 In-room ujævnhed (NBD_PIR=${afterScore.nbdPredInRoom.toFixed(2)}) kan reduceres ved at ændre delefilter-hældning (LR4→LR8) eller prøve en driver med bedre off-axis opførsel.`);
+  }
+  if (afterScore.smPredInRoom < 0.8 && afterScore.score < 7) {
+    reasoning.push(`💡 Lav glathed (SM=${afterScore.smPredInRoom.toFixed(2)}) kan indikere driver-resonanser. En driver med jævnere frekvensgang kan give en højere samlet score.`);
+  }
 
   return {
     optimizedBands: bestBands,
