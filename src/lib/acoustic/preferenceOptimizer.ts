@@ -269,9 +269,9 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
     portVb,
     portDiameter,
     numPorts,
-    xoRangeFraction = 0.5,
-    gainRangeDb = 10,
-    maxDelayMs = 5,
+    xoRangeFraction = 0.8,
+    gainRangeDb = 15,
+    maxDelayMs = 10,
   } = params;
 
   const reasoning: string[] = [];
@@ -310,7 +310,7 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   // --- Phases 2-5: iterate until convergence ---
   // Each phase can affect the optimum of the others, so we loop
   // the whole block until no phase improves the score anymore.
-  const maxOuterIterations = 5;
+  const maxOuterIterations = 8;
   let outerIter = 0;
 
   for (; outerIter < maxOuterIterations; outerIter++) {
@@ -418,7 +418,7 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
 
       // Only attenuate (lower gain), never boost — per Joachim's rule.
       // If a driver is too quiet, the others are reduced instead.
-      const scanStart = Math.max(initialBands[b]!.gain - gainRangeDb, bestBands[b]!.gain - 6);
+      const scanStart = Math.max(initialBands[b]!.gain - gainRangeDb, bestBands[b]!.gain - 10);
       const scanEnd = Math.min(initialBands[b]!.gain, bestBands[b]!.gain + 0);
 
       for (let g = scanStart; g <= scanEnd + 1e-9; g += gainStep) {
@@ -454,15 +454,17 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
 
   // --- Phase 5: Fine delay optimization ---
   const delayStep = 0.05; // 50 µs resolution
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < 6; pass++) {
     let improvedThisPass = false;
 
     for (let b = 0; b < ways; b++) {
       let bestDelay = bestBands[b]!.delay;
       let bestDelayScore = bestScore;
 
-      const scanStart = Math.max(0, bestBands[b]!.delay - 0.5);
-      const scanEnd = Math.min(maxDelayMs, bestBands[b]!.delay + 0.5);
+      // Wide scan on first pass, narrow on subsequent
+      const scanRange = pass === 0 ? 2.0 : 0.5;
+      const scanStart = Math.max(0, bestBands[b]!.delay - scanRange);
+      const scanEnd = Math.min(maxDelayMs, bestBands[b]!.delay + scanRange);
 
       for (let d = scanStart; d <= scanEnd + 1e-9; d += delayStep) {
         const trialBands = bestBands.map((bb, i) => i === b ? { ...bb, delay: Math.round(d * 100) / 100 } : bb);
