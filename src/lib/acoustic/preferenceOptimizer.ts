@@ -65,7 +65,7 @@ export interface OptimizationResult {
 // ---------------------------------------------------------------------------
 
 // Interpolate a curve to a target frequency grid (log-space linear interp)
-function resampleToFreqs(
+export function resampleToFreqs(
   src: FrequencyDataPoint[],
   freqs: number[],
 ): FrequencyDataPoint[] {

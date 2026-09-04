@@ -10,6 +10,7 @@ import { generateFrequencies } from '../lib/acoustic/thieleSmall'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, type CrossoverFilter } from '../lib/acoustic/crossover'
 import { calcCabinetResponse } from '../lib/acoustic/cabinetResponse'
 import { calcBaffleStep } from '../lib/acoustic/baffle'
+import { resampleToFreqs } from '../lib/acoustic/preferenceOptimizer'
 import type { Driver, FrequencyDataPoint, DesignBand, CabinetType, CrossoverType } from '../types'
 
 export interface SimWorkerInput {
@@ -59,7 +60,10 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
 
     let curve: FrequencyDataPoint[]
     if (hasRealResponse && driver!.frequencyResponse) {
-      curve = [...driver!.frequencyResponse!]
+      // Resample driver's own frequency response to the freqs grid
+      // so cabinet/baffle/crossover/sum all index correctly.
+      // This matches the optimizer's simulateOnAxis path.
+      curve = resampleToFreqs(driver!.frequencyResponse, freqs)
     } else {
       const sens = driver?.tsParams?.sensitivity ?? 0
       curve = freqs.map((f) => ({ freq: f, magnitude: sens + countGainDb }))
