@@ -202,6 +202,11 @@ export default function SystemSimulation() {
     numPorts,
   })
 
+  // Ref to skip auto-select when a handoff was just applied
+  // (declared here because the handoff effect at line ~206 sets it,
+  // and the auto-select effect at line ~998 reads it)
+  const handoffAppliedRef = useRef(false)
+
   // Consume handoff from CabinetMatch (runs once on mount)
   useEffect(() => {
     if (!simHandoff) return
@@ -243,6 +248,8 @@ export default function SystemSimulation() {
 
     // Clear handoff so it doesn't re-apply on next visit
     setSimHandoff(null)
+    // Flag to skip auto-select effect (which would overwrite with stale closure)
+    handoffAppliedRef.current = true
   }, [simHandoff, setSimHandoff, updateDesign])
 
   // Consume loaded design from the shared store (runs once, from ProjectOverview)
@@ -995,7 +1002,14 @@ export default function SystemSimulation() {
   // -----------------------------------------------------------------------
   // Auto-select drivers by type when ways changes or on first load
   // -----------------------------------------------------------------------
+  // Skip auto-select if a handoff was just applied — the handoff already
+  // set specific drivers from Cabinet Match, and this effect would overwrite
+  // them with stale closure values (design.bands from before the handoff).
   useEffect(() => {
+    if (handoffAppliedRef.current) {
+      handoffAppliedRef.current = false
+      return
+    }
     if (drivers.length === 0) return
     setBands((prev) => {
       const active = prev.slice(0, ways)

@@ -22,7 +22,7 @@ import { calcBaffleStep } from './baffle';
 import { calcSpinorama } from './directivity';
 import { computePreferenceScore, type PreferenceScoreResult } from './preferenceScore';
 import { generateFrequencies } from './thieleSmall';
-import { pistonDiameter, acousticCenterDepth } from './autoDesign';
+import { pistonDiameter, acousticCenterDepth, usableRange } from './autoDesign';
 
 const SAMPLE_RATE = 48000;
 
@@ -254,6 +254,41 @@ function computeAutoDelays(bands: DesignBand[], drivers: Driver[]): number[] {
 }
 
 // ---------------------------------------------------------------------------
+// XO sanity: crossover frequency must be within both drivers' usable ranges.
+// A tweeter with Fs=1000Hz has usableRange.min=1500Hz — crossing at 100Hz
+// would destroy it. A woofer has usableRange.max = directivity limit.
+// ---------------------------------------------------------------------------
+
+function getXoLimits(
+  lowerDriver: Driver | undefined,
+  upperDriver: Driver | undefined,
+): { fMin: number; fMax: number } {
+  // Default wide range if drivers not found
+  let fMin = 20;
+  let fMax = 20000;
+
+  if (lowerDriver) {
+    const lowerRange = usableRange(lowerDriver);
+    // XO must be below the lower driver's directivity limit
+    fMax = Math.min(fMax, lowerRange.max);
+  }
+  if (upperDriver) {
+    const upperRange = usableRange(upperDriver);
+    // XO must be above the upper driver's Fs-based minimum
+    fMin = Math.max(fMin, upperRange.min);
+  }
+
+  // Ensure valid range (at least 1 octave wide)
+  if (fMin >= fMax) {
+    const center = Math.sqrt(fMin * Math.max(fMax, 1));
+    fMin = center / 1.414;
+    fMax = center * 1.414;
+  }
+
+  return { fMin, fMax };
+}
+
+// ---------------------------------------------------------------------------
 // Main optimizer
 // ---------------------------------------------------------------------------
 
@@ -299,18 +334,31 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   // Coordinate descent can get stuck in local optima. A coarse grid
   // search over XO frequencies finds the best starting basin before
   // the fine coordinate descent refines it.
+  // Each XO point is constrained to the overlap of both drivers' usable ranges.
   {
     const xoConfigs: { freqs: number[]; indices: number[] }[] = [];
-    // Generate all combinations of XO frequencies from a coarse grid
     const numXoPoints = ways - 1;
     if (numXoPoints > 0) {
       const grid = [200, 300, 500, 700, 1000, 1500, 2000, 3000, 5000, 8000];
 
+      // Compute XO limits for each crossover point
+      const xoLimits: { fMin: number; fMax: number }[] = [];
+      for (let i = 0; i < numXoPoints; i++) {
+        const lowerDriver = drivers.find((d) => d.id === bestBands[i]!.driverId);
+        const upperDriver = drivers.find((d) => d.id === bestBands[i + 1]!.driverId);
+        xoLimits.push(getXoLimits(lowerDriver, upperDriver));
+      }
+
+      // Filter grid points by XO limits for each point
+      const validGrids: number[][] = xoLimits.map((lim) =>
+        grid.filter((f) => f >= lim.fMin && f <= lim.fMax),
+      );
+
       if (numXoPoints === 1) {
-        for (const f of grid) xoConfigs.push({ freqs: [f], indices: [0] });
+        for (const f of validGrids[0]!) xoConfigs.push({ freqs: [f], indices: [0] });
       } else if (numXoPoints === 2) {
-        for (const f1 of grid) {
-          for (const f2 of grid) {
+        for (const f1 of validGrids[0]!) {
+          for (const f2 of validGrids[1]!) {
             if (f2 > f1 * 1.5) xoConfigs.push({ freqs: [f1, f2], indices: [0, 1] });
           }
         }
@@ -415,8 +463,14 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
         ? bestBands[xo.lowerIdx]!.lowpassFreq
         : bestBands[xo.upperIdx]!.highpassFreq;
       const step = Math.max(10, currentCenter * stepFrac * 0.1);
-      const fMin = Math.max(20, xo.centerFreq * (1 - xoRangeFraction));
-      const fMax = Math.min(20000, xo.centerFreq * (1 + xoRangeFraction));
+
+      // XO sanity: clamp to both drivers' usable ranges
+      const lowerDriver = drivers.find((d) => d.id === bestBands[xo.lowerIdx]!.driverId);
+      const upperDriver = drivers.find((d) => d.id === bestBands[xo.upperIdx]!.driverId);
+      const { fMin: xoLoMin, fMax: xoLoMax } = getXoLimits(lowerDriver, upperDriver);
+
+      const fMin = Math.max(20, xo.centerFreq * (1 - xoRangeFraction), xoLoMin);
+      const fMax = Math.min(20000, xo.centerFreq * (1 + xoRangeFraction), xoLoMax);
 
       let bestXoFreq = currentCenter;
       let bestXoScore = bestScore;
