@@ -813,15 +813,19 @@ export default function SystemSimulation() {
   }
 
   // Apply preference optimization result when worker finishes
+  // Uses a ref to read current bands without subscribing to changes
+  // (otherwise: updateBands → bands change → useEffect re-runs → infinite loop)
+  const bandsRef = useRef(bands)
+  bandsRef.current = bands
   useEffect(() => {
     if (workerPrefResult) {
-      const newBands = [...design.bands]
+      const newBands = [...bandsRef.current]
       for (let i = 0; i < newBands.length && i < workerPrefResult.optimizedBands.length; i++) {
         newBands[i] = { ...newBands[i]!, ...workerPrefResult.optimizedBands[i]! }
       }
       storeSetBands(newBands)
     }
-  }, [workerPrefResult, storeSetBands, design.bands])
+  }, [workerPrefResult, storeSetBands])
 
   // -----------------------------------------------------------------------
   // In-room response simulation (room modes + boundary gain + smoothing)
