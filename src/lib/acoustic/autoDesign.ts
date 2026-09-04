@@ -109,7 +109,7 @@ export function pistonDiameter(driver: Driver): number {
     return 2 * Math.sqrt(sd / Math.PI) * 10;
   }
   const od = driver.dimensions?.overallDiameter;
-  if (od && od > 0) return od * 0.82;
+  if (od && od > 0) return od * 0.8;
   return 100; // fallback
 }
 

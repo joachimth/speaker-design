@@ -221,7 +221,8 @@ export function scoreFromBands(
   );
 
   // Use the largest driver diameter for directivity (most conservative)
-  let maxDiameter = 100;
+  // Must match UI's calculation in SystemSimulation.tsx exactly.
+  let maxDiameter = 0;
   for (const band of bands) {
     const driver = drivers.find((d) => d.id === band.driverId);
     if (driver) {
@@ -229,6 +230,7 @@ export function scoreFromBands(
       if (dia > maxDiameter) maxDiameter = dia;
     }
   }
+  if (maxDiameter === 0) maxDiameter = 100; // fallback if no drivers found
 
   const spinorama = calcSpinorama(onAxis, maxDiameter, baffleWidth, baffleHeight);
   return computePreferenceScore(spinorama);
@@ -369,12 +371,17 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
     let bestGridBands = bestBands;
 
     for (const config of xoConfigs) {
+      // For each XO point, set lowpassFreq on the lower band and
+      // highpassFreq on the upper band. A band between two XO points
+      // (e.g. midrange in 3-way) gets BOTH: highpass from XO below
+      // and lowpass from XO above. Must NOT return early — accumulate.
       const trialBands = bestBands.map((b, i) => {
+        const result = { ...b };
         for (let xi = 0; xi < config.indices.length; xi++) {
-          if (i === config.indices[xi]) return { ...b, lowpassFreq: config.freqs[xi]! };
-          if (i === config.indices[xi]! + 1) return { ...b, highpassFreq: config.freqs[xi]! };
+          if (i === config.indices[xi]) result.lowpassFreq = config.freqs[xi]!;
+          if (i === config.indices[xi]! + 1) result.highpassFreq = config.freqs[xi]!;
         }
-        return b;
+        return result;
       });
       const trialScore = scoreFromBands(
         trialBands, drivers, freqs,

@@ -55,10 +55,10 @@ describe('pistonDiameter', () => {
     expect(dia).toBeCloseTo(123.7, 0);
   });
 
-  it('falls back to overallDiameter × 0.82 when Sd missing', () => {
+  it('falls back to overallDiameter × 0.8 when Sd missing', () => {
     const d = makeDriver({ id: 't2', tsParams: { sd: 0, fs: 50, re: 6, qms: 2, qes: 0.5, qts: 0.4, vas: 30, sensitivity: 88, xmax: 5, imp: 8 }, dimensions: { overallDiameter: 180, cutoutDiameter: 165, mountingDepth: 80 } });
     const dia = pistonDiameter(d);
-    expect(dia).toBeCloseTo(147.6, 0);
+    expect(dia).toBeCloseTo(144, 0);
   });
 });
 

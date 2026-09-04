@@ -128,29 +128,17 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
   // Summed response (coherent complex voltage summation)
   // Each band contributes: magnitude * e^(j * totalPhase)
   // where totalPhase = filterPhase(LP+HP) + polarity(π if 180) + delay(-2πf*delay)
+  // Curve is already on the freqs grid (resampled), so direct index access is safe.
   const SAMPLE_RATE = 48000
-  const summedResponse: FrequencyDataPoint[] = freqs.map((f) => {
+  const summedResponse: FrequencyDataPoint[] = freqs.map((f, fi) => {
     let sumReal = 0
     let sumImag = 0
     for (let bi = 0; bi < processedBands.length; bi++) {
       const pb = processedBands[bi]!
       const filters = bandFilters[bi]!
 
-      // Interpolate magnitude at frequency f
-      const curve = pb.curve
-      let db: number | undefined
-      for (let i = 0; i < curve.length; i++) {
-        if (curve[i]!.freq >= f) {
-          if (i === 0) { db = curve[0]!.magnitude; break }
-          const p0 = curve[i - 1]!
-          const p1 = curve[i]!
-          const t = (Math.log(f) - Math.log(p0.freq)) / (Math.log(p1.freq) - Math.log(p0.freq))
-          db = p0.magnitude + t * (p1.magnitude - p0.magnitude)
-          break
-        }
-      }
-      if (db === undefined) db = curve[curve.length - 1]?.magnitude ?? 0
-
+      // Direct index — curve is on freqs grid
+      const db = pb.curve[fi]?.magnitude ?? 0
       const mag = Math.pow(10, db / 20)
 
       // Total phase: filter phase + polarity + delay
