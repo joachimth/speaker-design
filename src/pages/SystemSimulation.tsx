@@ -5,7 +5,7 @@ import { useDesignStore } from '@/store/designStore'
 import { Card, Select, NumberInput, Badge, StatCard, Button } from '@/components/common/UI'
 import { crossoverSlopeDbPerOctave } from '@/lib/acoustic/crossover'
 import { calcBaffleStep, baffleStepFrequency } from '@/lib/acoustic/baffle'
-import { calcSpinorama, pistonDirectivity } from '@/lib/acoustic/directivity'
+import { calcSpinoramaMultiDriver, pistonDirectivity } from '@/lib/acoustic/directivity'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
 import { suggestCrossover, suggestBaffle, optimizeGainsForRoom, acousticCenterDepth, type RoomOptimizationResult } from '@/lib/acoustic/autoDesign'
 import { generateTargetCurve, optimizeForTargetCurve, type TargetCurveType } from '@/lib/acoustic/targetCurve'
@@ -772,18 +772,15 @@ export default function SystemSimulation() {
   // -----------------------------------------------------------------------
   const systemSpinorama = useMemo(() => {
     if (!summedResponse) return null
-    // Use a weighted average piston diameter across active drivers
-    // For simplicity, use the driver with the largest Sd (dominates directivity)
-    const activeDrivers = processedBands
-      .map((pb) => pb.driver)
-      .filter((d): d is Driver => !!d)
-    if (activeDrivers.length === 0) return null
-    const largest = activeDrivers.reduce((max, d) => {
-      const dia = pistonDiameterOf(d)
-      return dia > pistonDiameterOf(max) ? d : max
-    }, activeDrivers[0])
-    const diameter = pistonDiameterOf(largest)
-    return calcSpinorama(summedResponse, diameter, baffleWidth, baffleHeight)
+    const activeBands = processedBands.filter((pb) => pb.driver)
+    if (activeBands.length === 0) return null
+    // Per-band directivity: each band's curve through its own driver's piston
+    const freqs = summedResponse.map((p) => p.freq)
+    const bandCurves = activeBands.map((pb) => ({
+      curve: pb.curve.map((p) => p.magnitude),
+      diameter: pistonDiameterOf(pb.driver),
+    }))
+    return calcSpinoramaMultiDriver(bandCurves, freqs, baffleWidth, baffleHeight)
   }, [summedResponse, processedBands, baffleWidth, baffleHeight])
 
   const spinRef = useMemo(() => {

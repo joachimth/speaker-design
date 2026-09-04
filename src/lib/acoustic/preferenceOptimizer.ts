@@ -19,7 +19,7 @@ import type {
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad } from './crossover';
 import { calcCabinetResponse } from './cabinetResponse';
 import { calcBaffleStep } from './baffle';
-import { calcSpinorama } from './directivity';
+import { calcSpinoramaMultiDriver } from './directivity';
 import { computePreferenceScore, type PreferenceScoreResult } from './preferenceScore';
 import { generateFrequencies } from './thieleSmall';
 import { pistonDiameter, acousticCenterDepth, usableRange } from './autoDesign';
@@ -100,6 +100,28 @@ export function simulateOnAxis(
   portDiameter: number,
   numPorts: number,
 ): FrequencyDataPoint[] {
+  return simulateOnAxisWithBands(bands, drivers, freqs, baffleWidth, baffleHeight, cabinetType, portFb, portVb, portDiameter, numPorts).summed;
+}
+
+/** Per-band curve data for multi-driver spinorama */
+export interface BandCurveData {
+  curve: number[];
+  diameter: number;
+}
+
+/** Simulate on-axis and return per-band curves for multi-driver directivity */
+export function simulateOnAxisWithBands(
+  bands: DesignBand[],
+  drivers: Driver[],
+  freqs: number[],
+  baffleWidth: number,
+  baffleHeight: number,
+  cabinetType: string,
+  portFb: number,
+  portVb: number,
+  portDiameter: number,
+  numPorts: number,
+): { summed: FrequencyDataPoint[]; bandCurves: BandCurveData[] } {
   const baffleStepResult = calcBaffleStep(baffleWidth, baffleHeight, freqs);
   const fStep = 343000 / (2 * Math.max(baffleWidth, baffleHeight));
   const fStep3x = fStep * 3;
@@ -199,7 +221,13 @@ export function simulateOnAxis(
     return { freq: f, magnitude: 20 * Math.log10(mag + 1e-10) };
   });
 
-  return summed;
+  // Build per-band curve data for multi-driver spinorama
+  const bandCurveData: BandCurveData[] = bandCurves.map((bc) => ({
+    curve: bc.curve.map((p) => p.magnitude),
+    diameter: pistonDiameter(drivers.find((d) => d.id === bc.band.driverId) ?? drivers[0]!),
+  }));
+
+  return { summed, bandCurves: bandCurveData };
 }
 
 export function scoreFromBands(
@@ -214,25 +242,15 @@ export function scoreFromBands(
   portDiameter: number,
   numPorts: number,
 ): PreferenceScoreResult {
-  const onAxis = simulateOnAxis(
+  const { bandCurves } = simulateOnAxisWithBands(
     bands, drivers, freqs,
     baffleWidth, baffleHeight,
     cabinetType, portFb, portVb, portDiameter, numPorts,
   );
 
-  // Use the largest driver diameter for directivity (most conservative)
-  // Must match UI's calculation in SystemSimulation.tsx exactly.
-  let maxDiameter = 0;
-  for (const band of bands) {
-    const driver = drivers.find((d) => d.id === band.driverId);
-    if (driver) {
-      const dia = pistonDiameter(driver);
-      if (dia > maxDiameter) maxDiameter = dia;
-    }
-  }
-  if (maxDiameter === 0) maxDiameter = 100; // fallback if no drivers found
-
-  const spinorama = calcSpinorama(onAxis, maxDiameter, baffleWidth, baffleHeight);
+  // Per-band directivity: each driver through its own piston diameter
+  // + baffle diffraction effect. Matches UI's calcSpinoramaMultiDriver.
+  const spinorama = calcSpinoramaMultiDriver(bandCurves, freqs, baffleWidth, baffleHeight);
   return computePreferenceScore(spinorama);
 }
 

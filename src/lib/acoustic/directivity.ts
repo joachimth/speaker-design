@@ -134,7 +134,6 @@ export function calcSpinorama(
   _baffleHeight: number
 ): SystemResponseResult {
   const freq = onAxis.map((p) => p.freq);
-
   // Generate off-axis responses at standard CEA-2034 angles
   const horizontalAngles = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80];
   const verticalAngles = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80];
@@ -223,8 +222,148 @@ export function calcSpinorama(
 }
 
 // ---------------------------------------------------------------------------
-// Polar diagram calculation
+// Multi-driver spinorama (per-band directivity)
 // ---------------------------------------------------------------------------
+
+/**
+ * Baffle directivity effect: at low frequencies, the driver appears as
+ * a larger source (the baffle itself). At high frequencies, only the
+ * driver diameter matters. Transition around f_baffle = c / (2 * baffle_width).
+ *
+ * Returns the effective diameter at a given frequency.
+ */
+function effectiveBaffleDiameter(
+  freq: number,
+  driverDiameter: number,
+  baffleWidth: number,
+  baffleHeight: number,
+): number {
+  const baffleDia = Math.max(baffleWidth, baffleHeight);
+  const fBaffle = C / (2 * baffleDia); // transition frequency
+  // Smooth transition: at f << fBaffle, use baffle; at f >> fBaffle, use driver
+  const weight = 1 / (1 + (freq / fBaffle) ** 2);
+  return driverDiameter + (baffleDia - driverDiameter) * weight * 0.5;
+}
+
+/**
+ * Calculate CEA-2034 spinorama with per-band directivity.
+ *
+ * Instead of using a single piston diameter for all frequencies, this
+ * function computes the off-axis response at each angle by summing each
+ * band's contribution through that band's own driver directivity. This
+ * correctly models that a tweeter (25mm) has much wider directivity at
+ * 10kHz than a woofer (130mm).
+ *
+ * Also includes baffle diffraction: at low frequencies the driver appears
+ * as a larger source (baffle-sized), widening the directivity pattern.
+ *
+ * @param bandCurves  Array of { curve, diameter } for each active band
+ * @param freqs       Frequency array
+ * @param baffleWidth  Baffle width [mm]
+ * @param baffleHeight Baffle height [mm]
+ */
+export function calcSpinoramaMultiDriver(
+  bandCurves: { curve: number[]; diameter: number }[],
+  freqs: number[],
+  baffleWidth: number,
+  baffleHeight: number,
+): SystemResponseResult {
+  // CEA-2034 standard angles
+  const lwAngles = [
+    { h: 0, v: 0 }, { h: 10, v: 0 }, { h: -10, v: 0 },
+    { h: 0, v: 10 }, { h: 0, v: -10 },
+    { h: 10, v: 10 }, { h: -10, v: 10 }, { h: 10, v: -10 }, { h: -10, v: -10 },
+  ];
+
+  const erAngles = [
+    { h: 0, v: 0 }, { h: 30, v: 0 }, { h: -30, v: 0 },
+    { h: 0, v: 30 }, { h: 0, v: -30 },
+    { h: 60, v: 0 }, { h: -60, v: 0 },
+    { h: 0, v: 60 }, { h: 0, v: -60 },
+    { h: 40, v: 20 }, { h: -40, v: 20 }, { h: 40, v: -20 }, { h: -40, v: -20 },
+  ];
+
+  const horizontalAngles = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80];
+  const verticalAngles = [-80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80];
+
+  const spAngles: { h: number; v: number; w: number }[] = [];
+  for (const h of horizontalAngles) {
+    for (const v of verticalAngles) {
+      const weight = Math.cos((v * Math.PI) / 180);
+      spAngles.push({ h, v, w: weight });
+    }
+  }
+  let totalWeight = 0;
+  spAngles.forEach((a) => (totalWeight += a.w));
+
+  // Helper: compute off-axis response at frequency index fi for angle (h, v)
+  function offAxisAtAngle(fi: number, h: number, v: number): number {
+    let sumLinear = 0;
+    for (const bc of bandCurves) {
+      const db = bc.curve[fi] ?? -100;
+      const effDia = effectiveBaffleDiameter(freqs[fi]!, bc.diameter, baffleWidth, baffleHeight);
+      const hDir = pistonDirectivity(freqs[fi]!, h, effDia);
+      const vDir = pistonDirectivity(freqs[fi]!, v, effDia);
+      const dbAtAngle = db + 20 * Math.log10(Math.max(hDir * vDir, 1e-6));
+      sumLinear += Math.pow(10, dbAtAngle / 20);
+    }
+    return 20 * Math.log10(Math.max(sumLinear, 1e-10));
+  }
+
+  // On-axis = sum of band curves (power sum, consistent with off-axis method)
+  const onAxisDb = freqs.map((_f, fi) => {
+    let sumLinear = 0;
+    for (const bc of bandCurves) {
+      sumLinear += Math.pow(10, (bc.curve[fi] ?? -100) / 20);
+    }
+    return 20 * Math.log10(Math.max(sumLinear, 1e-10));
+  });
+
+  // Listening Window
+  const listeningWindow = freqs.map((_f, fi) => {
+    let sum = 0;
+    for (const a of lwAngles) {
+      sum += offAxisAtAngle(fi, a.h, a.v);
+    }
+    return sum / lwAngles.length;
+  });
+
+  // Early Reflections
+  const earlyReflections = freqs.map((_f, fi) => {
+    let sum = 0;
+    for (const a of erAngles) {
+      sum += offAxisAtAngle(fi, a.h, a.v);
+    }
+    return sum / erAngles.length;
+  });
+
+  // Sound Power
+  const soundPower = freqs.map((_f, fi) => {
+    let sum = 0;
+    for (const a of spAngles) {
+      sum += offAxisAtAngle(fi, a.h, a.v) * a.w;
+    }
+    return sum / totalWeight;
+  });
+
+  // Directivity Index
+  const directivityIndex = freqs.map((_f, fi) => onAxisDb[fi]! - soundPower[fi]!);
+
+  // Predicted In-Room Response
+  const predictedInRoom = freqs.map((_f, fi) => {
+    return 0.5 * onAxisDb[fi]! + 0.3 * earlyReflections[fi]! + 0.2 * soundPower[fi]!;
+  });
+
+  return {
+    freq: freqs,
+    onAxis: onAxisDb,
+    listeningWindow,
+    earlyReflections,
+    soundPower,
+    directivityIndex,
+    predictedInRoom,
+  };
+}
 
 /**
  * Calculate polar response for a single driver at a given frequency set.
