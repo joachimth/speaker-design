@@ -206,16 +206,6 @@ export default function SystemSimulation() {
   useEffect(() => {
     if (!simHandoff) return
     const h = simHandoff
-    updateDesign({
-      ways: h.ways,
-      baffleWidth: h.baffleWidth,
-      baffleHeight: h.baffleHeight,
-      cabinetType: h.cabinetType,
-      portFb: h.portFb,
-      portVb: h.portVb,
-      portDiameter: h.portDiameter,
-      numPorts: h.numPorts,
-    })
 
     // Map handoff bands to SystemSimulation Band format
     const template = h.ways === 2 ? DEFAULT_BANDS_2 : h.ways === 3 ? DEFAULT_BANDS_3 : DEFAULT_BANDS_4
@@ -236,11 +226,24 @@ export default function SystemSimulation() {
         delay: hb.delay,
       }
     })
-    storeSetBands(newBands)
+
+    // Single atomic update: ways + bands + cabinet all at once
+    // prevents race where ways=3 but bands still has 2 entries
+    updateDesign({
+      ways: h.ways,
+      bands: newBands,
+      baffleWidth: h.baffleWidth,
+      baffleHeight: h.baffleHeight,
+      cabinetType: h.cabinetType,
+      portFb: h.portFb,
+      portVb: h.portVb,
+      portDiameter: h.portDiameter,
+      numPorts: h.numPorts,
+    })
 
     // Clear handoff so it doesn't re-apply on next visit
     setSimHandoff(null)
-  }, [simHandoff, setSimHandoff, updateDesign, storeSetBands])
+  }, [simHandoff, setSimHandoff, updateDesign])
 
   // Consume loaded design from the shared store (runs once, from ProjectOverview)
   // The store is populated by ProjectOverview before navigating here.
