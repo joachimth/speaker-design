@@ -18,7 +18,7 @@ import type {
 } from '@/types';
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad } from './crossover';
 import { calcCabinetResponse } from './cabinetResponse';
-import { calcBaffleStep } from './baffle';
+import { calcBaffleStep, calcBaffleStepCompensation } from './baffle';
 import { calcSpinoramaMultiDriver } from './directivity';
 import { computePreferenceScore, type PreferenceScoreResult } from './preferenceScore';
 import { generateFrequencies } from './thieleSmall';
@@ -123,8 +123,15 @@ export function simulateOnAxisWithBands(
   numPorts: number,
 ): { summed: FrequencyDataPoint[]; bandCurves: BandCurveData[] } {
   const baffleStepResult = calcBaffleStep(baffleWidth, baffleHeight, freqs);
-  const fStep = 343000 / (2 * Math.max(baffleWidth, baffleHeight));
+  // fStep must match calcBaffleStep's internal calculation (uses baffleWidth,
+  // NOT Math.max(width, height)). Mismatch caused midrange fade-out at wrong freq.
+  const fStep = 343000 / (2 * baffleWidth);
   const fStep3x = fStep * 3;
+  // Baffle step compensation: +6 dB low-shelf at fStep, applied to woofer
+  // and midrange channels. Any real active speaker includes this EQ in the
+  // crossover/DSP. Without it, the response has a -6 dB dip in the 200-600 Hz
+  // region that the gain optimizer cannot fix (band 0 gain locked at 0).
+  const baffleComp = calcBaffleStepCompensation(fStep, 6, freqs);
 
   const bandCurves: { curve: FrequencyDataPoint[]; band: DesignBand; filters: { lp: ReturnType<typeof buildCrossoverFilter> | null; hp: ReturnType<typeof buildCrossoverFilter> | null } }[] = [];
 
@@ -175,11 +182,14 @@ export function simulateOnAxisWithBands(
     if (isLowDriver || isMidDriver) {
       curve = curve.map((p, i) => {
         let bsFactor = baffleStepResult.response[i] ?? 0;
+        let compFactor = baffleComp[i] ?? 0;
         if (isMidDriver && p.freq > fStep3x) {
           const t = Math.min(1, (p.freq - fStep) / (fStep3x - fStep));
           bsFactor *= (1 - t);
+          compFactor *= (1 - t);
         }
-        return { freq: p.freq, magnitude: p.magnitude + bsFactor };
+        // Net effect: baffle step loss + compensation = ~0 dB (flat)
+        return { freq: p.freq, magnitude: p.magnitude + bsFactor + compFactor };
       });
     }
 
@@ -420,22 +430,21 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   }
 
   // --- Phase 1: Auto-delay (acoustic center alignment) ---
+  // Always apply as a physical baseline correction, not conditional on
+  // score improvement. The acoustic center offset is a physical fact —
+  // the drivers' voice coils are at different depths. Delaying the
+  // shallower drivers so their acoustic centers align is correct
+  // regardless of whether the preference score rewards it. The fine
+  // delay optimization (Phase 5) can then tune from this baseline.
   const autoDelays = computeAutoDelays(initialBands, drivers);
-  reasoning.push(`Auto-delay beregnet fra akustisk centrum: [${autoDelays.map((d) => d.toFixed(2)).join(', ')}] ms.`);
-
-  {
-    const trialBands = bestBands.map((b, i) => ({ ...b, delay: autoDelays[i] ?? 0 }));
-    const trialScore = scoreFromBands(
-      trialBands, drivers, freqs,
-      baffleWidth, baffleHeight,
-      cabinetType, portFb, portVb, portDiameter, numPorts,
-    );
-    if (trialScore.score > bestScore) {
-      bestScore = trialScore.score;
-      bestBands = trialBands;
-      reasoning.push(`Auto-delay forbedret score til ${trialScore.score.toFixed(1)}.`);
-    }
-  }
+  reasoning.push(`Auto-delay sat fra akustisk centrum: [${autoDelays.map((d) => d.toFixed(2)).join(', ')}] ms.`);
+  bestBands = bestBands.map((b, i) => ({ ...b, delay: autoDelays[i] ?? 0 }));
+  // Re-score from the new baseline
+  bestScore = scoreFromBands(
+    bestBands, drivers, freqs,
+    baffleWidth, baffleHeight,
+    cabinetType, portFb, portVb, portDiameter, numPorts,
+  ).score;
 
   // --- Phases 2-5: iterate until convergence ---
   // Each phase can affect the optimum of the others, so we loop
@@ -446,23 +455,38 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   for (; outerIter < maxOuterIterations; outerIter++) {
     let improvedThisIteration = false;
 
-  // --- Phase 2: Polarity optimization (try 0/180 for each band) ---
-  // Lower band (woofer) polarity is kept as-is (reference).
-  // Try inverting upper bands.
-  for (let b = 1; b < ways; b++) {
-    const trialBands = bestBands.map((bb, i) =>
-      i === b ? { ...bb, polarity: (bb.polarity === 0 ? 180 : 0) as 0 | 180 } : bb,
-    );
-    const trialScore = scoreFromBands(
-      trialBands, drivers, freqs,
-      baffleWidth, baffleHeight,
-      cabinetType, portFb, portVb, portDiameter, numPorts,
-    );
-    if (trialScore.score > bestScore + 0.005) {
-      bestScore = trialScore.score;
-      bestBands = trialBands;
-      improvedThisIteration = true;
-      if (outerIter === 0) reasoning.push(`Polaritet bånd ${b + 1} -> ${trialBands[b]!.polarity}° forbedret score til ${trialScore.score.toFixed(1)}.`);
+  // --- Phase 2: Polarity optimization (exhaustive search) ---
+  // Band 0 (woofer) polarity is the reference (kept as-is).
+  // For N bands, there are 2^(N-1) polarity combinations for the upper
+  // bands. Single-band-at-a-time can miss the case where inverting TWO
+  // bands is better than inverting either one alone (common in 3-way
+  // where both XO points benefit from mid inversion but not tweeter
+  // alone, or vice versa). Exhaustive search is cheap: 4 combos for
+  // 3-way, 8 for 4-way.
+  {
+    const numUpperBands = ways - 1;
+    const numCombos = 1 << numUpperBands; // 2^(ways-1)
+    for (let combo = 1; combo < numCombos; combo++) { // skip 0 (all default)
+      const trialBands = bestBands.map((b, i) => {
+        if (i === 0) return b; // band 0 is reference
+        const bit = (combo >> (i - 1)) & 1;
+        const newPol: 0 | 180 = bit ? 180 : 0;
+        return { ...b, polarity: newPol };
+      });
+      const trialScore = scoreFromBands(
+        trialBands, drivers, freqs,
+        baffleWidth, baffleHeight,
+        cabinetType, portFb, portVb, portDiameter, numPorts,
+      );
+      if (trialScore.score > bestScore + 0.005) {
+        bestScore = trialScore.score;
+        bestBands = trialBands;
+        improvedThisIteration = true;
+        if (outerIter === 0) {
+          const polStr = trialBands.map((b) => `${b.polarity}°`).join(', ');
+          reasoning.push(`Polaritet [${polStr}] forbedret score til ${trialScore.score.toFixed(1)}.`);
+        }
+      }
     }
   }
 
@@ -674,6 +698,57 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
   }
   if (afterScore.smPredInRoom < 0.8 && afterScore.score < 7) {
     reasoning.push(`💡 Lav glathed (SM=${afterScore.smPredInRoom.toFixed(2)}) kan indikere driver-resonanser. En driver med jævnere frekvensgang kan give en højere samlet score.`);
+  }
+
+  // --- Phase coherence report at crossover points ---
+  // Report any remaining phase mismatch at each XO point. For 3-way
+  // systems with LR4, the midrange's outer filter adds phase at the
+  // inner XO point that can't be fully corrected by delay/polarity.
+  // This is a known limitation of symmetric LR4 in 3-way designs.
+  {
+    const SAMPLE_RATE = 48000;
+    for (let i = 0; i < ways - 1 && i < bestBands.length - 1; i++) {
+      const lower = bestBands[i]!;
+      const upper = bestBands[i + 1]!;
+      const xoFreq = lower.lowpassFreq > 0 ? lower.lowpassFreq : upper.highpassFreq;
+      if (xoFreq <= 0) continue;
+
+      // Compute phase for lower band at XO
+      let lowerPhase = 0;
+      if (lower.lowpassFreq > 0 && lower.lowpassFreq < 20000) {
+        const lp = buildCrossoverFilter(lower.lowpassType, lower.lowpassFreq, false, SAMPLE_RATE);
+        lowerPhase += filterPhaseRad(lp, xoFreq, SAMPLE_RATE);
+      }
+      if (lower.highpassFreq > 0) {
+        const hp = buildCrossoverFilter(lower.highpassType, lower.highpassFreq, true, SAMPLE_RATE);
+        lowerPhase += filterPhaseRad(hp, xoFreq, SAMPLE_RATE);
+      }
+      if (lower.polarity === 180) lowerPhase += Math.PI;
+      if (lower.delay > 0) lowerPhase += -2 * Math.PI * xoFreq * lower.delay * 0.001;
+
+      // Compute phase for upper band at XO
+      let upperPhase = 0;
+      if (upper.lowpassFreq > 0 && upper.lowpassFreq < 20000) {
+        const lp = buildCrossoverFilter(upper.lowpassType, upper.lowpassFreq, false, SAMPLE_RATE);
+        upperPhase += filterPhaseRad(lp, xoFreq, SAMPLE_RATE);
+      }
+      if (upper.highpassFreq > 0) {
+        const hp = buildCrossoverFilter(upper.highpassType, upper.highpassFreq, true, SAMPLE_RATE);
+        upperPhase += filterPhaseRad(hp, xoFreq, SAMPLE_RATE);
+      }
+      if (upper.polarity === 180) upperPhase += Math.PI;
+      if (upper.delay > 0) upperPhase += -2 * Math.PI * xoFreq * upper.delay * 0.001;
+
+      let diffDeg = Math.abs((lowerPhase - upperPhase) * 180 / Math.PI);
+      diffDeg = ((diffDeg % 360) + 540) % 360 - 180;
+      diffDeg = Math.abs(diffDeg);
+
+      const roleLabels = ['Bas', 'Mellem', 'Mellem 2', 'Diskant'];
+      const label = `${roleLabels[lower.role === 'low' ? 0 : lower.role === 'mid' ? 1 : lower.role === 'mid2' ? 2 : 3]} → ${roleLabels[upper.role === 'low' ? 0 : upper.role === 'mid' ? 1 : upper.role === 'mid2' ? 2 : 3]}`;
+      if (diffDeg > 60) {
+        reasoning.push(`⚠️ Fasefejl ${diffDeg.toFixed(0)}° ved ${label} @ ${xoFreq.toFixed(0)}Hz. For 3-vejs med LR4 kan mellemtone's lowpass (fra XO2) skabe faseafvigelse ved XO1 der ikke fuldt ud kan korrigeres med delay/polaritet. Overvej asymmetrisk delefilter (stejlere lowpass på mellemtone) eller offset XO frekvenser.`);
+      }
+    }
   }
 
   return {

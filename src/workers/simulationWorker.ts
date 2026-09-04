@@ -9,7 +9,7 @@
 import { generateFrequencies } from '../lib/acoustic/thieleSmall'
 import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, type CrossoverFilter } from '../lib/acoustic/crossover'
 import { calcCabinetResponse } from '../lib/acoustic/cabinetResponse'
-import { calcBaffleStep } from '../lib/acoustic/baffle'
+import { calcBaffleStep, calcBaffleStepCompensation } from '../lib/acoustic/baffle'
 import { resampleToFreqs } from '../lib/acoustic/preferenceOptimizer'
 import type { Driver, FrequencyDataPoint, DesignBand, CabinetType, CrossoverType } from '../types'
 
@@ -44,8 +44,13 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
 
   // Baffle step
   const baffleStepResult = calcBaffleStep(baffleWidth, baffleHeight, freqs)
-  const fStep = 343000 / (2 * Math.max(baffleWidth, baffleHeight))
+  // fStep must match calcBaffleStep's internal calculation (uses baffleWidth,
+  // NOT Math.max(width, height)). Mismatch caused midrange fade-out at wrong freq.
+  const fStep = 343000 / (2 * baffleWidth)
   const fStep3x = fStep * 3
+  // Baffle step compensation: +6 dB low-shelf at fStep. Any real active
+  // speaker includes this EQ. Without it, -6 dB dip in 200-600 Hz region.
+  const baffleComp = calcBaffleStepCompensation(fStep, 6, freqs)
 
   const activeBands = bands.slice(0, ways)
   const processedBands: SimWorkerOutput['processedBands'] = []
@@ -98,11 +103,13 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
     if (isLowDriver || isMidDriver) {
       curve = curve.map((p, i) => {
         let bsFactor = baffleStepResult.response[i] ?? 0
+        let compFactor = baffleComp[i] ?? 0
         if (isMidDriver && p.freq > fStep3x) {
           const t = Math.min(1, (p.freq - fStep) / (fStep3x - fStep))
           bsFactor *= (1 - t)
+          compFactor *= (1 - t)
         }
-        return { freq: p.freq, magnitude: p.magnitude + bsFactor }
+        return { freq: p.freq, magnitude: p.magnitude + bsFactor + compFactor }
       })
     }
 
