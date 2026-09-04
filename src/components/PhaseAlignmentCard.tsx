@@ -6,8 +6,8 @@
 
 import { useMemo } from 'react'
 import { generateFrequencies } from '@/lib/acoustic/thieleSmall'
-import { buildCrossoverFilter, filterPhaseRad } from '@/lib/acoustic/crossover'
-import type { CrossoverType } from '@/types'
+import { buildCrossoverFilter, filterPhaseRad, buildEqBiquad, eqBiquadPhaseRad } from '@/lib/acoustic/crossover'
+import type { CrossoverType, EQFilter } from '@/types'
 import { Card, Select } from '@/components/common/UI'
 
 interface Band {
@@ -21,6 +21,7 @@ interface Band {
   lowpassType: string
   highpassFreq: number
   highpassType: string
+  eqFilters?: EQFilter[]
 }
 
 interface Props {
@@ -83,6 +84,15 @@ export function PhaseAlignmentCard({ bands, ways, onPolarityChange }: Props) {
         let phaseRad = 0
         if (hpFilter) phaseRad += filterPhaseRad(hpFilter, f, SAMPLE_RATE)
         if (lpFilter) phaseRad += filterPhaseRad(lpFilter, f, SAMPLE_RATE)
+
+        // EQ filter phase
+        if (band.eqFilters) {
+          for (const eq of band.eqFilters) {
+            if (!eq.enabled || eq.gain === 0) continue
+            const eqBiquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, SAMPLE_RATE)
+            phaseRad += eqBiquadPhaseRad(eqBiquad, f, SAMPLE_RATE)
+          }
+        }
 
         // Polarity adds π radians (180°)
         if (band.polarity === 180) phaseRad += Math.PI

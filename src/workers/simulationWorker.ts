@@ -7,7 +7,7 @@
 // This avoids blocking the UI during re-renders when sliders/inputs change.
 
 import { generateFrequencies } from '../lib/acoustic/thieleSmall'
-import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, type CrossoverFilter } from '../lib/acoustic/crossover'
+import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, buildEqBiquad, applyEqBiquad, eqBiquadPhaseRad, type CrossoverFilter, type BiquadCoeffs } from '../lib/acoustic/crossover'
 import { calcCabinetResponse } from '../lib/acoustic/cabinetResponse'
 import { calcBaffleStep, calcBaffleStepCompensation } from '../lib/acoustic/baffle'
 import { resampleToFreqs } from '../lib/acoustic/preferenceOptimizer'
@@ -55,7 +55,7 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
   const activeBands = bands.slice(0, ways)
   const processedBands: SimWorkerOutput['processedBands'] = []
   // Store crossover filters for each band so we can compute phase in the sum
-  const bandFilters: { lp: CrossoverFilter | null; hp: CrossoverFilter | null }[] = []
+  const bandFilters: { lp: CrossoverFilter | null; hp: CrossoverFilter | null; eqs: BiquadCoeffs[] }[] = []
 
   for (const band of activeBands) {
     const driver = drivers.find((d) => d.id === band.driverId)
@@ -126,9 +126,23 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
       curve = applyCrossover(hpFilter, curve)
     }
 
+    // Apply per-band EQ filters (low-shelf, high-shelf, PEQ)
+    // Only for bands with active crossover filters in this design
+    const hasActiveXover = (band.lowpassFreq > 0 && band.lowpassFreq < 20000) || (band.highpassFreq > 0)
+    const eqBiquads: BiquadCoeffs[] = []
+    if (hasActiveXover && band.eqFilters) {
+      const SAMPLE_RATE_EQ = 48000
+      for (const eq of band.eqFilters) {
+        if (!eq.enabled || eq.gain === 0) continue
+        const biquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, SAMPLE_RATE_EQ)
+        eqBiquads.push(biquad)
+        curve = applyEqBiquad(biquad, curve, SAMPLE_RATE_EQ)
+      }
+    }
+
     curve = applyGainAndPolarity(curve, band.gain, band.polarity)
 
-    bandFilters.push({ lp: lpFilter, hp: hpFilter })
+    bandFilters.push({ lp: lpFilter, hp: hpFilter, eqs: eqBiquads })
     processedBands.push({ band, driverId: band.driverId, curve, hasRealResponse })
   }
 
@@ -148,10 +162,13 @@ self.onmessage = (e: MessageEvent<SimWorkerInput>) => {
       const db = pb.curve[fi]?.magnitude ?? 0
       const mag = Math.pow(10, db / 20)
 
-      // Total phase: filter phase + polarity + delay
+      // Total phase: filter phase + EQ phase + polarity + delay
       let phase = 0
       if (filters.hp) phase += filterPhaseRad(filters.hp, f, SAMPLE_RATE)
       if (filters.lp) phase += filterPhaseRad(filters.lp, f, SAMPLE_RATE)
+      for (const eqBiquad of filters.eqs) {
+        phase += eqBiquadPhaseRad(eqBiquad, f, SAMPLE_RATE)
+      }
       if (pb.band.polarity === 180) phase += Math.PI
       if (pb.band.delay > 0) phase += -2 * Math.PI * f * pb.band.delay * 0.001
 

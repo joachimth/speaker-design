@@ -14,8 +14,8 @@
 // Our internal BiquadCoeffs uses the denominator form: 1 + a1*z^-1 + a2*z^-2
 // So for MiniDSP export we negate a1 and a2.
 
-import { buildCrossoverFilter, type BiquadCoeffs, type CrossoverFilter } from './crossover'
-import type { CrossoverType, DesignState } from '@/types'
+import { buildCrossoverFilter, buildEqBiquad, type BiquadCoeffs, type CrossoverFilter } from './crossover'
+import type { CrossoverType, DesignState, EQFilterKind } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -135,6 +135,31 @@ export function exportBiquads(
         delayMs: band.delay,
       })
     }
+
+    // EQ filters (low-shelf, high-shelf, PEQ)
+    if (band.eqFilters) {
+      const eqLabels: Record<EQFilterKind, string> = {
+        low_shelf: 'Low Shelf',
+        high_shelf: 'High Shelf',
+        peaking: 'PEQ',
+      }
+      for (const eq of band.eqFilters) {
+        if (!eq.enabled) continue
+        const biquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, sampleRate)
+        bands.push({
+          label: `${roleLabels[band.role] || band.role} - ${eqLabels[eq.kind]} ${eq.freq}Hz ${eq.gain > 0 ? '+' : ''}${eq.gain}dB Q${eq.q}`,
+          role: band.role,
+          driverId: band.driverId,
+          filterType: eq.kind,
+          fc: eq.freq,
+          isHighpass: false,
+          sections: [toMiniDspSection(biquad)],
+          gainDb: band.gain,
+          polarity: band.polarity,
+          delayMs: band.delay,
+        })
+      }
+    }
   }
 
   const text = formatText(bands, sampleRate)
@@ -196,6 +221,7 @@ export interface MiniDsp4x10Output {
   delayMs: number
   lowpass?: { type: string; fc: number; sections: MiniDspBiquadSection[] }
   highpass?: { type: string; fc: number; sections: MiniDspBiquadSection[] }
+  eqFilters?: { kind: string; freq: number; gain: number; q: number; sections: MiniDspBiquadSection[] }[]
 }
 
 export interface MiniDsp4x10Result {
@@ -264,6 +290,22 @@ export function export4x10HD(
       }
     }
 
+    // EQ filters
+    if (band.eqFilters) {
+      output.eqFilters = []
+      for (const eq of band.eqFilters) {
+        if (!eq.enabled) continue
+        const biquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, sampleRate)
+        output.eqFilters.push({
+          kind: eq.kind,
+          freq: eq.freq,
+          gain: eq.gain,
+          q: eq.q,
+          sections: [toMiniDspSection(biquad)],
+        })
+      }
+    }
+
     outputs.push(output)
   }
 
@@ -309,6 +351,16 @@ function format4x10Text(outputs: MiniDsp4x10Output[], sampleRate: number, ways: 
       }
     }
 
+    if (out.eqFilters && out.eqFilters.length > 0) {
+      lines.push(`# --- EQ Filters ---`)
+      for (let i = 0; i < out.eqFilters.length; i++) {
+        const eq = out.eqFilters[i]!
+        const s = eq.sections[0]!
+        lines.push(`# EQ ${i + 1}: ${eq.kind} @ ${eq.freq} Hz, ${eq.gain > 0 ? '+' : ''}${eq.gain} dB, Q=${eq.q}`)
+        lines.push(`${s.b0.toFixed(10)}, ${s.b1.toFixed(10)}, ${s.b2.toFixed(10)}, ${s.a1.toFixed(10)}, ${s.a2.toFixed(10)}`)
+      }
+    }
+
     // Q23 hex
     lines.push(`# Q23 hex (for XML editing at ${sampleRate} Hz):`)
     if (out.highpass) {
@@ -321,6 +373,13 @@ function format4x10Text(outputs: MiniDsp4x10Output[], sampleRate: number, ways: 
       for (let i = 0; i < out.lowpass.sections.length; i++) {
         const s = out.lowpass.sections[i]!
         lines.push(`#   LP Sec ${i + 1}: B0=${toQ23Hex(s.b0)} B1=${toQ23Hex(s.b1)} B2=${toQ23Hex(s.b2)} A1=${toQ23Hex(s.a1)} A2=${toQ23Hex(s.a2)}`)
+      }
+    }
+    if (out.eqFilters) {
+      for (let i = 0; i < out.eqFilters.length; i++) {
+        const eq = out.eqFilters[i]!
+        const s = eq.sections[0]!
+        lines.push(`#   EQ ${i + 1} (${eq.kind} ${eq.freq}Hz ${eq.gain > 0 ? '+' : ''}${eq.gain}dB Q${eq.q}): B0=${toQ23Hex(s.b0)} B1=${toQ23Hex(s.b1)} B2=${toQ23Hex(s.b2)} A1=${toQ23Hex(s.a1)} A2=${toQ23Hex(s.a2)}`)
       }
     }
   }
@@ -365,6 +424,16 @@ function format4x10JSON(outputs: MiniDsp4x10Output[], sampleRate: number): strin
           q23hex: { b0: toQ23Hex(s.b0), b1: toQ23Hex(s.b1), b2: toQ23Hex(s.b2), a1: toQ23Hex(s.a1), a2: toQ23Hex(s.a2) },
         })),
       } : null,
+      eqFilters: out.eqFilters ? out.eqFilters.map((eq) => ({
+        kind: eq.kind,
+        freq: eq.freq,
+        gain: eq.gain,
+        q: eq.q,
+        sections: eq.sections.map((s) => ({
+          b0: s.b0, b1: s.b1, b2: s.b2, a1: s.a1, a2: s.a2,
+          q23hex: { b0: toQ23Hex(s.b0), b1: toQ23Hex(s.b1), b2: toQ23Hex(s.b2), a1: toQ23Hex(s.a1), a2: toQ23Hex(s.a2) },
+        })),
+      })) : null,
     })),
   }, null, 2)
 }

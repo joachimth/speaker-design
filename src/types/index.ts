@@ -134,6 +134,21 @@ export interface Cabinet {
 
 export type CrossoverType = 'LR4' | 'LR2' | 'LR8' | 'BW4' | 'BW2' | 'BW1' | 'first_order';
 
+// ---------------------------------------------------------------------------
+// Per-band EQ filters (low-shelf, high-shelf, PEQ)
+// ---------------------------------------------------------------------------
+
+export type EQFilterKind = 'low_shelf' | 'high_shelf' | 'peaking';
+
+export interface EQFilter {
+  id: string;
+  kind: EQFilterKind;
+  freq: number;    // [Hz] corner/center frequency
+  gain: number;    // [dB] boost or cut
+  q: number;       // quality factor (bandwidth / transition sharpness)
+  enabled: boolean;
+}
+
 export interface CrossoverBand {
   id: string;
   driverId: string;
@@ -145,6 +160,7 @@ export interface CrossoverBand {
   polarity: 0 | 180;     // phase inversion
   delay: number;         // [ms] time alignment delay
   gain: number;          // [dB] level matching
+  eqFilters?: EQFilter[];
 }
 
 export interface Crossover {
@@ -167,6 +183,7 @@ export interface DesignBand {
   gain: number;
   polarity: 0 | 180;
   delay: number;
+  eqFilters?: EQFilter[];  // per-band EQ (low-shelf, high-shelf, PEQ)
 }
 
 export interface RoomParams {

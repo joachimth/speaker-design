@@ -24,9 +24,10 @@ import { PolarDiagram, DirectivityMap, DirectivitySurface } from '@/components/c
 import { ResponsivePlot } from '@/components/charts/ResponsivePlot'
 import { TimeAlignmentCard } from '@/components/TimeAlignmentCard'
 import { PhaseAlignmentCard } from '@/components/PhaseAlignmentCard'
+import { EQFiltersCard } from '@/components/EQFiltersCard'
 import { CrossoverSlider } from '@/components/CrossoverSlider'
 import { NextStep } from '@/components/NextStep'
-import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project, Cabinet } from '@/types'
+import type { CrossoverType, FrequencyDataPoint, Driver, CabinetType, DesignState, Project, Cabinet, EQFilter } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -74,6 +75,7 @@ interface Band {
   gain: number
   polarity: 0 | 180
   delay: number
+  eqFilters?: EQFilter[]
 }
 
 const DEFAULT_BANDS_2: Band[] = [
@@ -1361,6 +1363,13 @@ export default function SystemSimulation() {
         ways={ways}
         onPolarityChange={(i, pol) => updateBand(i, { polarity: pol })}
         onDelayChange={(i, delay) => updateBand(i, { delay })}
+      />
+
+      {/* Per-band EQ filters */}
+      <EQFiltersCard
+        bands={bands.slice(0, ways)}
+        ways={ways}
+        onEqChange={(i, eqFilters) => updateBand(i, { eqFilters })}
       />
 
       {/* Preference Score (Harman/Olive model) */}

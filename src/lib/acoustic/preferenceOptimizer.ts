@@ -16,7 +16,7 @@ import type {
   FrequencyDataPoint,
   CabinetType,
 } from '@/types';
-import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad } from './crossover';
+import { buildCrossoverFilter, applyCrossover, applyGainAndPolarity, filterPhaseRad, buildEqBiquad, applyEqBiquad, eqBiquadPhaseRad, type BiquadCoeffs } from './crossover';
 import { calcCabinetResponse } from './cabinetResponse';
 import { calcBaffleStep, calcBaffleStepCompensation } from './baffle';
 import { calcSpinoramaMultiDriver } from './directivity';
@@ -133,7 +133,7 @@ export function simulateOnAxisWithBands(
   // region that the gain optimizer cannot fix (band 0 gain locked at 0).
   const baffleComp = calcBaffleStepCompensation(fStep, 6, freqs);
 
-  const bandCurves: { curve: FrequencyDataPoint[]; band: DesignBand; filters: { lp: ReturnType<typeof buildCrossoverFilter> | null; hp: ReturnType<typeof buildCrossoverFilter> | null } }[] = [];
+  const bandCurves: { curve: FrequencyDataPoint[]; band: DesignBand; filters: { lp: ReturnType<typeof buildCrossoverFilter> | null; hp: ReturnType<typeof buildCrossoverFilter> | null; eqs: BiquadCoeffs[] } }[] = [];
 
   for (const band of bands) {
     const driver = drivers.find((d) => d.id === band.driverId);
@@ -205,12 +205,25 @@ export function simulateOnAxisWithBands(
       curve = applyCrossover(hpFilter, curve, SAMPLE_RATE);
     }
 
+    // Apply per-band EQ filters (low-shelf, high-shelf, PEQ)
+    // Only for bands with active crossover filters in this design
+    const hasActiveXover = (band.lowpassFreq > 0 && band.lowpassFreq < 20000) || (band.highpassFreq > 0);
+    const eqBiquads: BiquadCoeffs[] = [];
+    if (hasActiveXover && band.eqFilters) {
+      for (const eq of band.eqFilters) {
+        if (!eq.enabled || eq.gain === 0) continue;
+        const biquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, SAMPLE_RATE);
+        eqBiquads.push(biquad);
+        curve = applyEqBiquad(biquad, curve, SAMPLE_RATE);
+      }
+    }
+
     curve = applyGainAndPolarity(curve, band.gain, band.polarity);
 
-    bandCurves.push({ curve, band, filters: { lp: lpFilter, hp: hpFilter } });
+    bandCurves.push({ curve, band, filters: { lp: lpFilter, hp: hpFilter, eqs: eqBiquads } });
   }
 
-  // Complex voltage sum with filter phase + polarity + delay
+  // Complex voltage sum with filter phase + polarity + delay + EQ phase
   const summed = freqs.map((f, fi) => {
     let sumReal = 0;
     let sumImag = 0;
@@ -221,6 +234,9 @@ export function simulateOnAxisWithBands(
       let phase = 0;
       if (bc.filters.hp) phase += filterPhaseRad(bc.filters.hp, f, SAMPLE_RATE);
       if (bc.filters.lp) phase += filterPhaseRad(bc.filters.lp, f, SAMPLE_RATE);
+      for (const eqBiquad of bc.filters.eqs) {
+        phase += eqBiquadPhaseRad(eqBiquad, f, SAMPLE_RATE);
+      }
       if (bc.band.polarity === 180) phase += Math.PI;
       if (bc.band.delay > 0) phase += -2 * Math.PI * f * bc.band.delay * 0.001;
 
@@ -725,6 +741,14 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
       }
       if (lower.polarity === 180) lowerPhase += Math.PI;
       if (lower.delay > 0) lowerPhase += -2 * Math.PI * xoFreq * lower.delay * 0.001;
+      // EQ filter phase
+      if (lower.eqFilters) {
+        for (const eq of lower.eqFilters) {
+          if (!eq.enabled || eq.gain === 0) continue;
+          const eqBiquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, SAMPLE_RATE);
+          lowerPhase += eqBiquadPhaseRad(eqBiquad, xoFreq, SAMPLE_RATE);
+        }
+      }
 
       // Compute phase for upper band at XO
       let upperPhase = 0;
@@ -738,6 +762,14 @@ export function optimizeForPreferenceScore(params: OptimizationParams): Optimiza
       }
       if (upper.polarity === 180) upperPhase += Math.PI;
       if (upper.delay > 0) upperPhase += -2 * Math.PI * xoFreq * upper.delay * 0.001;
+      // EQ filter phase
+      if (upper.eqFilters) {
+        for (const eq of upper.eqFilters) {
+          if (!eq.enabled || eq.gain === 0) continue;
+          const eqBiquad = buildEqBiquad(eq.kind, eq.freq, eq.gain, eq.q, SAMPLE_RATE);
+          upperPhase += eqBiquadPhaseRad(eqBiquad, xoFreq, SAMPLE_RATE);
+        }
+      }
 
       let diffDeg = Math.abs((lowerPhase - upperPhase) * 180 / Math.PI);
       diffDeg = ((diffDeg % 360) + 540) % 360 - 180;

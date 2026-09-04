@@ -330,3 +330,153 @@ export function crossoverSlopeDbPerOctave(type: CrossoverType): number {
   };
   return slopes[type] ?? 24;
 }
+
+// ---------------------------------------------------------------------------
+// RBJ Audio EQ Cookbook biquad filters
+//
+// Reference: Robert Bristow-Johnson, "Cookbook formulae for audio EQ
+// biquad filter coefficients" (Audio EQ Cookbook, 2001).
+//
+// These are standard 2nd-order biquad sections for parametric EQ:
+//   - Low shelf: boost/cut below a corner frequency
+//   - High shelf: boost/cut above a corner frequency
+//   - Peaking (PEQ): boost/cut at a center frequency with given Q/bandwidth
+//
+// All use the bilinear transform with pre-warping. A = 10^(dBgain/40).
+// ---------------------------------------------------------------------------
+
+export type EQFilterType = 'low_shelf' | 'high_shelf' | 'peaking';
+
+/**
+ * Build a 2nd-order low-shelf biquad (RBJ cookbook).
+ *
+ * Boosts or cuts frequencies below fc by gainDb dB.
+ * Q controls the transition steepness (higher Q = sharper transition).
+ */
+export function lowShelfBiquad(fc: number, gainDb: number, Q: number, fs: number): BiquadCoeffs {
+  const A = Math.pow(10, gainDb / 40);
+  const w0 = (2 * Math.PI * fc) / fs;
+  const cosw0 = Math.cos(w0);
+  const sinw0 = Math.sin(w0);
+  const alpha = sinw0 / (2 * Q);
+  const sqrtA = Math.sqrt(A);
+
+  const b0 = A * ((A + 1) - (A - 1) * cosw0 + 2 * sqrtA * alpha);
+  const b1 = 2 * A * ((A - 1) - (A + 1) * cosw0);
+  const b2 = A * ((A + 1) - (A - 1) * cosw0 - 2 * sqrtA * alpha);
+  const a0 = (A + 1) + (A - 1) * cosw0 + 2 * sqrtA * alpha;
+  const a1 = -2 * ((A - 1) + (A + 1) * cosw0);
+  const a2 = (A + 1) + (A - 1) * cosw0 - 2 * sqrtA * alpha;
+
+  return {
+    b0: b0 / a0,
+    b1: b1 / a0,
+    b2: b2 / a0,
+    a1: a1 / a0,
+    a2: a2 / a0,
+  };
+}
+
+/**
+ * Build a 2nd-order high-shelf biquad (RBJ cookbook).
+ *
+ * Boosts or cuts frequencies above fc by gainDb dB.
+ */
+export function highShelfBiquad(fc: number, gainDb: number, Q: number, fs: number): BiquadCoeffs {
+  const A = Math.pow(10, gainDb / 40);
+  const w0 = (2 * Math.PI * fc) / fs;
+  const cosw0 = Math.cos(w0);
+  const sinw0 = Math.sin(w0);
+  const alpha = sinw0 / (2 * Q);
+  const sqrtA = Math.sqrt(A);
+
+  const b0 = A * ((A + 1) + (A - 1) * cosw0 + 2 * sqrtA * alpha);
+  const b1 = -2 * A * ((A - 1) + (A + 1) * cosw0);
+  const b2 = A * ((A + 1) + (A - 1) * cosw0 - 2 * sqrtA * alpha);
+  const a0 = (A + 1) - (A - 1) * cosw0 + 2 * sqrtA * alpha;
+  const a1 = 2 * ((A - 1) - (A + 1) * cosw0);
+  const a2 = (A + 1) - (A - 1) * cosw0 - 2 * sqrtA * alpha;
+
+  return {
+    b0: b0 / a0,
+    b1: b1 / a0,
+    b2: b2 / a0,
+    a1: a1 / a0,
+    a2: a2 / a0,
+  };
+}
+
+/**
+ * Build a 2nd-order peaking biquad (RBJ cookbook).
+ *
+ * Boosts or cuts at center frequency fc by gainDb dB with bandwidth Q.
+ */
+export function peakingBiquad(fc: number, gainDb: number, Q: number, fs: number): BiquadCoeffs {
+  const A = Math.pow(10, gainDb / 40);
+  const w0 = (2 * Math.PI * fc) / fs;
+  const cosw0 = Math.cos(w0);
+  const sinw0 = Math.sin(w0);
+  const alpha = sinw0 / (2 * Q);
+
+  const b0 = 1 + alpha * A;
+  const b1 = -2 * cosw0;
+  const b2 = 1 - alpha * A;
+  const a0 = 1 + alpha / A;
+  const a1 = -2 * cosw0;
+  const a2 = 1 - alpha / A;
+
+  return {
+    b0: b0 / a0,
+    b1: b1 / a0,
+    b2: b2 / a0,
+    a1: a1 / a0,
+    a2: a2 / a0,
+  };
+}
+
+/**
+ * Build a biquad section from EQ filter parameters.
+ * Returns a single BiquadCoeffs (EQ filters are typically single-section,
+ * unlike crossovers which cascade multiple sections).
+ */
+export function buildEqBiquad(
+  type: EQFilterType,
+  fc: number,
+  gainDb: number,
+  Q: number,
+  fs: number = 48000,
+): BiquadCoeffs {
+  switch (type) {
+    case 'low_shelf':
+      return lowShelfBiquad(fc, gainDb, Q, fs);
+    case 'high_shelf':
+      return highShelfBiquad(fc, gainDb, Q, fs);
+    case 'peaking':
+      return peakingBiquad(fc, gainDb, Q, fs);
+    default:
+      return { b0: 1, b1: 0, b2: 0, a1: 0, a2: 0 };
+  }
+}
+
+/**
+ * Apply a single EQ biquad to frequency-domain data.
+ * Returns the filtered response in dB.
+ */
+export function applyEqBiquad(
+  coeffs: BiquadCoeffs,
+  inputCurve: FrequencyDataPoint[],
+  sampleRate: number = 48000,
+): FrequencyDataPoint[] {
+  return inputCurve.map((point) => ({
+    freq: point.freq,
+    magnitude: point.magnitude + biquadMagnitudeDb(coeffs, point.freq, sampleRate),
+  }));
+}
+
+/**
+ * Evaluate the phase of an EQ biquad at frequency f.
+ * Returns phase in radians (same convention as biquadPhaseRad).
+ */
+export function eqBiquadPhaseRad(coeffs: BiquadCoeffs, f: number, sampleRate: number = 48000): number {
+  return biquadPhaseRad(coeffs, f, sampleRate);
+}
